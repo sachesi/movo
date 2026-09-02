@@ -1,0 +1,39 @@
+[package]
+name = "movo-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["sachesi <xsachesi@pm.me>"]
+description = "Headless core engine for HDRezka client"
+license = "GPL-3.0-only"
+
+[dependencies]
+# Async runtime & Networking
+tokio = { version = "1.43", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "cookies", "gzip", "brotli", "multipart"] }
+
+# HTML Scraping, Regex & Crypto
+scraper = "0.22"
+regex = "1.11"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+url = "2.5"
+
+# Serialization & Storage
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_urlencoded = "0.7"
+directories = "6.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Media, Cache & Logging
+image = "0.25"
+log = "0.4"
+env_logger = "0.11"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+keyring = "=4.1.6"
+
+[lib]
+name = "movo_core"
+path = "src/lib.rs"
