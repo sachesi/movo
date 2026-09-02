@@ -1,0 +1,757 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Movo\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-02 19:33+0300\n"
+"PO-Revision-Date: 2026-08-26 00:00+0300\n"
+"Last-Translator: Movo contributors\n"
+"Language-Team: Ukrainian\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: crates/movo-desktop/src/app.rs:94
+#: crates/movo-desktop/src/dialogs/settings.rs:38
+msgid "Settings"
+msgstr "Налаштування"
+
+#: crates/movo-desktop/src/app.rs:100
+msgid "About Movo"
+msgstr "Про застосунок Movo"
+
+#: crates/movo-desktop/src/app.rs:208
+#: crates/movo-desktop/src/dialogs/settings.rs:101
+msgid "Home"
+msgstr "Головна"
+
+#: crates/movo-desktop/src/app.rs:215
+#: crates/movo-desktop/src/dialogs/settings.rs:102
+#: crates/movo-desktop/src/views/home.rs:166
+msgid "Catalog"
+msgstr "Каталог"
+
+#: crates/movo-desktop/src/app.rs:222
+#: crates/movo-desktop/src/dialogs/settings.rs:103
+#: crates/movo-desktop/src/views/search.rs:462
+msgid "Search"
+msgstr "Пошук"
+
+#: crates/movo-desktop/src/app.rs:229
+#: crates/movo-desktop/src/dialogs/settings.rs:104
+#: crates/movo-desktop/src/views/details.rs:457
+msgid "Collections"
+msgstr "Колекції"
+
+#: crates/movo-desktop/src/app.rs:236
+#: crates/movo-desktop/src/dialogs/settings.rs:105
+msgid "Notifications"
+msgstr "Сповіщення"
+
+#: crates/movo-desktop/src/app.rs:243
+#: crates/movo-desktop/src/dialogs/settings.rs:106
+msgid "Favorites"
+msgstr "Обране"
+
+#: crates/movo-desktop/src/app.rs:250
+#: crates/movo-desktop/src/dialogs/settings.rs:107
+msgid "History"
+msgstr "Історія"
+
+#: crates/movo-desktop/src/app.rs:319
+msgid "Your session has ended. Sign in again to continue."
+msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
+
+#: crates/movo-desktop/src/app.rs:341
+msgid "Signed in as {}"
+msgstr "Ви увійшли як {}"
+
+#: crates/movo-desktop/src/dialogs/actor.rs:23
+#: crates/movo-desktop/src/dialogs/settings.rs:351
+msgid "Profile"
+msgstr "Профіль"
+
+#: crates/movo-desktop/src/dialogs/actor.rs:41
+msgid "Loading the profile stopped unexpectedly"
+msgstr "Завантаження профілю несподівано перервалося"
+
+#: crates/movo-desktop/src/dialogs/actor.rs:118
+msgid "Roles"
+msgstr "Ролі"
+
+#: crates/movo-desktop/src/dialogs/actor.rs:133
+msgid "Filmography"
+msgstr "Фільмографія"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:21
+#: crates/movo-desktop/src/views/details.rs:768
+msgid "Comments"
+msgstr "Коментарі"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:41
+msgid "Previous"
+msgstr "Назад"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:42
+msgid "Next"
+msgstr "Далі"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:125
+msgid "Loading comments stopped unexpectedly"
+msgstr "Завантаження коментарів несподівано перервалося"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:132
+msgid "Page {} of {}"
+msgstr "Сторінка {} з {}"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:199
+msgid "Show Spoiler"
+msgstr "Показати спойлер"
+
+#: crates/movo-desktop/src/dialogs/comments.rs:233
+msgid "Liking the comment stopped unexpectedly"
+msgstr "Надсилання вподобання несподівано перервалося"
+
+#: crates/movo-desktop/src/dialogs/login.rs:21
+msgid "Sign In to HDRezka"
+msgstr "Вхід до HDRezka"
+
+#: crates/movo-desktop/src/dialogs/login.rs:25
+msgid "Account"
+msgstr "Обліковий запис"
+
+#: crates/movo-desktop/src/dialogs/login.rs:27
+msgid "Sign in with your HDRezka account to sync favorites and history."
+msgstr ""
+"Увійдіть в обліковий запис HDRezka, щоб синхронізувати обране та історію."
+
+#: crates/movo-desktop/src/dialogs/login.rs:32
+msgid "Username or Email"
+msgstr "Логін або електронна пошта"
+
+#: crates/movo-desktop/src/dialogs/login.rs:35
+msgid "Password"
+msgstr "Пароль"
+
+#: crates/movo-desktop/src/dialogs/login.rs:49
+#: crates/movo-desktop/src/dialogs/settings.rs:401
+#: crates/movo-desktop/src/ui/content.rs:35
+msgid "Sign In"
+msgstr "Увійти"
+
+#: crates/movo-desktop/src/dialogs/login.rs:100
+msgid "Enter your username and password"
+msgstr "Введіть логін і пароль"
+
+#: crates/movo-desktop/src/dialogs/login.rs:118
+msgid "Signing in stopped unexpectedly"
+msgstr "Вхід несподівано перервався"
+
+#: crates/movo-desktop/src/dialogs/rating.rs:18
+msgid "Rate This Title"
+msgstr "Оцінити матеріал"
+
+#: crates/movo-desktop/src/dialogs/rating.rs:19
+msgid "The provider accepts whole numbers from 1 to 10."
+msgstr "Провайдер приймає цілі числа від 1 до 10."
+
+#: crates/movo-desktop/src/dialogs/rating.rs:22
+#: crates/movo-desktop/src/dialogs/settings.rs:425
+#: crates/movo-desktop/src/playback/launcher.rs:568
+msgid "Cancel"
+msgstr "Скасувати"
+
+#: crates/movo-desktop/src/dialogs/rating.rs:22
+#: crates/movo-desktop/src/views/details.rs:760
+msgid "Rate"
+msgstr "Оцінити"
+
+#: crates/movo-desktop/src/dialogs/rating.rs:44
+msgid "Sending the rating stopped unexpectedly"
+msgstr "Надсилання оцінки несподівано перервалося"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:66
+msgid "Appearance"
+msgstr "Оформлення"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:70
+msgid "Theme"
+msgstr "Тема"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:72
+msgid "System"
+msgstr "Системна"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:73
+msgid "Light"
+msgstr "Світла"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:74
+msgid "Dark"
+msgstr "Темна"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:99
+msgid "Initial Screen"
+msgstr "Початковий екран"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:132
+#: crates/movo-desktop/src/views/details.rs:698
+msgid "Playback"
+msgstr "Перегляд"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:133
+msgid "Titles play in an external player, mpv by default."
+msgstr "Відео відтворюється у зовнішньому програвачі, типово mpv."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:137
+msgid "Default Quality"
+msgstr "Типова якість"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:161
+msgid "Ask Quality Before Playback"
+msgstr "Питати якість перед відтворенням"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:162
+msgid "Show the quality picker every time playback starts"
+msgstr "Показувати вибір якості під час кожного запуску"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:177
+msgid "Auto-Next Episode"
+msgstr "Автоперехід до наступної серії"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:178
+msgid "Continue with the next episode when one finishes"
+msgstr "Продовжувати з наступної серії після завершення"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:193
+msgid "Sort Voice-overs by Rating"
+msgstr "Сортувати озвучення за рейтингом"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:194
+msgid "Show the highest-rated provider voice-overs first"
+msgstr "Спочатку показувати озвучення з найвищим рейтингом провайдера"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:213
+msgid "Cache"
+msgstr "Кеш"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:215
+msgid "Clear Image Cache"
+msgstr "Очистити кеш зображень"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:216
+msgid "Removes saved covers and posters from disk"
+msgstr "Видаляє збережені обкладинки й постери з диска"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:219
+#: crates/movo-desktop/src/views/search.rs:144
+msgid "Clear"
+msgstr "Очистити"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:228
+msgid "Cleared"
+msgstr "Очищено"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:269
+msgid "Player Command"
+msgstr "Команда програвача"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:275
+msgid "Player"
+msgstr "Програвач"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:277
+msgid "mpv"
+msgstr "mpv"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:278
+msgid "VLC"
+msgstr "VLC"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:279
+msgid "Ask Every Time"
+msgstr "Запитувати щоразу"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:280
+msgid "System Default"
+msgstr "Системний за замовчуванням"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:281
+msgid "Custom Command"
+msgstr "Власна команда"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:292
+msgid "{} was not found on this system"
+msgstr "{} не знайдено в системі"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:294
+msgid "The chosen application receives no headers, so playback may be refused."
+msgstr ""
+"Обрана програма не отримує заголовки, тому відтворення може бути відхилено."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:297
+msgid "The system handler receives no headers, so playback may be refused."
+msgstr ""
+"Системний обробник не отримує заголовки, тому відтворення може бути "
+"відхилено."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:300
+msgid "Progress is only tracked with mpv."
+msgstr "Прогрес відстежується лише з mpv."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:347
+msgid "HDRezka Account"
+msgstr "Обліковий запис HDRezka"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:348
+msgid "Sign in to sync favorites, history and premium quality"
+msgstr ""
+"Увійдіть, щоб синхронізувати обране, історію та отримати преміум-якість"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:382
+msgid "Premium: {} days"
+msgstr "Преміум: {} дн."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:383
+msgid "VIP / Premium"
+msgstr "VIP / Преміум"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:384
+msgid "Standard"
+msgstr "Стандартний"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:392
+#: crates/movo-desktop/src/dialogs/settings.rs:425
+msgid "Sign Out"
+msgstr "Вийти"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:399
+msgid "Not signed in"
+msgstr "Вхід не виконано"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:400
+msgid "Sign in to sync favorites and unlock premium quality"
+msgstr "Увійдіть, щоб синхронізувати обране та відкрити преміум-якість"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:421
+msgid "Sign out?"
+msgstr "Вийти з облікового запису?"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:422
+msgid "Local session data will be removed from this device."
+msgstr "Локальні дані сеансу буде видалено з цього пристрою."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:434
+msgid "Signing out stopped unexpectedly"
+msgstr "Вихід несподівано перервався"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:439
+msgid "Signed out, but the stored session was not removed"
+msgstr "Вихід виконано, але збережений сеанс не видалено"
+
+#: crates/movo-desktop/src/i18n.rs:66
+#: crates/movo-desktop/src/views/details.rs:990
+msgid "Season {}"
+msgstr "Сезон {}"
+
+#: crates/movo-desktop/src/i18n.rs:59
+msgid "ru"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:92
+#: crates/movo-desktop/src/playback/launcher.rs:184
+msgid "Sign in to play this title"
+msgstr "Увійдіть, щоб дивитися"
+
+#: crates/movo-desktop/src/playback/launcher.rs:118
+msgid "Voice-over {} was not found"
+msgstr "Озвучення {} не знайдено"
+
+#: crates/movo-desktop/src/playback/launcher.rs:142
+msgid "No streams are available for the selected voice-over."
+msgstr "Для вибраного озвучення немає доступних потоків."
+
+#: crates/movo-desktop/src/playback/launcher.rs:295
+msgid "The provider returned no playable stream for this quality."
+msgstr "Провайдер не повернув потік для цієї якості."
+
+#: crates/movo-desktop/src/playback/launcher.rs:322
+#: crates/movo-desktop/src/views/details.rs:974
+msgid "Premium · {}"
+msgstr "Преміум · {}"
+
+#: crates/movo-desktop/src/playback/launcher.rs:391
+#: crates/movo-desktop/src/playback/launcher.rs:410
+msgid "Starting MPV stopped unexpectedly"
+msgstr "Запуск MPV несподівано перервався"
+
+#: crates/movo-desktop/src/playback/launcher.rs:392
+#: crates/movo-desktop/src/playback/launcher.rs:411
+#: crates/movo-desktop/src/playback/launcher.rs:425
+#: crates/movo-desktop/src/playback/launcher.rs:438
+msgid "Could not start {}: {}"
+msgstr "Не вдалося запустити {}: {}"
+
+#: crates/movo-desktop/src/playback/launcher.rs:413
+msgid ""
+"MPV opened, but the XDG runtime directory is unavailable; progress is not "
+"tracked."
+msgstr ""
+"MPV відкрито, але каталог виконання XDG недоступний; поступ не відстежується."
+
+#: crates/movo-desktop/src/playback/launcher.rs:424
+msgid "Starting VLC stopped unexpectedly"
+msgstr "Запуск VLC несподівано перервався"
+
+#: crates/movo-desktop/src/playback/launcher.rs:426
+msgid "VLC does not report progress; history is not updated."
+msgstr "VLC не повідомляє прогрес; історія не оновлюється."
+
+#: crates/movo-desktop/src/playback/launcher.rs:437
+msgid "Starting the player stopped unexpectedly"
+msgstr "Запуск програвача несподівано перервався"
+
+#: crates/movo-desktop/src/playback/launcher.rs:439
+msgid "This player does not report progress; history is not updated."
+msgstr "Цей програвач не повідомляє прогрес; історія не оновлюється."
+
+#: crates/movo-desktop/src/playback/launcher.rs:450
+msgid "Opened with the system player; set mpv in Settings for progress."
+msgstr ""
+"Відкрито системним програвачем; вкажіть mpv у налаштуваннях, щоб зберігати "
+"прогрес."
+
+#: crates/movo-desktop/src/playback/launcher.rs:483
+msgid "Open this stream with"
+msgstr "Відкрити потік за допомогою"
+
+#: crates/movo-desktop/src/playback/launcher.rs:564
+msgid "Choose Quality"
+msgstr "Вибір якості"
+
+#: crates/movo-desktop/src/playback/launcher.rs:568
+#: crates/movo-desktop/src/views/details.rs:741
+msgid "Watch"
+msgstr "Дивитися"
+
+#: crates/movo-desktop/src/playback/mpv.rs:183
+msgid "MPV opened, but the history connection was not established."
+msgstr "MPV відкрито, але з'єднання з історією не встановлено."
+
+#: crates/movo-desktop/src/playback/mpv.rs:196
+msgid "MPV opened, but progress tracking did not start."
+msgstr "MPV відкрито, але відстеження поступу не запущено."
+
+#: crates/movo-desktop/src/playback/mpv.rs:223
+msgid "MPV could not play the stream: {}"
+msgstr "MPV не вдалося відтворити потік: {}"
+
+#: crates/movo-desktop/src/playback/mpv.rs:274
+msgid "unknown error"
+msgstr "невідома помилка"
+
+#: crates/movo-desktop/src/views/catalog.rs:65
+#: crates/movo-desktop/src/views/search.rs:422
+msgid "Category"
+msgstr "Категорія"
+
+#: crates/movo-desktop/src/views/catalog.rs:74
+msgid "Sort"
+msgstr "Сортування"
+
+#: crates/movo-desktop/src/views/catalog.rs:92
+msgid "All"
+msgstr "Усі"
+
+#: crates/movo-desktop/src/views/catalog.rs:93
+msgid "Movies"
+msgstr "Фільми"
+
+#: crates/movo-desktop/src/views/catalog.rs:94
+msgid "Series"
+msgstr "Серіали"
+
+#: crates/movo-desktop/src/views/catalog.rs:95
+msgid "Cartoons"
+msgstr "Мультфільми"
+
+#: crates/movo-desktop/src/views/catalog.rs:96
+msgid "Anime"
+msgstr "Аніме"
+
+#: crates/movo-desktop/src/views/catalog.rs:99
+#: crates/movo-desktop/src/views/home.rs:164
+msgid "Popular"
+msgstr "Популярні"
+
+#: crates/movo-desktop/src/views/catalog.rs:100
+#: crates/movo-desktop/src/views/home.rs:163
+msgid "Watching Now"
+msgstr "Зараз дивляться"
+
+#: crates/movo-desktop/src/views/catalog.rs:101
+#: crates/movo-desktop/src/views/home.rs:162
+msgid "New Releases"
+msgstr "Новинки"
+
+#: crates/movo-desktop/src/views/catalog.rs:102
+msgid "Recently Added"
+msgstr "Свіжі"
+
+#: crates/movo-desktop/src/views/catalog.rs:108
+msgid "Loading Catalog"
+msgstr "Завантаження каталогу"
+
+#: crates/movo-desktop/src/views/catalog.rs:110
+msgid "The Catalog Is Empty"
+msgstr "У каталозі поки нічого немає"
+
+#: crates/movo-desktop/src/views/catalog.rs:111
+msgid "The Catalog Did Not Load"
+msgstr "Каталог не завантажився"
+
+#: crates/movo-desktop/src/views/collections.rs:60
+msgid "Loading Collections"
+msgstr "Завантаження колекцій"
+
+#: crates/movo-desktop/src/views/collections.rs:62
+msgid "No Collections"
+msgstr "Немає колекцій"
+
+#: crates/movo-desktop/src/views/collections.rs:63
+msgid "Collections Did Not Load"
+msgstr "Добірки не завантажилися"
+
+#: crates/movo-desktop/src/views/collections.rs:144
+msgid "{} titles"
+msgstr "Матеріалів: {}"
+
+#: crates/movo-desktop/src/views/details.rs:110
+msgid "This Title Did Not Load"
+msgstr "Сторінка не завантажилася"
+
+#: crates/movo-desktop/src/views/details.rs:143
+#: crates/movo-desktop/src/views/path.rs:60
+msgid "Loading"
+msgstr "Завантаження"
+
+#: crates/movo-desktop/src/views/details.rs:230
+msgid "Sign in to manage favorites"
+msgstr "Увійдіть, щоб керувати обраним"
+
+#: crates/movo-desktop/src/views/details.rs:283
+msgid "Sign in to rate this title"
+msgstr "Увійдіть, щоб оцінити"
+
+#: crates/movo-desktop/src/views/details.rs:294
+msgid "Rated {} out of 10"
+msgstr "Оцінка {} з 10"
+
+#: crates/movo-desktop/src/views/details.rs:384
+msgid "No trailer is available for this title"
+msgstr "Трейлер недоступний"
+
+#: crates/movo-desktop/src/views/details.rs:442
+msgid "Episodes"
+msgstr "Серії"
+
+#: crates/movo-desktop/src/views/details.rs:455
+msgid "Genres"
+msgstr "Жанри"
+
+#: crates/movo-desktop/src/views/details.rs:456
+msgid "Countries"
+msgstr "Країни"
+
+#: crates/movo-desktop/src/views/details.rs:458
+msgid "Included In"
+msgstr "Входить до"
+
+#: crates/movo-desktop/src/views/details.rs:467
+msgid "Franchise"
+msgstr "Франшиза"
+
+#: crates/movo-desktop/src/views/details.rs:490
+msgid "Related"
+msgstr "Схоже"
+
+#: crates/movo-desktop/src/views/details.rs:586
+msgid "Genres: {}"
+msgstr "Жанри: {}"
+
+#: crates/movo-desktop/src/views/details.rs:590
+msgid "Country: {}"
+msgstr "Країна: {}"
+
+#: crates/movo-desktop/src/views/details.rs:599
+msgid "Director"
+msgstr "Режисер"
+
+#: crates/movo-desktop/src/views/details.rs:600
+msgid "Cast"
+msgstr "У ролях"
+
+#: crates/movo-desktop/src/views/details.rs:653
+msgid "Favorites Group"
+msgstr "Група обраного"
+
+#: crates/movo-desktop/src/views/details.rs:668
+msgid "Favorite"
+msgstr "В обране"
+
+#: crates/movo-desktop/src/views/details.rs:708
+msgid "Voice-over"
+msgstr "Озвучення"
+
+#: crates/movo-desktop/src/views/details.rs:721
+msgid "Season"
+msgstr "Сезон"
+
+#: crates/movo-desktop/src/views/details.rs:750
+msgid "Trailer"
+msgstr "Трейлер"
+
+#: crates/movo-desktop/src/views/details.rs:758
+msgid "Rated"
+msgstr "Оцінено"
+
+#: crates/movo-desktop/src/views/details.rs:783
+msgid "Episode Schedule"
+msgstr "Розклад серій"
+
+#: crates/movo-desktop/src/views/details.rs:811
+#: crates/movo-desktop/src/views/history.rs:244
+msgid "Toggle Watched Status"
+msgstr "Перемкнути позначку перегляду"
+
+#: crates/movo-desktop/src/views/favorites.rs:61
+msgid "Collection"
+msgstr "Колекція"
+
+#: crates/movo-desktop/src/views/favorites.rs:83
+msgid "Loading Favorites"
+msgstr "Завантаження обраного"
+
+#: crates/movo-desktop/src/views/favorites.rs:85
+msgid "No Favorites Yet"
+msgstr "Обране порожнє"
+
+#: crates/movo-desktop/src/views/favorites.rs:86
+msgid "Favorites Did Not Load"
+msgstr "Обране не завантажилося"
+
+#: crates/movo-desktop/src/views/favorites.rs:111
+msgid "Sign In to See Your Favorites"
+msgstr "Увійдіть, щоб побачити обране"
+
+#: crates/movo-desktop/src/views/history.rs:79
+msgid "History Did Not Load"
+msgstr "Історія не завантажилася"
+
+#: crates/movo-desktop/src/views/history.rs:98
+msgid "Sign In to See Your History"
+msgstr "Увійдіть, щоб побачити історію"
+
+#: crates/movo-desktop/src/views/history.rs:102
+msgid "Loading History"
+msgstr "Завантаження історії"
+
+#: crates/movo-desktop/src/views/history.rs:180
+msgid "History Is Empty"
+msgstr "Історія порожня"
+
+#: crates/movo-desktop/src/views/history.rs:255
+msgid "Remove from History"
+msgstr "Видалити з історії"
+
+#: crates/movo-desktop/src/views/home.rs:65
+msgid "Home Did Not Load"
+msgstr "Головна не завантажилася"
+
+#: crates/movo-desktop/src/views/home.rs:83
+msgid "Loading Home"
+msgstr "Завантаження головної"
+
+#: crates/movo-desktop/src/views/home.rs:151
+msgid "Home Is Empty"
+msgstr "На головній поки порожньо"
+
+#: crates/movo-desktop/src/views/home.rs:161
+msgid "Hot Now"
+msgstr "Зараз у тренді"
+
+#: crates/movo-desktop/src/views/home.rs:165
+msgid "Coming Soon"
+msgstr "Незабаром"
+
+#: crates/movo-desktop/src/views/notifications.rs:72
+msgid "Notifications Did Not Load"
+msgstr "Сповіщення не завантажилися"
+
+#: crates/movo-desktop/src/views/notifications.rs:93
+msgid "Sign In to See Notifications"
+msgstr "Увійдіть, щоб побачити сповіщення"
+
+#: crates/movo-desktop/src/views/notifications.rs:99
+msgid "Loading Notifications"
+msgstr "Завантаження сповіщень"
+
+#: crates/movo-desktop/src/views/notifications.rs:182
+msgid "Not opened yet"
+msgstr "Ще не відкрито"
+
+#: crates/movo-desktop/src/views/notifications.rs:203
+msgid "No Notifications"
+msgstr "Немає сповіщень"
+
+#: crates/movo-desktop/src/views/path.rs:62
+#: crates/movo-desktop/src/views/search.rs:179
+msgid "Nothing Found"
+msgstr "Нічого не знайдено"
+
+#: crates/movo-desktop/src/views/path.rs:63
+msgid "This List Did Not Load"
+msgstr "Список не завантажився"
+
+#: crates/movo-desktop/src/views/search.rs:97
+msgid "Search movies, series, cartoons..."
+msgstr "Пошук фільмів, серіалів, мультфільмів..."
+
+#: crates/movo-desktop/src/views/search.rs:108
+msgid "Filters"
+msgstr "Фільтри"
+
+#: crates/movo-desktop/src/views/search.rs:109
+#: crates/movo-desktop/src/views/search.rs:412
+msgid "Advanced Search"
+msgstr "Розширений пошук"
+
+#: crates/movo-desktop/src/views/search.rs:137
+msgid "Recent Searches"
+msgstr "Недавні пошуки"
+
+#: crates/movo-desktop/src/views/search.rs:177
+msgid "Searching"
+msgstr "Пошук"
+
+#: crates/movo-desktop/src/views/search.rs:180
+msgid "Search Did Not Finish"
+msgstr "Пошук не завершився"
+
+#: crates/movo-desktop/src/views/search.rs:201
+#: crates/movo-desktop/src/views/search.rs:307
+msgid "Search for Something"
+msgstr "Почніть пошук"
+
+#: crates/movo-desktop/src/views/search.rs:425
+msgid "Genre"
+msgstr "Жанр"
+
+#: crates/movo-desktop/src/views/search.rs:426
+msgid "Year"
+msgstr "Рік"
+
+#~ msgid "Something Went Wrong"
+#~ msgstr "Щось пішло не так"

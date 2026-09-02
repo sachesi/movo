@@ -1,0 +1,750 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Movo package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Movo 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-02 19:33+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: crates/movo-desktop/src/app.rs:94
+#: crates/movo-desktop/src/dialogs/settings.rs:38
+msgid "Settings"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:100
+msgid "About Movo"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:208
+#: crates/movo-desktop/src/dialogs/settings.rs:101
+msgid "Home"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:215
+#: crates/movo-desktop/src/dialogs/settings.rs:102
+#: crates/movo-desktop/src/views/home.rs:166
+msgid "Catalog"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:222
+#: crates/movo-desktop/src/dialogs/settings.rs:103
+#: crates/movo-desktop/src/views/search.rs:462
+msgid "Search"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:229
+#: crates/movo-desktop/src/dialogs/settings.rs:104
+#: crates/movo-desktop/src/views/details.rs:457
+msgid "Collections"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:236
+#: crates/movo-desktop/src/dialogs/settings.rs:105
+msgid "Notifications"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:243
+#: crates/movo-desktop/src/dialogs/settings.rs:106
+msgid "Favorites"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:250
+#: crates/movo-desktop/src/dialogs/settings.rs:107
+msgid "History"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:319
+msgid "Your session has ended. Sign in again to continue."
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:341
+msgid "Signed in as {}"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/actor.rs:23
+#: crates/movo-desktop/src/dialogs/settings.rs:351
+msgid "Profile"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/actor.rs:41
+msgid "Loading the profile stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/actor.rs:118
+msgid "Roles"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/actor.rs:133
+msgid "Filmography"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:21
+#: crates/movo-desktop/src/views/details.rs:768
+msgid "Comments"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:41
+msgid "Previous"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:42
+msgid "Next"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:125
+msgid "Loading comments stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:132
+msgid "Page {} of {}"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:199
+msgid "Show Spoiler"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/comments.rs:233
+msgid "Liking the comment stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:21
+msgid "Sign In to HDRezka"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:25
+msgid "Account"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:27
+msgid "Sign in with your HDRezka account to sync favorites and history."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:32
+msgid "Username or Email"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:35
+msgid "Password"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:49
+#: crates/movo-desktop/src/dialogs/settings.rs:401
+#: crates/movo-desktop/src/ui/content.rs:35
+msgid "Sign In"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:100
+msgid "Enter your username and password"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/login.rs:118
+msgid "Signing in stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/rating.rs:18
+msgid "Rate This Title"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/rating.rs:19
+msgid "The provider accepts whole numbers from 1 to 10."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/rating.rs:22
+#: crates/movo-desktop/src/dialogs/settings.rs:425
+#: crates/movo-desktop/src/playback/launcher.rs:568
+msgid "Cancel"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/rating.rs:22
+#: crates/movo-desktop/src/views/details.rs:760
+msgid "Rate"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/rating.rs:44
+msgid "Sending the rating stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:66
+msgid "Appearance"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:70
+msgid "Theme"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:72
+msgid "System"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:73
+msgid "Light"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:74
+msgid "Dark"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:99
+msgid "Initial Screen"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:132
+#: crates/movo-desktop/src/views/details.rs:698
+msgid "Playback"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:133
+msgid "Titles play in an external player, mpv by default."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:137
+msgid "Default Quality"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:161
+msgid "Ask Quality Before Playback"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:162
+msgid "Show the quality picker every time playback starts"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:177
+msgid "Auto-Next Episode"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:178
+msgid "Continue with the next episode when one finishes"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:193
+msgid "Sort Voice-overs by Rating"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:194
+msgid "Show the highest-rated provider voice-overs first"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:213
+msgid "Cache"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:215
+msgid "Clear Image Cache"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:216
+msgid "Removes saved covers and posters from disk"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:219
+#: crates/movo-desktop/src/views/search.rs:144
+msgid "Clear"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:228
+msgid "Cleared"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:269
+msgid "Player Command"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:275
+msgid "Player"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:277
+msgid "mpv"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:278
+msgid "VLC"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:279
+msgid "Ask Every Time"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:280
+msgid "System Default"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:281
+msgid "Custom Command"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:292
+msgid "{} was not found on this system"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:294
+msgid "The chosen application receives no headers, so playback may be refused."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:297
+msgid "The system handler receives no headers, so playback may be refused."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:300
+msgid "Progress is only tracked with mpv."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:347
+msgid "HDRezka Account"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:348
+msgid "Sign in to sync favorites, history and premium quality"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:382
+msgid "Premium: {} days"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:383
+msgid "VIP / Premium"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:384
+msgid "Standard"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:392
+#: crates/movo-desktop/src/dialogs/settings.rs:425
+msgid "Sign Out"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:399
+msgid "Not signed in"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:400
+msgid "Sign in to sync favorites and unlock premium quality"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:421
+msgid "Sign out?"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:422
+msgid "Local session data will be removed from this device."
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:434
+msgid "Signing out stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/dialogs/settings.rs:439
+msgid "Signed out, but the stored session was not removed"
+msgstr ""
+
+#: crates/movo-desktop/src/i18n.rs:66
+#: crates/movo-desktop/src/views/details.rs:990
+msgid "Season {}"
+msgstr ""
+
+#: crates/movo-desktop/src/i18n.rs:59
+msgid "ru"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:92
+#: crates/movo-desktop/src/playback/launcher.rs:184
+msgid "Sign in to play this title"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:118
+msgid "Voice-over {} was not found"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:142
+msgid "No streams are available for the selected voice-over."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:295
+msgid "The provider returned no playable stream for this quality."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:322
+#: crates/movo-desktop/src/views/details.rs:974
+msgid "Premium · {}"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:391
+#: crates/movo-desktop/src/playback/launcher.rs:410
+msgid "Starting MPV stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:392
+#: crates/movo-desktop/src/playback/launcher.rs:411
+#: crates/movo-desktop/src/playback/launcher.rs:425
+#: crates/movo-desktop/src/playback/launcher.rs:438
+msgid "Could not start {}: {}"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:413
+msgid ""
+"MPV opened, but the XDG runtime directory is unavailable; progress is not "
+"tracked."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:424
+msgid "Starting VLC stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:426
+msgid "VLC does not report progress; history is not updated."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:437
+msgid "Starting the player stopped unexpectedly"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:439
+msgid "This player does not report progress; history is not updated."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:450
+msgid "Opened with the system player; set mpv in Settings for progress."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:483
+msgid "Open this stream with"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:564
+msgid "Choose Quality"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:568
+#: crates/movo-desktop/src/views/details.rs:741
+msgid "Watch"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/mpv.rs:183
+msgid "MPV opened, but the history connection was not established."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/mpv.rs:196
+msgid "MPV opened, but progress tracking did not start."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/mpv.rs:223
+msgid "MPV could not play the stream: {}"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/mpv.rs:274
+msgid "unknown error"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:65
+#: crates/movo-desktop/src/views/search.rs:422
+msgid "Category"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:74
+msgid "Sort"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:92
+msgid "All"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:93
+msgid "Movies"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:94
+msgid "Series"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:95
+msgid "Cartoons"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:96
+msgid "Anime"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:99
+#: crates/movo-desktop/src/views/home.rs:164
+msgid "Popular"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:100
+#: crates/movo-desktop/src/views/home.rs:163
+msgid "Watching Now"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:101
+#: crates/movo-desktop/src/views/home.rs:162
+msgid "New Releases"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:102
+msgid "Recently Added"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:108
+msgid "Loading Catalog"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:110
+msgid "The Catalog Is Empty"
+msgstr ""
+
+#: crates/movo-desktop/src/views/catalog.rs:111
+msgid "The Catalog Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/collections.rs:60
+msgid "Loading Collections"
+msgstr ""
+
+#: crates/movo-desktop/src/views/collections.rs:62
+msgid "No Collections"
+msgstr ""
+
+#: crates/movo-desktop/src/views/collections.rs:63
+msgid "Collections Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/collections.rs:144
+msgid "{} titles"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:110
+msgid "This Title Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:143
+#: crates/movo-desktop/src/views/path.rs:60
+msgid "Loading"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:230
+msgid "Sign in to manage favorites"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:283
+msgid "Sign in to rate this title"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:294
+msgid "Rated {} out of 10"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:384
+msgid "No trailer is available for this title"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:442
+msgid "Episodes"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:455
+msgid "Genres"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:456
+msgid "Countries"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:458
+msgid "Included In"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:467
+msgid "Franchise"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:490
+msgid "Related"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:586
+msgid "Genres: {}"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:590
+msgid "Country: {}"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:599
+msgid "Director"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:600
+msgid "Cast"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:653
+msgid "Favorites Group"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:668
+msgid "Favorite"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:708
+msgid "Voice-over"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:721
+msgid "Season"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:750
+msgid "Trailer"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:758
+msgid "Rated"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:783
+msgid "Episode Schedule"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:811
+#: crates/movo-desktop/src/views/history.rs:244
+msgid "Toggle Watched Status"
+msgstr ""
+
+#: crates/movo-desktop/src/views/favorites.rs:61
+msgid "Collection"
+msgstr ""
+
+#: crates/movo-desktop/src/views/favorites.rs:83
+msgid "Loading Favorites"
+msgstr ""
+
+#: crates/movo-desktop/src/views/favorites.rs:85
+msgid "No Favorites Yet"
+msgstr ""
+
+#: crates/movo-desktop/src/views/favorites.rs:86
+msgid "Favorites Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/favorites.rs:111
+msgid "Sign In to See Your Favorites"
+msgstr ""
+
+#: crates/movo-desktop/src/views/history.rs:79
+msgid "History Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/history.rs:98
+msgid "Sign In to See Your History"
+msgstr ""
+
+#: crates/movo-desktop/src/views/history.rs:102
+msgid "Loading History"
+msgstr ""
+
+#: crates/movo-desktop/src/views/history.rs:180
+msgid "History Is Empty"
+msgstr ""
+
+#: crates/movo-desktop/src/views/history.rs:255
+msgid "Remove from History"
+msgstr ""
+
+#: crates/movo-desktop/src/views/home.rs:65
+msgid "Home Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/home.rs:83
+msgid "Loading Home"
+msgstr ""
+
+#: crates/movo-desktop/src/views/home.rs:151
+msgid "Home Is Empty"
+msgstr ""
+
+#: crates/movo-desktop/src/views/home.rs:161
+msgid "Hot Now"
+msgstr ""
+
+#: crates/movo-desktop/src/views/home.rs:165
+msgid "Coming Soon"
+msgstr ""
+
+#: crates/movo-desktop/src/views/notifications.rs:72
+msgid "Notifications Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/notifications.rs:93
+msgid "Sign In to See Notifications"
+msgstr ""
+
+#: crates/movo-desktop/src/views/notifications.rs:99
+msgid "Loading Notifications"
+msgstr ""
+
+#: crates/movo-desktop/src/views/notifications.rs:182
+msgid "Not opened yet"
+msgstr ""
+
+#: crates/movo-desktop/src/views/notifications.rs:203
+msgid "No Notifications"
+msgstr ""
+
+#: crates/movo-desktop/src/views/path.rs:62
+#: crates/movo-desktop/src/views/search.rs:179
+msgid "Nothing Found"
+msgstr ""
+
+#: crates/movo-desktop/src/views/path.rs:63
+msgid "This List Did Not Load"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:97
+msgid "Search movies, series, cartoons..."
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:108
+msgid "Filters"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:109
+#: crates/movo-desktop/src/views/search.rs:412
+msgid "Advanced Search"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:137
+msgid "Recent Searches"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:177
+msgid "Searching"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:180
+msgid "Search Did Not Finish"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:201
+#: crates/movo-desktop/src/views/search.rs:307
+msgid "Search for Something"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:425
+msgid "Genre"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:426
+msgid "Year"
+msgstr ""
