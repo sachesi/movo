@@ -85,7 +85,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -181,31 +180,17 @@ fun PlayerScreen(
         ?.title
     val displayTitle = episodeTitle?.takeUnless { it == title }?.let { "$title • $it" } ?: title
 
-    var stream by remember(bundle) { mutableStateOf(selectStream(bundle, qualityMode, preferredQuality)) }
-    var urlIndex by remember(bundle) { mutableIntStateOf(0) }
-    var playbackSpeed by remember { mutableFloatStateOf(initialSpeed) }
-    var subtitle by remember(bundle) { mutableStateOf(bundle.subtitles.firstOrNull { it.default }) }
-    var playbackError by remember(bundle) { mutableStateOf<String?>(null) }
-    var completed by remember(bundle) { mutableStateOf(false) }
-    var historySynced by remember(bundle) { mutableStateOf(false) }
-    var controlsVisible by remember { mutableStateOf(true) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var playWhenReady by remember(bundle) { mutableStateOf(false) }
-    var isBuffering by remember { mutableStateOf(false) }
-    var positionMs by remember(bundle) { mutableLongStateOf(resumePositionMs) }
-    var pendingSeekTargetMs by remember(bundle) { mutableStateOf<Long?>(null) }
-    var hiddenSeekDirection by remember(bundle) { mutableStateOf<Key?>(null) }
-    var durationMs by remember(bundle) { mutableLongStateOf(0L) }
-    var bufferedMs by remember(bundle) { mutableLongStateOf(0L) }
-    var videoScale by remember { mutableFloatStateOf(1f) }
-    var videoOffset by remember { mutableStateOf(Offset.Zero) }
-    var videoSize by remember { mutableStateOf(IntSize.Zero) }
-    var seekFeedback by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+    val content = remember(bundle) {
+        PlayerContentState(
+            initialStream = selectStream(bundle, qualityMode, preferredQuality),
+            initialSubtitle = bundle.subtitles.firstOrNull { it.default },
+            initialPositionMs = resumePositionMs,
+        )
+    }
+    val ui = remember { PlayerUiState(initialSpeed = initialSpeed) }
     // Written on every remote key press, so it is deliberately never read from composition:
     // observing it here would recompose the whole player on each auto-repeat event.
     val lastInteractionMs = remember { mutableLongStateOf(0L) }
-    var menuOpen by remember { mutableStateOf(false) }
-    var preparedContentKey by remember { mutableStateOf<Triple<Long, Long?, Long?>?>(null) }
     val latestNextEpisode by rememberUpdatedState(nextEpisode)
     val latestQualityChanged by rememberUpdatedState(qualityChanged)
     val latestAutoNext by rememberUpdatedState(autoNext && hasNextEpisode)
@@ -231,45 +216,45 @@ fun PlayerScreen(
             .apply {
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
-                        isBuffering = state == Player.STATE_BUFFERING
-                        if (state == Player.STATE_READY) playbackError = null
+                        ui.isBuffering = state == Player.STATE_BUFFERING
+                        if (state == Player.STATE_READY) content.playbackError = null
                         if (state == Player.STATE_ENDED) {
-                            completed = true
-                            controlsVisible = true
+                            content.completed = true
+                            ui.controlsVisible = true
                             if (latestAutoNext) latestNextEpisode(true)
                         }
                     }
 
                     override fun onIsPlayingChanged(playing: Boolean) {
-                        if (shouldShowControlsForPause(playing, playWhenReady, latestIsTv, latestPauseShowsControls)) {
-                            controlsVisible = true
+                        if (shouldShowControlsForPause(playing, content.playWhenReady, latestIsTv, latestPauseShowsControls)) {
+                            ui.controlsVisible = true
                         }
-                        if (playing && !historySynced) {
-                            historySynced = true
+                        if (playing && !content.historySynced) {
+                            content.historySynced = true
                             playbackStarted()
                         }
                     }
 
                     override fun onPlayWhenReadyChanged(ready: Boolean, reason: Int) {
-                        playWhenReady = ready
+                        content.playWhenReady = ready
                         if (shouldShowControlsForPause(false, ready, latestIsTv, latestPauseShowsControls)) {
-                            controlsVisible = true
+                            ui.controlsVisible = true
                         }
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
-                        val next = urlIndex + 1
-                        if (next < (stream?.urls?.size ?: 0)) {
-                            urlIndex = next
+                        val next = content.urlIndex + 1
+                        if (next < (content.stream?.urls?.size ?: 0)) {
+                            content.urlIndex = next
                         } else {
-                            val fallback = nextLowerStream(bundle, stream)
+                            val fallback = nextLowerStream(bundle, content.stream)
                             if (fallback != null) {
-                                stream = fallback
-                                urlIndex = 0
+                                content.stream = fallback
+                                content.urlIndex = 0
                                 latestQualityChanged(fallback.quality, false)
                             } else {
-                                playbackError = error.message ?: playbackFailedText
-                                controlsVisible = true
+                                content.playbackError = error.message ?: playbackFailedText
+                                ui.controlsVisible = true
                             }
                         }
                     }
@@ -289,8 +274,8 @@ fun PlayerScreen(
     }
 
     fun buildMediaItem(): MediaItem {
-        val uri = stream?.urls?.getOrNull(urlIndex) ?: ""
-        val subs = subtitle?.let {
+        val uri = content.stream?.urls?.getOrNull(content.urlIndex) ?: ""
+        val subs = content.subtitle?.let {
             listOf(
                 MediaItem.SubtitleConfiguration.Builder(it.url.toUri())
                     .setMimeType(MimeTypes.TEXT_VTT)
@@ -311,45 +296,45 @@ fun PlayerScreen(
     }
 
     fun prepare() {
-        val uri = stream?.urls?.getOrNull(urlIndex)
+        val uri = content.stream?.urls?.getOrNull(content.urlIndex)
         if (uri.isNullOrEmpty()) {
-            playbackError = if (stream == null) noStreamsText else mirrorUnavailableText
-            controlsVisible = true
+            content.playbackError = if (content.stream == null) noStreamsText else mirrorUnavailableText
+            ui.controlsVisible = true
             return
         }
         val position = playbackStartPosition(
-            sameContent = preparedContentKey == contentKey,
+            sameContent = ui.preparedContentKey == contentKey,
             currentPosition = player.currentPosition,
             resumePosition = resumePositionMs,
         )
-        preparedContentKey = contentKey
+        ui.preparedContentKey = contentKey
         player.setMediaItem(buildMediaItem())
         player.prepare()
         if (position > 0L) player.seekTo(position)
         player.playWhenReady = true
-        isPlaying = true
+        ui.isPlaying = true
     }
 
-    LaunchedEffect(stream) { urlIndex = 0 }
-    LaunchedEffect(player, stream, subtitle, urlIndex) { prepare() }
+    LaunchedEffect(content.stream) { content.urlIndex = 0 }
+    LaunchedEffect(player, content.stream, content.subtitle, content.urlIndex) { prepare() }
     // Apply playback speed changes immediately (ExoPlayer rescales media clock pitch-aware).
-    LaunchedEffect(player, playbackSpeed) { player.playbackParameters = PlaybackParameters(playbackSpeed) }
+    LaunchedEffect(player, ui.playbackSpeed) { player.playbackParameters = PlaybackParameters(ui.playbackSpeed) }
     // Poll playback state for a smooth seekbar.
     LaunchedEffect(player) {
         while (isActive) {
             val playing = player.isPlaying
             val reportedPosition = player.currentPosition.coerceAtLeast(0L)
-            val pending = pendingSeekTargetMs
+            val pending = content.pendingSeekTargetMs
             if (pending == null || seekTargetSettled(pending, reportedPosition)) {
-                positionMs = reportedPosition
-                if (pending != null) pendingSeekTargetMs = null
+                content.positionMs = reportedPosition
+                if (pending != null) content.pendingSeekTargetMs = null
             } else {
-                positionMs = pending
+                content.positionMs = pending
             }
             val dur = player.duration
-            if (dur > 0) durationMs = dur
-            bufferedMs = player.bufferedPosition.coerceAtLeast(0L)
-            isPlaying = playing
+            if (dur > 0) content.durationMs = dur
+            content.bufferedMs = player.bufferedPosition.coerceAtLeast(0L)
+            ui.isPlaying = playing
             delay(250)
         }
     }
@@ -360,8 +345,8 @@ fun PlayerScreen(
             if (player.isPlaying) saveProgress(player.currentPosition)
         }
     }
-    LaunchedEffect(controlsVisible, isPlaying, isTv, menuOpen) {
-        if (!shouldAutoHideControls(controlsVisible, isPlaying, menuOpen)) return@LaunchedEffect
+    LaunchedEffect(ui.controlsVisible, ui.isPlaying, isTv, ui.menuOpen) {
+        if (!shouldAutoHideControls(ui.controlsVisible, ui.isPlaying, ui.menuOpen)) return@LaunchedEffect
         val timeout = if (isTv) TV_CONTROLS_TIMEOUT_MS else PHONE_CONTROLS_TIMEOUT_MS
         lastInteractionMs.longValue = SystemClock.uptimeMillis()
         // Poll the last interaction instead of restarting on a state key: key auto-repeat would
@@ -371,27 +356,27 @@ fun PlayerScreen(
             delay(timeout - idle)
             idle = SystemClock.uptimeMillis() - lastInteractionMs.longValue
         }
-        controlsVisible = false
+        ui.controlsVisible = false
     }
     // The control-bar requester is attached to the play button, which only exists while the
     // overlay is composed, so the request can land before the node is there.
-    LaunchedEffect(controlsVisible, isTv) {
+    LaunchedEffect(ui.controlsVisible, isTv) {
         if (!isTv) return@LaunchedEffect
         runCatching {
-            if (controlsVisible) controlsFocusRequester.requestFocus()
+            if (ui.controlsVisible) controlsFocusRequester.requestFocus()
             else playerFocusRequester.requestFocus()
         }
     }
-    LaunchedEffect(seekFeedback) {
-        if (seekFeedback != null) {
+    LaunchedEffect(ui.seekFeedback) {
+        if (ui.seekFeedback != null) {
             delay(700)
-            seekFeedback = null
+            ui.seekFeedback = null
         }
     }
     // Persist progress + pause when the user leaves the screen or backgrounded.
     DisposableEffect(lifecycleOwner, player) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && !completed) {
+            if (event == Lifecycle.Event.ON_STOP && !content.completed) {
                 saveProgress(player.currentPosition)
                 player.pause()
             }
@@ -420,14 +405,14 @@ fun PlayerScreen(
 
     fun exitPlayer() {
         player.pause()
-        close(completed, player.currentPosition)
+        close(content.completed, player.currentPosition)
     }
     BackHandler(onBack = ::exitPlayer)
 
     fun togglePlayback() {
-        if (completed) {
+        if (content.completed) {
             player.seekTo(0)
-            completed = false
+            content.completed = false
             player.play()
         } else if (player.isPlaying) {
             player.pause()
@@ -437,46 +422,46 @@ fun PlayerScreen(
     }
 
     fun seekTo(targetMs: Long) {
-        val duration = player.duration.takeIf { it > 0L } ?: durationMs
+        val duration = player.duration.takeIf { it > 0L } ?: content.durationMs
         val target = seekTarget(targetMs, duration, 0)
-        pendingSeekTargetMs = target
+        content.pendingSeekTargetMs = target
         player.seekTo(target)
-        positionMs = target
+        content.positionMs = target
     }
 
     fun commitPendingSeek() {
-        pendingSeekTargetMs?.let { target ->
+        content.pendingSeekTargetMs?.let { target ->
             player.seekTo(target)
-            positionMs = target
+            content.positionMs = target
         }
     }
 
     fun seekBy(seconds: Int, commit: Boolean = true) {
-        val duration = player.duration.takeIf { it > 0L } ?: durationMs
+        val duration = player.duration.takeIf { it > 0L } ?: content.durationMs
         val target = nextSeekTarget(
-            logicalTargetMs = pendingSeekTargetMs,
+            logicalTargetMs = content.pendingSeekTargetMs,
             reportedPositionMs = player.currentPosition,
             durationMs = duration,
             seconds = seconds,
         )
-        pendingSeekTargetMs = target
-        positionMs = target
+        content.pendingSeekTargetMs = target
+        content.positionMs = target
         if (commit) player.seekTo(target)
         if (seconds != 0) {
-            val previous = seekFeedback?.first
+            val previous = ui.seekFeedback?.first
             val total = if (previous != null && (previous > 0) == (seconds > 0)) previous + seconds else seconds
-            seekFeedback = total to System.nanoTime()
+            ui.seekFeedback = total to System.nanoTime()
         }
     }
 
-    val overlay = controlsVisible
+    val overlay = ui.controlsVisible
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
             .then(
                 if (isTv) Modifier else Modifier
-                    .clickable(onClick = { controlsVisible = !controlsVisible })
+                    .clickable(onClick = { ui.controlsVisible = !ui.controlsVisible })
                     .background(Color.Transparent),
             )
             .then(
@@ -494,11 +479,11 @@ fun PlayerScreen(
                                 else -> 0
                             }
                             if (direction != 0) {
-                                if (event.type == KeyEventType.KeyUp && hiddenSeekDirection == event.key) {
-                                    hiddenSeekDirection = null
+                                if (event.type == KeyEventType.KeyUp && content.hiddenSeekDirection == event.key) {
+                                    content.hiddenSeekDirection = null
                                     true
-                                } else if (event.type == KeyEventType.KeyDown && !controlsVisible) {
-                                    hiddenSeekDirection = event.key
+                                } else if (event.type == KeyEventType.KeyDown && !ui.controlsVisible) {
+                                    content.hiddenSeekDirection = event.key
                                     seekBy(direction * seekSeconds)
                                     true
                                 } else {
@@ -509,19 +494,19 @@ fun PlayerScreen(
                                 // Only act as a fallback while controls are hidden. When the overlay
                                 // is up, real focusable controls own the D-pad so the user can move
                                 // focus between buttons and the timeline with Up/Down/Left/Right.
-                                if (controlsVisible) return@onKeyEvent false
+                                if (ui.controlsVisible) return@onKeyEvent false
                                 // Down is not listed: it reveals nothing while the overlay is
                                 // hidden, and claiming it would swallow the key for no reason.
                                 if (event.key == Key.DirectionUp || event.key == Key.DirectionCenter ||
                                     event.key == Key.Enter
                                 ) {
                                     if (event.key == Key.DirectionUp) {
-                                        controlsVisible = tvControlsVisibleAfterKey(controlsVisible, event.key)
+                                        ui.controlsVisible = tvControlsVisibleAfterKey(ui.controlsVisible, event.key)
                                     } else if (tvCenterPauses) {
                                         togglePlayback()
-                                        if (tvPauseShowsControls && !player.isPlaying) controlsVisible = true
+                                        if (tvPauseShowsControls && !player.isPlaying) ui.controlsVisible = true
                                     } else {
-                                        controlsVisible = true
+                                        ui.controlsVisible = true
                                     }
                                     true
                                 } else {
@@ -553,26 +538,26 @@ fun PlayerScreen(
             },
             modifier = Modifier
                 .fillMaxSize()
-                .onSizeChanged { videoSize = it }
-                .pointerInput(videoSize) {
+                .onSizeChanged { ui.videoSize = it }
+                .pointerInput(ui.videoSize) {
                     detectTransformGestures(panZoomLock = true) { centroid, pan, zoom, _ ->
                         val transformed = updateVideoTransform(
-                            videoScale,
-                            videoOffset,
+                            ui.videoScale,
+                            ui.videoOffset,
                             centroid,
                             pan,
                             zoom,
-                            videoSize,
+                            ui.videoSize,
                         )
-                        videoScale = transformed.first
-                        videoOffset = transformed.second
+                        ui.videoScale = transformed.first
+                        ui.videoOffset = transformed.second
                     }
                 }
                 .graphicsLayer {
-                    scaleX = videoScale
-                    scaleY = videoScale
-                    translationX = videoOffset.x
-                    translationY = videoOffset.y
+                    scaleX = ui.videoScale
+                    scaleY = ui.videoScale
+                    translationX = ui.videoOffset.x
+                    translationY = ui.videoOffset.y
                 },
         )
 
@@ -627,7 +612,7 @@ fun PlayerScreen(
             }
         }
 
-        (playbackError ?: syncError)?.let { error ->
+        (content.playbackError ?: syncError)?.let { error ->
             Text(
                 text = error,
                 color = MaterialTheme.colorScheme.onErrorContainer,
@@ -644,7 +629,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = isBuffering && playbackError == null,
+            visible = ui.isBuffering && content.playbackError == null,
             modifier = Modifier.align(Alignment.Center),
             enter = fadeIn(),
             exit = fadeOut(),
@@ -652,7 +637,7 @@ fun PlayerScreen(
             CircularProgressIndicator(color = Color.White)
         }
 
-        seekFeedback?.let { (seconds, _) ->
+        ui.seekFeedback?.let { (seconds, _) ->
             Text(
                 text = formatSeekDelta(seconds),
                 color = Color.White,
@@ -665,7 +650,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = overlay && seekFeedback == null && !isBuffering && playbackError == null,
+            visible = overlay && ui.seekFeedback == null && !ui.isBuffering && content.playbackError == null,
             modifier = Modifier.align(Alignment.Center),
             enter = fadeIn() + scaleIn(initialScale = 0.88f),
             exit = fadeOut() + scaleOut(targetScale = 0.88f),
@@ -684,14 +669,14 @@ fun PlayerScreen(
                 ) {
                     Icon(
                         imageVector = when {
-                            completed -> Icons.Default.Replay
-                            isPlaying -> Icons.Default.Pause
+                            content.completed -> Icons.Default.Replay
+                            ui.isPlaying -> Icons.Default.Pause
                             else -> Icons.Default.PlayArrow
                         },
                         contentDescription = stringResource(
                             when {
-                                completed -> R.string.replay
-                                isPlaying -> R.string.pause
+                                content.completed -> R.string.replay
+                                ui.isPlaying -> R.string.pause
                                 else -> R.string.play
                             },
                         ),
@@ -718,13 +703,13 @@ fun PlayerScreen(
                     .padding(top = 36.dp, bottom = if (isTv) 16.dp else 8.dp),
             ) {
                 SeekRow(
-                    positionMs,
-                    durationMs,
-                    bufferedMs,
+                    content.positionMs,
+                    content.durationMs,
+                    content.bufferedMs,
                     bundle.storyboard,
                     showBuffer,
                     showEndTime,
-                    playbackSpeed,
+                    ui.playbackSpeed,
                     isTv,
                     { seconds, commit -> seekBy(seconds, commit) },
                     ::seekTo,
@@ -732,23 +717,23 @@ fun PlayerScreen(
                 )
                 ControlBar(
                     bundle = bundle,
-                    stream = stream,
-                    subtitle = subtitle,
-                    playbackSpeed = playbackSpeed,
-                    isPlaying = isPlaying,
-                    completed = completed,
+                    stream = content.stream,
+                    subtitle = content.subtitle,
+                    playbackSpeed = ui.playbackSpeed,
+                    isPlaying = ui.isPlaying,
+                    completed = content.completed,
                     onTogglePlay = ::togglePlayback,
                     onSelectStream = {
-                        stream = it
-                        urlIndex = 0
+                        content.stream = it
+                        content.urlIndex = 0
                         qualityChanged(it.quality, true)
                     },
-                    onSelectSubtitle = { subtitle = it },
-                    onSelectSpeed = { playbackSpeed = it },
-                    zoomed = videoScale > 1f,
+                    onSelectSubtitle = { content.subtitle = it },
+                    onSelectSpeed = { ui.playbackSpeed = it },
+                    zoomed = ui.videoScale > 1f,
                     onToggleZoom = {
-                        videoScale = if (videoScale > 1f) 1f else BUTTON_VIDEO_ZOOM
-                        videoOffset = Offset.Zero
+                        ui.videoScale = if (ui.videoScale > 1f) 1f else BUTTON_VIDEO_ZOOM
+                        ui.videoOffset = Offset.Zero
                     },
                     isTv = isTv,
                     playFocusRequester = controlsFocusRequester,
@@ -773,8 +758,8 @@ fun PlayerScreen(
                         playEpisode(season, episode)
                     },
                     openRating = { openRating(player.currentPosition) },
-                    onMenuOpenChange = { menuOpen = it },
-                    onHideControls = { controlsVisible = false },
+                    onMenuOpenChange = { ui.menuOpen = it },
+                    onHideControls = { ui.controlsVisible = false },
                 )
             }
         }
