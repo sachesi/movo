@@ -2,5 +2,6 @@
 members = [
     "crates/movo-core",
     "crates/movo-desktop",
+    "crates/movo-android",
 ]
 resolver = "2"

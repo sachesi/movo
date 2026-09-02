@@ -1,0 +1,296 @@
+use jni::{
+    objects::{JClass, JString},
+    sys::jstring,
+    JNIEnv,
+};
+use movo_core::client::{
+    models::{CatalogCategory, Translator},
+    RezkaClient,
+};
+use serde::Deserialize;
+use serde_json::{json, Value};
+use std::sync::LazyLock;
+use tokio::sync::RwLock;
+
+static CLIENT: LazyLock<RwLock<RezkaClient>> = LazyLock::new(|| RwLock::new(RezkaClient::new()));
+static RUNTIME: LazyLock<tokio::runtime::Runtime> =
+    LazyLock::new(|| tokio::runtime::Runtime::new().expect("Android runtime"));
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum Command {
+    Login {
+        login: String,
+        password: String,
+    },
+    Restore {
+        secret: String,
+    },
+    Logout,
+    Catalog {
+        category: CatalogCategory,
+        filter: Option<String>,
+        page: usize,
+    },
+    Search {
+        query: String,
+        page: usize,
+    },
+    SearchSuggestions {
+        query: String,
+    },
+    Home,
+    SearchFilters,
+    Collections {
+        page: usize,
+    },
+    Path {
+        path: String,
+        page: usize,
+    },
+    Details {
+        url: String,
+    },
+    Actor {
+        url: String,
+    },
+    Comments {
+        post_id: i64,
+        page: usize,
+    },
+    Trailer {
+        post_id: i64,
+    },
+    Rate {
+        post_id: i64,
+        rating: u8,
+    },
+    LikeComment {
+        id: String,
+    },
+    AccountData,
+    ToggleScheduleWatched {
+        id: String,
+    },
+    Episodes {
+        post_id: i64,
+        translator_id: i64,
+    },
+    MovieStream {
+        post_id: i64,
+        translator: Translator,
+    },
+    EpisodeStream {
+        post_id: i64,
+        translator_id: i64,
+        season: i64,
+        episode: i64,
+    },
+    FavoriteCategories,
+    Favorites {
+        category_id: Option<i64>,
+        page: usize,
+    },
+    SetFavorite {
+        url: String,
+        post_id: i64,
+        category_id: i64,
+        favorite: bool,
+    },
+    History,
+    RemoveHistory {
+        id: String,
+    },
+    SetHistoryWatched {
+        id: String,
+        watched: bool,
+    },
+    SaveWatch {
+        post_id: i64,
+        translator_id: i64,
+        season: Option<i64>,
+        episode: Option<i64>,
+    },
+    MarkWatched {
+        post_id: i64,
+        translator_id: i64,
+        season: Option<i64>,
+        episode: Option<i64>,
+    },
+}
+
+async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, String> {
+    match command {
+        Command::Login { .. } | Command::Restore { .. } | Command::Logout => unreachable!(),
+        Command::Catalog {
+            category,
+            filter,
+            page,
+        } => Ok(json!(
+            client
+                .fetch_catalog(category, filter.as_deref(), page)
+                .await?
+        )),
+        Command::Search { query, page } => Ok(json!(client.search_full(&query, page).await?)),
+        Command::SearchSuggestions { query } => Ok(json!(client.search_suggestions(&query).await?)),
+        Command::Home => Ok(json!(client.home().await?)),
+        Command::SearchFilters => Ok(json!(client.search_filters().await?)),
+        Command::Collections { page } => Ok(json!(client.fetch_collections(page).await?)),
+        Command::Path { path, page } => Ok(json!(client.fetch_path(&path, page).await?)),
+        Command::Details { url } => Ok(json!(client.fetch_details(&url).await?)),
+        Command::Actor { url } => Ok(json!(client.fetch_actor(&url).await?)),
+        Command::Comments { post_id, page } => {
+            Ok(json!(client.fetch_comments(post_id, page).await?))
+        }
+        Command::Trailer { post_id } => Ok(json!(client.fetch_trailer(post_id).await?)),
+        Command::Rate { post_id, rating } => {
+            client.post_rating(post_id, rating).await?;
+            Ok(Value::Null)
+        }
+        Command::LikeComment { id } => {
+            client.like_comment(&id).await?;
+            Ok(Value::Null)
+        }
+        Command::AccountData => Ok(json!(client.account_data().await?)),
+        Command::ToggleScheduleWatched { id } => {
+            client.toggle_schedule_watched(&id).await?;
+            Ok(Value::Null)
+        }
+        Command::Episodes {
+            post_id,
+            translator_id,
+        } => Ok(json!(client.fetch_episodes(post_id, translator_id).await?)),
+        Command::MovieStream {
+            post_id,
+            translator,
+        } => Ok(json!(
+            client.fetch_movie_stream(post_id, &translator).await?
+        )),
+        Command::EpisodeStream {
+            post_id,
+            translator_id,
+            season,
+            episode,
+        } => Ok(json!(
+            client
+                .fetch_episode_stream(post_id, translator_id, season, episode)
+                .await?
+        )),
+        Command::FavoriteCategories => Ok(json!(client.fetch_favorites_categories().await?)),
+        Command::Favorites { category_id, page } => {
+            Ok(json!(client.fetch_favorites_page(category_id, page).await?))
+        }
+        Command::SetFavorite {
+            url,
+            post_id,
+            category_id,
+            favorite,
+        } => {
+            client
+                .set_favorite(&url, post_id, category_id, favorite)
+                .await?;
+            Ok(Value::Null)
+        }
+        Command::History => Ok(json!(client.sync_history().await?)),
+        Command::RemoveHistory { id } => {
+            client.remove_history(&id).await?;
+            Ok(Value::Null)
+        }
+        Command::SetHistoryWatched { id, watched } => {
+            client.set_history_watched(&id, watched).await?;
+            Ok(Value::Null)
+        }
+        Command::SaveWatch {
+            post_id,
+            translator_id,
+            season,
+            episode,
+        } => {
+            client
+                .save_watch(post_id, translator_id, season, episode)
+                .await?;
+            Ok(Value::Null)
+        }
+        Command::MarkWatched {
+            post_id,
+            translator_id,
+            season,
+            episode,
+        } => {
+            client
+                .mark_watched(post_id, translator_id, season, episode)
+                .await?;
+            Ok(Value::Null)
+        }
+    }
+}
+
+fn invoke(command: Command) -> Result<Value, String> {
+    RUNTIME.block_on(async move {
+        match command {
+            Command::Login { login, password } => {
+                let client = CLIENT.write().await;
+                let user = client.login(&login, &password).await?;
+                Ok(json!({"user": user, "secret": client.export_session()?}))
+            }
+            Command::Restore { secret } => {
+                Ok(json!(CLIENT.write().await.import_session(&secret).await?))
+            }
+            Command::Logout => {
+                CLIENT.write().await.logout().await?;
+                Ok(Value::Null)
+            }
+            command @ (Command::SetFavorite { .. }
+            | Command::RemoveHistory { .. }
+            | Command::SetHistoryWatched { .. }
+            | Command::Rate { .. }
+            | Command::LikeComment { .. }
+            | Command::ToggleScheduleWatched { .. }
+            | Command::SaveWatch { .. }
+            | Command::MarkWatched { .. }) => {
+                let client = CLIENT.write().await;
+                invoke_read(command, &client).await
+            }
+            command => {
+                let client = CLIENT.read().await;
+                invoke_read(command, &client).await
+            }
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_movo_app_NativeBridge_invoke(
+    mut env: JNIEnv,
+    _class: JClass,
+    request: JString,
+) -> jstring {
+    let response = env
+        .get_string(&request)
+        .map_err(|error| error.to_string())
+        .and_then(|request| {
+            serde_json::from_str::<Command>(&request.to_string_lossy())
+                .map_err(|error| error.to_string())
+        })
+        .and_then(invoke)
+        .map(|data| json!({"data": data}))
+        .unwrap_or_else(|error| json!({"error": error}))
+        .to_string();
+    env.new_string(response).expect("JNI response").into_raw()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn client_state_allows_parallel_readers() {
+        RUNTIME.block_on(async {
+            let first = CLIENT.read().await;
+            let second = tokio::time::timeout(Duration::from_millis(50), CLIENT.read()).await;
+            assert!(second.is_ok());
+            drop(first);
+        });
+    }
+}
