@@ -1,4 +1,5 @@
 pub mod anubis;
+pub mod auth;
 pub mod catalog;
 pub mod cdn;
 pub mod details;
