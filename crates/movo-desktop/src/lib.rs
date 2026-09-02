@@ -1,4 +1,5 @@
 pub mod api;
+pub mod dialogs;
 pub mod i18n;
 pub mod state;
 pub mod ui;
