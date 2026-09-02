@@ -2379,7 +2379,6 @@ dependencies = [
 name = "movo"
 version = "0.1.0"
 dependencies = [
- "async-channel",
  "chrono",
  "directories",
  "env_logger",
@@ -2390,7 +2389,6 @@ dependencies = [
  "log",
  "movo-core",
  "relm4",
- "relm4-components",
  "reqwest",
  "serde_json",
  "tokio",
@@ -2414,9 +2412,7 @@ dependencies = [
  "base64",
  "chrono",
  "directories",
- "env_logger",
  "hex",
- "image",
  "keyring",
  "log",
  "regex",
@@ -2424,7 +2420,6 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
- "serde_urlencoded",
  "sha2",
  "tokio",
  "url",
@@ -3261,17 +3256,6 @@ dependencies = [
  "relm4-macros",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "relm4-components"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62088215be530760481537aa8add43fdbe4b3794bf6cb4673a39083eb993307b"
-dependencies = [
- "once_cell",
- "relm4",
- "tracker",
 ]
 
 [[package]]
@@ -4153,26 +4137,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
-]
-
-[[package]]
-name = "tracker"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e91c5c9cfc2fc187ef95f2be219e0b057037afaa48496f0ce873cd7e06a87c"
-dependencies = [
- "tracker-macros",
-]
-
-[[package]]
-name = "tracker-macros"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12a42d0cae5c1dce306bbb8f86afba7abd15e4023911e7bfcf353f4c03de35d7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]

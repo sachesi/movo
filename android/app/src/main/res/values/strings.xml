@@ -127,7 +127,7 @@
     <string name="settings_group_tv">TV / remote</string>
     <string name="retry">Retry</string>
     <string name="about_title">About Movo</string>
-    <string name="about_body">Movo is a media player for Android phones, tablets and TV. It uses your own HDRezka account — the session key stays in the Android Keystore and is never sent anywhere else. Compared to the website you get a proper TV interface, exact resume positions, voice episode search, and EN/RU/UK localization.</string>
+    <string name="about_body">Movo is a media player for Android phones, tablets and TV. It uses your own HDRezka account — the session key stays in the Android Keystore and is never sent anywhere else. Compared to the website you get a proper TV interface, exact resume positions, voice search, and EN/RU/UK localization.</string>
     <string name="about_disclaimer">This is an unofficial app with no affiliation to HDRezka. All content comes from HDRezka and belongs to its rights holders — Movo is just a viewer for your own account.</string>
     <string name="about_version">Version %1$s</string>
     <string name="splash_tagline">Unofficial HDRezka client</string>
@@ -149,8 +149,6 @@
     <string name="previous_episode">Previous episode</string>
     <string name="next_episode">Next episode</string>
     <string name="seek_preview">Seek preview</string>
-    <string name="voice_episode">Choose episode by voice</string>
-    <string name="episode_not_found">Could not match that episode</string>
 
     <!-- History actions -->
     <string name="mark_watched">Mark watched</string>

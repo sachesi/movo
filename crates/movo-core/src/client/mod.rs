@@ -1,7 +1,6 @@
 pub mod anubis;
 pub mod auth;
 pub mod catalog;
-pub mod cdn;
 pub mod details;
 pub mod models;
 pub mod search;
@@ -11,7 +10,6 @@ pub mod stream;
 use crate::storage::history::WatchHistory;
 use auth::AuthManager;
 use catalog::CatalogScraper;
-use cdn::CdnManager;
 use details::DetailsScraper;
 use models::{
     AccountData, ActorDetails, CatalogCategory, Collection, CommentsPage, FavoritesCollection,
@@ -35,7 +33,6 @@ pub struct SyncedHistory {
 pub struct RezkaClient {
     session: RezkaSession,
     account: Arc<RwLock<AccountState>>,
-    cdn: CdnManager,
 }
 
 /// Signed-in account, shared between clones so every caller observes the same
@@ -71,7 +68,6 @@ impl RezkaClient {
         Self {
             session: RezkaSession::new(),
             account: Arc::default(),
-            cdn: CdnManager::new(),
         }
     }
 
@@ -190,7 +186,6 @@ impl RezkaClient {
     ) -> Result<StreamBundle, String> {
         let mut bundle =
             StreamExtractor::fetch_movie_stream(&self.session, post_id, translator).await?;
-        self.optimize_stream_bundle_cdn(&mut bundle).await;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
     }
@@ -210,7 +205,6 @@ impl RezkaClient {
             episode,
         )
         .await?;
-        self.optimize_stream_bundle_cdn(&mut bundle).await;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
     }
@@ -218,14 +212,6 @@ impl RezkaClient {
     fn add_playback_headers(&self, bundle: &mut StreamBundle) {
         bundle.user_agent = self.session.user_agent().to_string();
         bundle.referer = self.session.referer().to_string();
-    }
-
-    async fn optimize_stream_bundle_cdn(&self, bundle: &mut StreamBundle) {
-        for entry in &mut bundle.streams {
-            for url in &mut entry.urls {
-                *url = self.cdn.modify_url(url).await;
-            }
-        }
     }
 
     pub async fn login(&self, email_or_login: &str, password: &str) -> Result<UserProfile, String> {
@@ -544,7 +530,6 @@ mod tests {
                 }),
                 generation: 0,
             })),
-            cdn: CdnManager::new(),
         }
     }
 

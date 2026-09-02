@@ -186,67 +186,6 @@ impl SearchScraper {
         let items = CatalogScraper::parse_catalog_html(&html_content);
         Ok(items)
     }
-
-    pub async fn search_quick(
-        session: &RezkaSession,
-        query: &str,
-    ) -> Result<Vec<MediaItem>, String> {
-        let form_data = [("q", query)];
-        let html_content = session
-            .post_ajax("engine/ajax/search.php", &form_data)
-            .await?;
-
-        let document = Html::parse_document(&html_content);
-        let item_selector = Selector::parse(".b-search__section_list li").unwrap();
-        let link_selector = Selector::parse("a").unwrap();
-        let enty_selector = Selector::parse(".enty").unwrap();
-        let rating_selector = Selector::parse(".rating").unwrap();
-
-        let mut results = Vec::new();
-
-        for element in document.select(&item_selector) {
-            let link = match element.select(&link_selector).next() {
-                Some(l) => l,
-                None => continue,
-            };
-
-            let href = link.value().attr("href").unwrap_or_default().to_string();
-            let title = element
-                .select(&enty_selector)
-                .next()
-                .map(|e| e.text().collect::<String>().trim().to_string())
-                .unwrap_or_else(|| link.text().collect::<String>().trim().to_string());
-
-            let rating = element
-                .select(&rating_selector)
-                .next()
-                .and_then(|r| r.text().collect::<String>().trim().parse::<f32>().ok());
-
-            let id = if let Some(filename) = href.split('/').next_back() {
-                filename
-                    .split('-')
-                    .next()
-                    .and_then(|p| p.parse::<i64>().ok())
-                    .unwrap_or(0)
-            } else {
-                0
-            };
-
-            results.push(MediaItem {
-                id,
-                title,
-                orig_title: None,
-                url: href,
-                poster_url: None,
-                year: None,
-                category: None,
-                rating,
-                info: None,
-            });
-        }
-
-        Ok(results)
-    }
 }
 
 fn urlencoding(s: &str) -> String {

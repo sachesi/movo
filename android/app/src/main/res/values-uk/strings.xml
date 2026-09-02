@@ -118,7 +118,7 @@
     <string name="settings_group_tv">ТБ / пульт</string>
     <string name="retry">Повторити</string>
     <string name="about_title">Про застосунок Movo</string>
-    <string name="about_body">Movo — медіаплеєр для Android-телефонів, планшетів і ТБ. Працює з вашим акаунтом HDRezka: ключ сесії зберігається в Android Keystore і нікуди більше не надсилається. Порівняно з сайтом — нормальний інтерфейс для ТБ, точне продовження з місця зупинки, пошук епізоду голосом і локалізація EN/RU/UK.</string>
+    <string name="about_body">Movo — медіаплеєр для Android-телефонів, планшетів і ТБ. Працює з вашим акаунтом HDRezka: ключ сесії зберігається в Android Keystore і нікуди більше не надсилається. Порівняно з сайтом — нормальний інтерфейс для ТБ, точне продовження з місця зупинки, пошук голосом і локалізація EN/RU/UK.</string>
     <string name="about_disclaimer">Це неофіційний застосунок, не пов’язаний з HDRezka. Весь контент береться з HDRezka і належить правовласникам — Movo лише переглядач для вашого акаунта.</string>
     <string name="about_version">Версія %1$s</string>
     <string name="splash_tagline">Неофіційний HDRezka-клієнт</string>
@@ -138,8 +138,6 @@
     <string name="previous_episode">Попередня серія</string>
     <string name="next_episode">Наступна серія</string>
     <string name="seek_preview">Попередній перегляд перемотування</string>
-    <string name="voice_episode">Вибрати серію голосом</string>
-    <string name="episode_not_found">Не вдалося знайти цю серію</string>
     <string name="mark_watched">Позначити переглянутим</string>
     <string name="mark_unwatched">Позначити непереглянутим</string>
     <string name="remove_history">Видалити з історії</string>
