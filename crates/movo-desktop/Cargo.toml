@@ -1,0 +1,34 @@
+[package]
+name = "movo"
+version = "0.1.0"
+edition = "2021"
+authors = ["sachesi <xsachesi@pm.me>"]
+description = "Native GNOME desktop application for movies and series"
+license = "GPL-3.0-only"
+
+[dependencies]
+movo-core = { path = "../movo-core" }
+
+# GTK 4, Libadwaita & Relm4
+gtk4 = { version = "0.11", features = ["v4_16"] }
+libadwaita = { version = "0.9", features = ["v1_6"] }
+relm4 = { version = "0.11", features = ["libadwaita", "gnome_47"] }
+relm4-components = "0.11"
+
+# Async runtime & Networking
+tokio = { version = "1.43", features = ["full"] }
+reqwest = "0.12"
+async-channel = "2.5"
+
+# System, logging & misc
+directories = "6.0"
+gettext-rs = { version = "0.8", features = ["gettext-system"] }
+image = "0.25"
+log = "0.4"
+env_logger = "0.11"
+chrono = "0.4"
+serde_json = "1.0"
+
+[lib]
+name = "movo"
+path = "src/lib.rs"

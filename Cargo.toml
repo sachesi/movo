@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "crates/movo-core",
+    "crates/movo-desktop",
 ]
 resolver = "2"
