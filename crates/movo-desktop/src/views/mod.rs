@@ -1,6 +1,9 @@
 pub mod catalog;
 pub mod collections;
 pub mod details;
+pub mod favorites;
+pub mod history;
 pub mod home;
+pub mod notifications;
 pub mod path;
 pub mod search;
