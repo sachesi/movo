@@ -1,12 +1,14 @@
 use super::catalog::CatalogScraper;
 use super::models::{
-    ActorDetails, ActorRole, Comment, CommentsPage, Episode, FranchisePart, LinkedItem,
-    MediaDetails, MediaType, Person, Rating, ScheduleGroup, ScheduleItem, Season, Translator,
-    VoiceRating,
+    Episode, FranchisePart, LinkedItem, MediaDetails, MediaType, Person, Rating, ScheduleGroup,
+    ScheduleItem, Season, Translator, VoiceRating,
 };
 use super::session::RezkaSession;
 use scraper::{Html, Selector};
 use serde_json::Value;
+
+mod actor;
+mod comments;
 
 pub struct DetailsScraper;
 
@@ -490,170 +492,6 @@ impl DetailsScraper {
             .collect()
     }
 
-    pub async fn fetch_actor(session: &RezkaSession, url: &str) -> Result<ActorDetails, String> {
-        let html = session.get_html(url).await?;
-        let mut actor = Self::parse_actor_html(&html);
-        actor.photo_url = actor.photo_url.map(|value| session.resolve_url(&value));
-        Ok(actor)
-    }
-
-    fn parse_actor_html(html: &str) -> ActorDetails {
-        let document = Html::parse_document(html);
-        let text = |selector: &str| {
-            document
-                .select(&Selector::parse(selector).unwrap())
-                .next()
-                .map(|node| node.text().collect::<String>().trim().to_string())
-                .filter(|value| !value.is_empty())
-        };
-        let mut actor = ActorDetails {
-            name: text(".b-post__title .t1").unwrap_or_default(),
-            original_name: text(".b-post__title .t2"),
-            photo_url: document
-                .select(&Selector::parse(".b-sidecover img").unwrap())
-                .next()
-                .and_then(|node| node.value().attr("src"))
-                .map(str::to_string),
-            careers: Vec::new(),
-            birth_date: None,
-            birth_place: None,
-            height: None,
-            films: CatalogScraper::parse_catalog_html(html),
-            roles: document
-                .select(&Selector::parse(".b-person__career").unwrap())
-                .map(|role| ActorRole {
-                    name: role
-                        .select(&Selector::parse("h2").unwrap())
-                        .next()
-                        .map(|node| node.text().collect::<String>().trim().to_string())
-                        .unwrap_or_default(),
-                    info: role
-                        .select(&Selector::parse(".b-person__career_stats").unwrap())
-                        .next()
-                        .map(|node| node.text().collect::<String>().trim().to_string())
-                        .unwrap_or_default(),
-                    films: CatalogScraper::parse_catalog_html(&role.html()),
-                })
-                .collect(),
-        };
-        let cells = Selector::parse(".b-post__info tr").unwrap();
-        let td = Selector::parse("td").unwrap();
-        for row in document.select(&cells) {
-            let parts = row.select(&td).collect::<Vec<_>>();
-            if parts.len() < 2 {
-                continue;
-            }
-            let key = parts[0].text().collect::<String>().to_lowercase();
-            let value = parts[1].text().collect::<String>().trim().to_string();
-            if key.contains("дата рождения") {
-                actor.birth_date = Some(value);
-            } else if key.contains("место рождения") {
-                actor.birth_place = Some(value);
-            } else if key.contains("рост") {
-                actor.height = Some(value);
-            } else if key.contains("карьера") {
-                actor.careers = parts[1]
-                    .select(&Selector::parse("a").unwrap())
-                    .map(|node| node.text().collect::<String>().trim().to_string())
-                    .collect();
-            }
-        }
-        actor
-    }
-
-    pub async fn fetch_comments(
-        session: &RezkaSession,
-        post_id: i64,
-        page: usize,
-    ) -> Result<CommentsPage, String> {
-        let response = session.get_html(&format!("ajax/get_comments?news_id={post_id}&cstart={page}&type=0&comment_id=0&skin=hdrezka")).await?;
-        let value: Value = serde_json::from_str(&response)
-            .map_err(|_| "Comments response was malformed".to_string())?;
-        let mut page = Self::parse_comments(
-            value
-                .get("comments")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-            value
-                .get("navigation")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-            page,
-        );
-        for comment in &mut page.items {
-            comment.avatar_url = comment
-                .avatar_url
-                .take()
-                .map(|value| session.resolve_url(&value));
-        }
-        Ok(page)
-    }
-
-    fn parse_comments(html: &str, navigation: &str, page: usize) -> CommentsPage {
-        let document = Html::parse_fragment(html);
-        let items = document
-            .select(&Selector::parse(".comments-tree-item").unwrap())
-            .map(|node| {
-                let find = |selector: &str| node.select(&Selector::parse(selector).unwrap()).next();
-                Comment {
-                    id: node.value().attr("data-id").unwrap_or_default().to_string(),
-                    username: find(".name")
-                        .map(|item| item.text().collect::<String>().trim().to_string())
-                        .unwrap_or_default(),
-                    avatar_url: find(".ava img")
-                        .and_then(|item| item.value().attr("src"))
-                        .map(str::to_string),
-                    date: find(".date")
-                        .map(|item| {
-                            item.text()
-                                .collect::<String>()
-                                .replace("оставлен ", "")
-                                .trim()
-                                .to_string()
-                        })
-                        .unwrap_or_default(),
-                    text: find(".text div")
-                        .map(|item| {
-                            item.text()
-                                .collect::<Vec<_>>()
-                                .join(" ")
-                                .split_whitespace()
-                                .collect::<Vec<_>>()
-                                .join(" ")
-                        })
-                        .unwrap_or_default(),
-                    has_spoiler: find(".text_spoiler").is_some(),
-                    indent: node
-                        .value()
-                        .attr("data-indent")
-                        .and_then(|value| value.parse().ok())
-                        .unwrap_or(0),
-                    likes: find(".b-comment__like_it")
-                        .and_then(|item| item.value().attr("data-likes_num"))
-                        .and_then(|value| value.parse().ok())
-                        .unwrap_or(0),
-                    liked: find(".show-likes-comment").is_some_and(|item| {
-                        item.value()
-                            .attr("class")
-                            .unwrap_or_default()
-                            .contains("disabled")
-                    }),
-                }
-            })
-            .collect();
-        let nav = Html::parse_fragment(navigation);
-        let total_pages = nav
-            .select(&Selector::parse(".b-navigation a").unwrap())
-            .filter_map(|node| node.text().collect::<String>().trim().parse().ok())
-            .max()
-            .unwrap_or(1);
-        CommentsPage {
-            items,
-            page,
-            total_pages,
-        }
-    }
-
     pub async fn fetch_trailer(
         session: &RezkaSession,
         post_id: i64,
@@ -695,15 +533,6 @@ impl DetailsScraper {
                 )
                 .await?,
             "Failed to update rating",
-        )
-    }
-
-    pub async fn like_comment(session: &RezkaSession, id: &str) -> Result<(), String> {
-        Self::require_success(
-            &session
-                .post_ajax("engine/ajax/comments_like.php", &[("id", id)])
-                .await?,
-            "Failed to like comment",
         )
     }
 
@@ -922,22 +751,5 @@ mod tests {
         );
         assert_eq!(details.voice_ratings[0].rating, 87.5);
         assert!(details.trailer_available && details.rating_posted);
-    }
-
-    #[test]
-    fn parses_comments_and_actor_pages() {
-        let comments = DetailsScraper::parse_comments(
-            r#"<div class="comments-tree-item" data-id="c1" data-indent="2"><span class="name">User</span><span class="date">оставлен Today</span><div class="text"><div>Hello <b>world</b></div></div><span class="b-comment__like_it" data-likes_num="7"></span></div>"#,
-            r#"<div class="b-navigation"><a>1</a><a>3</a><a>Next</a></div>"#,
-            1,
-        );
-        assert_eq!(comments.items[0].text, "Hello world");
-        assert_eq!(comments.total_pages, 3);
-
-        let actor = DetailsScraper::parse_actor_html(
-            r#"<div class="b-post__title"><span class="t1">Name</span><span class="t2">Original</span></div><div class="b-sidecover"><img src="photo.jpg"></div><table class="b-post__info"><tr><td>Дата рождения:</td><td>1 Jan</td></tr><tr><td>Карьера:</td><td><a>Actor</a></td></tr></table>"#,
-        );
-        assert_eq!(actor.name, "Name");
-        assert_eq!(actor.careers, vec!["Actor"]);
     }
 }
