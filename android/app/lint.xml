@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lint configuration for the Movo Android app module.
+
+  Media3 annotates a broad surface as @UnstableApi. Those annotations are plain
+  documentation markers (not @RequiresOptIn), so the Kotlin compiler does not enforce
+  an opt-in, but the androidx.annotation.experimental lint detector still raises
+  UnsafeOptInUsageError for every call site. Declaring the marker as opted-in here
+  keeps the MediaSession / ExoPlayer wiring clean without peppering @OptIn everywhere.
+-->
+<lint>
+    <issue id="UnsafeOptInUsageError">
+        <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+    </issue>
+</lint>

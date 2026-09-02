@@ -1,0 +1,187 @@
+<resources>
+    <string name="app_name">Movo</string>
+
+    <!-- Auth -->
+    <string name="sign_in">Sign in</string>
+    <string name="signing_in">Signing in…</string>
+    <string name="login_hint">Login or email</string>
+    <string name="password_hint">Password</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
+    <string name="sign_in_account">Sign in to your official HDRezka account</string>
+    <string name="password_disclaimer">Your password is used only for this sign-in request and is never stored.</string>
+
+    <!-- Navigation tabs -->
+    <string name="nav_catalog">Catalog</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_collections">Collections</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_history">History</string>
+    <string name="nav_notifications">Updates</string>
+    <string name="nav_account">Account</string>
+
+    <!-- Catalog categories -->
+    <string name="category">Category</string>
+    <string name="category_all">All</string>
+    <string name="category_films">Movies</string>
+    <string name="category_series">Series</string>
+    <string name="category_cartoons">Cartoons</string>
+    <string name="category_animation">Anime</string>
+
+    <!-- Catalog sort -->
+    <string name="sort_by">Sort by</string>
+    <string name="sort_popular">Popular</string>
+    <string name="sort_watching">Watching now</string>
+    <string name="sort_new">New releases</string>
+    <string name="sort_last">Recently added</string>
+    <string name="home_hot">Hot new releases</string>
+    <string name="home_awaiting">Awaiting release</string>
+
+    <string name="search_hint">Search</string>
+    <string name="search">Search</string>
+    <string name="voice_search">Voice search</string>
+    <string name="advanced_search">Advanced search</string>
+    <string name="genre">Genre</string>
+    <string name="year">Year</string>
+    <string name="recent">Recent</string>
+    <string name="recent_searches">Recent searches</string>
+    <string name="clear">Clear</string>
+    <plurals name="collection_items">
+        <item quantity="one">%1$d title</item>
+        <item quantity="other">%1$d titles</item>
+    </plurals>
+    <string name="notifications_empty">No episode updates</string>
+    <plurals name="premium_days">
+        <item quantity="one">Premium: %1$d day remaining</item>
+        <item quantity="other">Premium: %1$d days remaining</item>
+    </plurals>
+    <string name="premium_active">Premium account</string>
+    <string name="official_account">Official HDRezka account</string>
+    <string name="load_more">Load more</string>
+    <string name="menu_sign_out">Sign out</string>
+    <string name="sign_out_title">Sign out?</string>
+    <string name="sign_out_message">You’ll need to sign in again to access your account.</string>
+    <string name="menu">Menu</string>
+
+    <!-- Empty / status -->
+    <string name="history_empty">History is empty</string>
+    <string name="catalog_empty">No titles in this category</string>
+    <string name="catalog_empty_hint">Try another category or a different sort order</string>
+    <string name="home_failed">Home did not load</string>
+    <string name="home_failed_hint">Use Retry on the message below</string>
+    <string name="search_start">Search for a movie or series</string>
+    <string name="search_start_hint">Type a title, or pick one of your recent searches</string>
+    <string name="search_no_results">No results for \u201C%1$s\u201D</string>
+    <string name="search_no_results_hint">Check the spelling, or try a shorter title</string>
+    <string name="collections_empty">No collections available</string>
+    <string name="collection_empty">This collection is empty</string>
+    <string name="favorites_empty">Nothing in this list</string>
+    <string name="favorites_empty_hint">Open a title and add it to favorites to see it here</string>
+    <string name="unknown">Unknown</string>
+    <string name="more">More</string>
+    <string name="collapse">Collapse</string>
+    <string name="restoring_session">Restoring session</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="loading_content">Loading content</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove">Remove</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="layout_mode">Layout mode</string>
+    <string name="layout_auto">Auto</string>
+    <string name="layout_phone">Phone</string>
+    <string name="layout_tv">TV</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color">Use dynamic color</string>
+    <string name="initial_screen">Initial screen</string>
+    <string name="sort_voices">Sort translations by rating</string>
+    <string name="quality_mode">Default stream quality</string>
+    <string name="quality_max">Highest available</string>
+    <string name="quality_480">480p</string>
+    <string name="quality_720">720p</string>
+    <string name="quality_1080">1080p</string>
+    <string name="quality_4k">4K</string>
+    <string name="auto_next">Play next episode automatically</string>
+    <string name="seek_interval">Remote seek interval</string>
+    <string name="seconds_short">%1$d s</string>
+    <string name="default_speed">Default playback speed</string>
+    <string name="video_fit">Video fit</string>
+    <string name="video_contain">Contain</string>
+    <string name="video_cover">Cover</string>
+    <string name="video_fill">Fill</string>
+    <string name="ask_quality">Ask for quality before playback</string>
+    <string name="save_quality">Remember selected quality</string>
+    <string name="show_buffer">Show buffered time</string>
+    <string name="show_end_time">Show estimated end time</string>
+    <string name="buffer_window">Player buffer window</string>
+    <string name="tv_center_pauses">Center button toggles playback</string>
+    <string name="tv_pause_shows_controls">Show controls when paused by remote</string>
+    <string name="settings_group_general">General</string>
+    <string name="settings_group_appearance">Appearance</string>
+    <string name="settings_group_playback">Playback</string>
+    <string name="settings_group_player_overlay">Player overlay</string>
+    <string name="settings_group_tv">TV / remote</string>
+    <string name="retry">Retry</string>
+    <string name="about_title">About Movo</string>
+    <string name="about_body">Movo is a media player for Android phones, tablets and TV. It uses your own HDRezka account — the session key stays in the Android Keystore and is never sent anywhere else. Compared to the website you get a proper TV interface, exact resume positions, voice episode search, and EN/RU/UK localization.</string>
+    <string name="about_disclaimer">This is an unofficial app with no affiliation to HDRezka. All content comes from HDRezka and belongs to its rights holders — Movo is just a viewer for your own account.</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="splash_tagline">Unofficial HDRezka client</string>
+
+    <!-- Player -->
+    <string name="quality">Quality</string>
+    <string name="subtitles">Subtitles</string>
+    <string name="subtitles_off">Off</string>
+    <string name="speed">Speed</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="back">Back</string>
+    <string name="no_streams">No streams available for this item</string>
+    <string name="playback_failed">Playback failed</string>
+    <string name="mirror_unavailable">Selected mirror unavailable</string>
+    <string name="replay">Replay</string>
+    <string name="zoom_video">Zoom video</string>
+    <string name="fit_video">Fit video</string>
+    <string name="previous_episode">Previous episode</string>
+    <string name="next_episode">Next episode</string>
+    <string name="seek_preview">Seek preview</string>
+    <string name="voice_episode">Choose episode by voice</string>
+    <string name="episode_not_found">Could not match that episode</string>
+
+    <!-- History actions -->
+    <string name="mark_watched">Mark watched</string>
+    <string name="mark_unwatched">Mark unwatched</string>
+    <string name="remove_history">Remove from history</string>
+    <string name="remove_history_title">Remove from history?</string>
+    <string name="remove_history_message">Remove “%1$s” from your history?</string>
+
+    <!-- Details -->
+    <string name="favorite">Favorite</string>
+    <string name="favorite_folders">Favorite folders</string>
+    <string name="franchise">Franchise</string>
+    <string name="people">Cast and crew</string>
+    <string name="schedule">Release schedule</string>
+    <string name="from_collections">Collections</string>
+    <string name="related">Related titles</string>
+    <string name="trailer">Trailer</string>
+    <string name="rate_title">Rate this title</string>
+    <string name="comments">Comments</string>
+    <string name="show_spoiler">Show spoiler</string>
+    <string name="share">Share</string>
+    <string name="born">Born: %1$s</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
+    <string name="choose_playback">Choose playback</string>
+    <string name="start_watching">Start watching</string>
+    <string name="play_episode">Play %1$s</string>
+    <string name="translation">Translation</string>
+    <string name="episode">Episode</string>
+    <string name="rating_rezka">HDRezka %1$.1f</string>
+    <string name="rating_imdb">IMDb %1$.1f</string>
+    <string name="rating_kp">KinoPoisk %1$.1f</string>
+    <string name="season">Season</string>
+</resources>

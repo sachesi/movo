@@ -1,0 +1,19 @@
+<resources>
+    <!-- Window chrome only. Compose Material3 (MaterialTheme(colorScheme=...)) drives
+         every in-app color; this theme styles the status/navigation bars and the
+         first-frame background. Material3's XML theme styles are not depended on here.
+         Parent is android:Theme.Material.NoActionBar (API 21, available for minSdk 23);
+         dark/light + status-bar icon contrast are driven in Compose via
+         WindowCompat.getInsetsController. -->
+    <style name="Theme.Movo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/movo_surface</item>
+        <item name="android:statusBarColor">@color/movo_surface</item>
+        <item name="android:navigationBarColor">@color/movo_surface</item>
+        <!-- Light status/nav bar icons are toggled at runtime in Compose
+             (ViewInsetsControllerCompat) so the app bars read correctly over the
+             dark surface. -->
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
