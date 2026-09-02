@@ -1,0 +1,6 @@
+# Coarse startup profile for the app's own code. The Compose, Media3 and Coil artifacts ship their
+# own profiles, which the build merges alongside this one; this file exists so the app's screens,
+# view model and JNI bridge are AOT-compiled instead of interpreted on first run, which is what a
+# low-power TV box feels most.
+HSPLorg/movo/app/**->**(**)**
+Lorg/movo/app/**;

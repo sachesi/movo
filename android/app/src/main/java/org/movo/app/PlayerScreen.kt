@@ -1,0 +1,1451 @@
+package org.movo.app
+
+import android.app.Activity
+import android.os.SystemClock
+import android.content.pm.ActivityInfo
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.MediaSession
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import coil3.compose.AsyncImage
+import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.abs
+import java.text.DateFormat
+import java.util.Date
+
+internal const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
+internal const val TV_TIMELINE_SEEK_SECONDS = 2 * 60
+internal const val TV_TIMELINE_HOLD_DELAY_MS = 500L
+internal const val TV_TIMELINE_FAST_HOLD_MS = 2_000L
+internal const val TV_TIMELINE_MAX_SEEK_SECONDS = 20 * 60
+private const val PHONE_CONTROLS_TIMEOUT_MS = 3_000L
+private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
+private const val BUTTON_VIDEO_ZOOM = 1.5f
+private const val MAX_VIDEO_ZOOM = 4f
+private val EPISODE_MENU_MAX_HEIGHT = 320.dp
+
+/**
+ * First-class playback screen.
+ *
+ * Best practices applied:
+ *  - Media3 [ExoPlayer] shared with a single [MediaSession], so hardware media keys, the lock
+ *    screen, Bluetooth remotes and TV media buttons all drive playback.
+ *  - Edge-to-edge video surface with a comfortable overlay: play/pause, a precise seekbar,
+ *    quality + subtitle chips, always in immersive landscape.
+ *  - Controls auto-hide on touch devices; TV users show and hide them with D-pad Up/Down.
+ *  - Resume position restored from the last saved point; progress saved periodically and on
+ *    pause/stop. Completion marks the item watched (delegated to the view model).
+ *  - Directional (DPAD) focus on TV: control buttons are [focusable].
+ */
+@Composable
+fun PlayerScreen(
+    bundle: StreamBundle,
+    title: String,
+    resumePositionMs: Long,
+    qualityMode: QualityMode,
+    preferredQuality: String?,
+    saveProgress: (Long) -> Unit,
+    playbackStarted: () -> Unit,
+    syncError: String?,
+    close: (Boolean, Long) -> Unit,
+    isTv: Boolean,
+    seekSeconds: Int,
+    initialSpeed: Float,
+    videoFit: VideoFit,
+    previousEpisode: () -> Unit,
+    nextEpisode: (Boolean) -> Unit,
+    hasPreviousEpisode: Boolean,
+    hasNextEpisode: Boolean,
+    autoNext: Boolean,
+    seasons: List<Season>,
+    playEpisode: (Long, Long) -> Unit,
+    showBuffer: Boolean,
+    showEndTime: Boolean,
+    bufferSeconds: Int,
+    tvCenterPauses: Boolean,
+    tvPauseShowsControls: Boolean,
+    openRating: (Long) -> Unit,
+    qualityChanged: (String, Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val playerFocusRequester = remember { FocusRequester() }
+    val controlsFocusRequester = remember { FocusRequester() }
+    val contentKey = Triple(bundle.id, bundle.season, bundle.episode)
+    val episodeTitle = seasons
+        .firstOrNull { it.id == bundle.season }
+        ?.episodes
+        ?.firstOrNull { it.id == bundle.episode }
+        ?.title
+    val displayTitle = episodeTitle?.takeUnless { it == title }?.let { "$title • $it" } ?: title
+
+    var stream by remember(bundle) { mutableStateOf(selectStream(bundle, qualityMode, preferredQuality)) }
+    var urlIndex by remember(bundle) { mutableIntStateOf(0) }
+    var playbackSpeed by remember { mutableFloatStateOf(initialSpeed) }
+    var subtitle by remember(bundle) { mutableStateOf(bundle.subtitles.firstOrNull { it.default }) }
+    var playbackError by remember(bundle) { mutableStateOf<String?>(null) }
+    var completed by remember(bundle) { mutableStateOf(false) }
+    var historySynced by remember(bundle) { mutableStateOf(false) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var playWhenReady by remember(bundle) { mutableStateOf(false) }
+    var isBuffering by remember { mutableStateOf(false) }
+    var positionMs by remember(bundle) { mutableLongStateOf(resumePositionMs) }
+    var pendingSeekTargetMs by remember(bundle) { mutableStateOf<Long?>(null) }
+    var hiddenSeekDirection by remember(bundle) { mutableStateOf<Key?>(null) }
+    var durationMs by remember(bundle) { mutableLongStateOf(0L) }
+    var bufferedMs by remember(bundle) { mutableLongStateOf(0L) }
+    var videoScale by remember { mutableFloatStateOf(1f) }
+    var videoOffset by remember { mutableStateOf(Offset.Zero) }
+    var videoSize by remember { mutableStateOf(IntSize.Zero) }
+    var seekFeedback by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+    // Written on every remote key press, so it is deliberately never read from composition:
+    // observing it here would recompose the whole player on each auto-repeat event.
+    val lastInteractionMs = remember { mutableLongStateOf(0L) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var preparedContentKey by remember { mutableStateOf<Triple<Long, Long?, Long?>?>(null) }
+    val latestNextEpisode by rememberUpdatedState(nextEpisode)
+    val latestQualityChanged by rememberUpdatedState(qualityChanged)
+    val latestAutoNext by rememberUpdatedState(autoNext && hasNextEpisode)
+    val latestIsTv by rememberUpdatedState(isTv)
+    val latestPauseShowsControls by rememberUpdatedState(tvPauseShowsControls)
+
+    val noStreamsText = stringResource(R.string.no_streams)
+    val playbackFailedText = stringResource(R.string.playback_failed)
+    val mirrorUnavailableText = stringResource(R.string.mirror_unavailable)
+
+    val player = remember(bundle, bufferSeconds) {
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(bundle.userAgent)
+            .setDefaultRequestProperties(mapOf("Referer" to bundle.referer))
+        val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+        val builder = ExoPlayer.Builder(context, renderers)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+        if (bufferSeconds > 0) {
+            val bufferMs = bufferSeconds * 1_000
+            builder.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(bufferMs, bufferMs, 2_500, 5_000).build())
+        }
+        builder.build()
+            .apply {
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        isBuffering = state == Player.STATE_BUFFERING
+                        if (state == Player.STATE_READY) playbackError = null
+                        if (state == Player.STATE_ENDED) {
+                            completed = true
+                            controlsVisible = true
+                            if (latestAutoNext) latestNextEpisode(true)
+                        }
+                    }
+
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        if (shouldShowControlsForPause(playing, playWhenReady, latestIsTv, latestPauseShowsControls)) {
+                            controlsVisible = true
+                        }
+                        if (playing && !historySynced) {
+                            historySynced = true
+                            playbackStarted()
+                        }
+                    }
+
+                    override fun onPlayWhenReadyChanged(ready: Boolean, reason: Int) {
+                        playWhenReady = ready
+                        if (shouldShowControlsForPause(false, ready, latestIsTv, latestPauseShowsControls)) {
+                            controlsVisible = true
+                        }
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        val next = urlIndex + 1
+                        if (next < (stream?.urls?.size ?: 0)) {
+                            urlIndex = next
+                        } else {
+                            val fallback = nextLowerStream(bundle, stream)
+                            if (fallback != null) {
+                                stream = fallback
+                                urlIndex = 0
+                                latestQualityChanged(fallback.quality, false)
+                            } else {
+                                playbackError = error.message ?: playbackFailedText
+                                controlsVisible = true
+                            }
+                        }
+                    }
+                })
+            }
+    }
+
+    // MediaSession: surfaces playback to lock screen, media switches and TV remotes.
+    val mediaSession = remember(player) {
+        MediaSession.Builder(context, player).build()
+    }
+    DisposableEffect(mediaSession, player) {
+        onDispose {
+            mediaSession.release()
+            player.release()
+        }
+    }
+
+    fun buildMediaItem(): MediaItem {
+        val uri = stream?.urls?.getOrNull(urlIndex) ?: ""
+        val subs = subtitle?.let {
+            listOf(
+                MediaItem.SubtitleConfiguration.Builder(it.url.toUri())
+                    .setMimeType(MimeTypes.TEXT_VTT)
+                    .setLanguage(it.languageCode)
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build(),
+            )
+        }.orEmpty()
+        val metadata = MediaMetadata.Builder()
+            .setTitle(displayTitle)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_MOVIE)
+            .build()
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setSubtitleConfigurations(subs)
+            .setMediaMetadata(metadata)
+            .build()
+    }
+
+    fun prepare() {
+        val uri = stream?.urls?.getOrNull(urlIndex)
+        if (uri.isNullOrEmpty()) {
+            playbackError = if (stream == null) noStreamsText else mirrorUnavailableText
+            controlsVisible = true
+            return
+        }
+        val position = playbackStartPosition(
+            sameContent = preparedContentKey == contentKey,
+            currentPosition = player.currentPosition,
+            resumePosition = resumePositionMs,
+        )
+        preparedContentKey = contentKey
+        player.setMediaItem(buildMediaItem())
+        player.prepare()
+        if (position > 0L) player.seekTo(position)
+        player.playWhenReady = true
+        isPlaying = true
+    }
+
+    LaunchedEffect(stream) { urlIndex = 0 }
+    LaunchedEffect(player, stream, subtitle, urlIndex) { prepare() }
+    // Apply playback speed changes immediately (ExoPlayer rescales media clock pitch-aware).
+    LaunchedEffect(player, playbackSpeed) { player.playbackParameters = PlaybackParameters(playbackSpeed) }
+    // Poll playback state for a smooth seekbar.
+    LaunchedEffect(player) {
+        while (isActive) {
+            val playing = player.isPlaying
+            val reportedPosition = player.currentPosition.coerceAtLeast(0L)
+            val pending = pendingSeekTargetMs
+            if (pending == null || seekTargetSettled(pending, reportedPosition)) {
+                positionMs = reportedPosition
+                if (pending != null) pendingSeekTargetMs = null
+            } else {
+                positionMs = pending
+            }
+            val dur = player.duration
+            if (dur > 0) durationMs = dur
+            bufferedMs = player.bufferedPosition.coerceAtLeast(0L)
+            isPlaying = playing
+            delay(250)
+        }
+    }
+    // Persist periodically without queueing a preferences write for every seekbar frame.
+    LaunchedEffect(player) {
+        while (isActive) {
+            delay(PROGRESS_SAVE_INTERVAL_MS)
+            if (player.isPlaying) saveProgress(player.currentPosition)
+        }
+    }
+    LaunchedEffect(controlsVisible, isPlaying, isTv, menuOpen) {
+        if (!shouldAutoHideControls(controlsVisible, isPlaying, menuOpen)) return@LaunchedEffect
+        val timeout = if (isTv) TV_CONTROLS_TIMEOUT_MS else PHONE_CONTROLS_TIMEOUT_MS
+        lastInteractionMs.longValue = SystemClock.uptimeMillis()
+        // Poll the last interaction instead of restarting on a state key: key auto-repeat would
+        // otherwise tear down and re-arm this effect dozens of times a second.
+        var idle = SystemClock.uptimeMillis() - lastInteractionMs.longValue
+        while (idle < timeout) {
+            delay(timeout - idle)
+            idle = SystemClock.uptimeMillis() - lastInteractionMs.longValue
+        }
+        controlsVisible = false
+    }
+    // The control-bar requester is attached to the play button, which only exists while the
+    // overlay is composed, so the request can land before the node is there.
+    LaunchedEffect(controlsVisible, isTv) {
+        if (!isTv) return@LaunchedEffect
+        runCatching {
+            if (controlsVisible) controlsFocusRequester.requestFocus()
+            else playerFocusRequester.requestFocus()
+        }
+    }
+    LaunchedEffect(seekFeedback) {
+        if (seekFeedback != null) {
+            delay(700)
+            seekFeedback = null
+        }
+    }
+    // Persist progress + pause when the user leaves the screen or backgrounded.
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && !completed) {
+                saveProgress(player.currentPosition)
+                player.pause()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Fullscreen immersive landscape for the lifetime of the player.
+    // Keyed on identity-stable values only: `activity` and the insets controller never change
+    // across recompositions, so this effect installs exactly once and does not flip the
+    // orientation (and with it the whole activity) back and forth during playback.
+    val insetsController = remember(activity) {
+        activity?.let { WindowCompat.getInsetsController(it.window, it.window.decorView) }
+    }
+    DisposableEffect(activity, insetsController) {
+        val types = WindowInsetsCompat.Type.systemBars()
+        val previousOrientation = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        insetsController?.hide(types)
+        insetsController?.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE)
+        onDispose {
+            previousOrientation?.let { activity?.requestedOrientation = it }
+            insetsController?.show(types)
+        }
+    }
+
+    fun exitPlayer() {
+        player.pause()
+        close(completed, player.currentPosition)
+    }
+    BackHandler(onBack = ::exitPlayer)
+
+    fun togglePlayback() {
+        if (completed) {
+            player.seekTo(0)
+            completed = false
+            player.play()
+        } else if (player.isPlaying) {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+
+    fun seekTo(targetMs: Long) {
+        val duration = player.duration.takeIf { it > 0L } ?: durationMs
+        val target = seekTarget(targetMs, duration, 0)
+        pendingSeekTargetMs = target
+        player.seekTo(target)
+        positionMs = target
+    }
+
+    fun commitPendingSeek() {
+        pendingSeekTargetMs?.let { target ->
+            player.seekTo(target)
+            positionMs = target
+        }
+    }
+
+    fun seekBy(seconds: Int, commit: Boolean = true) {
+        val duration = player.duration.takeIf { it > 0L } ?: durationMs
+        val target = nextSeekTarget(
+            logicalTargetMs = pendingSeekTargetMs,
+            reportedPositionMs = player.currentPosition,
+            durationMs = duration,
+            seconds = seconds,
+        )
+        pendingSeekTargetMs = target
+        positionMs = target
+        if (commit) player.seekTo(target)
+        if (seconds != 0) {
+            val previous = seekFeedback?.first
+            val total = if (previous != null && (previous > 0) == (seconds > 0)) previous + seconds else seconds
+            seekFeedback = total to System.nanoTime()
+        }
+    }
+
+    val overlay = controlsVisible
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .then(
+                if (isTv) Modifier else Modifier
+                    .clickable(onClick = { controlsVisible = !controlsVisible })
+                    .background(Color.Transparent),
+            )
+            .then(
+                if (isTv) {
+                    Modifier
+                        .focusRequester(playerFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown) lastInteractionMs.longValue = SystemClock.uptimeMillis()
+                            false
+                        }
+                        .onKeyEvent { event ->
+                            val direction = when (event.key) {
+                                Key.DirectionLeft -> -1
+                                Key.DirectionRight -> 1
+                                else -> 0
+                            }
+                            if (direction != 0) {
+                                if (event.type == KeyEventType.KeyUp && hiddenSeekDirection == event.key) {
+                                    hiddenSeekDirection = null
+                                    true
+                                } else if (event.type == KeyEventType.KeyDown && !controlsVisible) {
+                                    hiddenSeekDirection = event.key
+                                    seekBy(direction * seekSeconds)
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                                // Only act as a fallback while controls are hidden. When the overlay
+                                // is up, real focusable controls own the D-pad so the user can move
+                                // focus between buttons and the timeline with Up/Down/Left/Right.
+                                if (controlsVisible) return@onKeyEvent false
+                                // Down is not listed: it reveals nothing while the overlay is
+                                // hidden, and claiming it would swallow the key for no reason.
+                                if (event.key == Key.DirectionUp || event.key == Key.DirectionCenter ||
+                                    event.key == Key.Enter
+                                ) {
+                                    if (event.key == Key.DirectionUp) {
+                                        controlsVisible = tvControlsVisibleAfterKey(controlsVisible, event.key)
+                                    } else if (tvCenterPauses) {
+                                        togglePlayback()
+                                        if (tvPauseShowsControls && !player.isPlaying) controlsVisible = true
+                                    } else {
+                                        controlsVisible = true
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                        }
+                        .focusable()
+                } else {
+                    Modifier
+                }
+            ),
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    this.player = player
+                    useController = false
+                    keepScreenOn = true
+                }
+            },
+            update = {
+                it.player = player
+                it.resizeMode = when (videoFit) {
+                    VideoFit.Contain -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    VideoFit.Cover -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    VideoFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                }
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { videoSize = it }
+                .pointerInput(videoSize) {
+                    detectTransformGestures(panZoomLock = true) { centroid, pan, zoom, _ ->
+                        val transformed = updateVideoTransform(
+                            videoScale,
+                            videoOffset,
+                            centroid,
+                            pan,
+                            zoom,
+                            videoSize,
+                        )
+                        videoScale = transformed.first
+                        videoOffset = transformed.second
+                    }
+                }
+                .graphicsLayer {
+                    scaleX = videoScale
+                    scaleY = videoScale
+                    translationX = videoOffset.x
+                    translationY = videoOffset.y
+                },
+        )
+
+        AnimatedVisibility(
+            visible = overlay,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Black.copy(alpha = 0.62f), Color.Transparent),
+                        ),
+                    )
+                    .padding(
+                        start = if (isTv) 28.dp else 12.dp,
+                        end = if (isTv) 28.dp else 12.dp,
+                        top = if (isTv) 16.dp else 8.dp,
+                        bottom = 36.dp,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                PlayerIconButton(
+                    onClick = ::exitPlayer,
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    isTv = isTv,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = displayTitle,
+                        color = Color.White,
+                        style = if (isTv) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // Quiet secondary line: episode-of-season context without the "Title • Ep" blob.
+                    if (isTv && episodeTitle != null && episodeTitle != title) {
+                        Text(
+                            text = title,
+                            color = Color.White.copy(alpha = 0.72f),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+
+        (playbackError ?: syncError)?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 16.dp, vertical = 84.dp)
+                    .background(
+                        MaterialTheme.colorScheme.errorContainer,
+                        RoundedCornerShape(12.dp),
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isBuffering && playbackError == null,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            CircularProgressIndicator(color = Color.White)
+        }
+
+        seekFeedback?.let { (seconds, _) ->
+            Text(
+                text = formatSeekDelta(seconds),
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = overlay && seekFeedback == null && !isBuffering && playbackError == null,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn() + scaleIn(initialScale = 0.88f),
+            exit = fadeOut() + scaleOut(targetScale = 0.88f),
+        ) {
+            Box(
+                Modifier.size(104.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(
+                    onClick = ::togglePlayback,
+                    modifier = Modifier.size(if (isTv) 88.dp else 76.dp).tvFocusScale(isTv, 1.1f),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color.White.copy(alpha = 0.94f),
+                        contentColor = Color.Black,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = when {
+                            completed -> Icons.Default.Replay
+                            isPlaying -> Icons.Default.Pause
+                            else -> Icons.Default.PlayArrow
+                        },
+                        contentDescription = stringResource(
+                            when {
+                                completed -> R.string.replay
+                                isPlaying -> R.string.pause
+                                else -> R.string.play
+                            },
+                        ),
+                        modifier = Modifier.size(if (isTv) 48.dp else 40.dp),
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = overlay,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn() + slideInVertically { it / 3 },
+            exit = fadeOut() + slideOutVertically { it / 3 },
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.92f)),
+                        ),
+                    )
+                    .padding(top = 36.dp, bottom = if (isTv) 16.dp else 8.dp),
+            ) {
+                SeekRow(
+                    positionMs,
+                    durationMs,
+                    bufferedMs,
+                    bundle.storyboard,
+                    showBuffer,
+                    showEndTime,
+                    playbackSpeed,
+                    isTv,
+                    { seconds, commit -> seekBy(seconds, commit) },
+                    ::seekTo,
+                    ::commitPendingSeek,
+                )
+                ControlBar(
+                    bundle = bundle,
+                    stream = stream,
+                    subtitle = subtitle,
+                    playbackSpeed = playbackSpeed,
+                    isPlaying = isPlaying,
+                    completed = completed,
+                    onTogglePlay = ::togglePlayback,
+                    onSelectStream = {
+                        stream = it
+                        urlIndex = 0
+                        qualityChanged(it.quality, true)
+                    },
+                    onSelectSubtitle = { subtitle = it },
+                    onSelectSpeed = { playbackSpeed = it },
+                    zoomed = videoScale > 1f,
+                    onToggleZoom = {
+                        videoScale = if (videoScale > 1f) 1f else BUTTON_VIDEO_ZOOM
+                        videoOffset = Offset.Zero
+                    },
+                    isTv = isTv,
+                    playFocusRequester = controlsFocusRequester,
+                    previousEpisode = {
+                        player.pause()
+                        saveProgress(player.currentPosition)
+                        previousEpisode()
+                    },
+                    nextEpisode = {
+                        player.pause()
+                        saveProgress(player.currentPosition)
+                        nextEpisode(false)
+                    },
+                    hasPreviousEpisode = hasPreviousEpisode,
+                    hasNextEpisode = hasNextEpisode,
+                    seasons = seasons,
+                    currentSeason = bundle.season,
+                    currentEpisode = bundle.episode,
+                    playEpisode = { season, episode ->
+                        player.pause()
+                        saveProgress(player.currentPosition)
+                        playEpisode(season, episode)
+                    },
+                    openRating = { openRating(player.currentPosition) },
+                    onMenuOpenChange = { menuOpen = it },
+                    onHideControls = { controlsVisible = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeekRow(
+    positionMs: Long,
+    durationMs: Long,
+    bufferedMs: Long,
+    storyboard: List<StoryboardCue>,
+    showBuffer: Boolean,
+    showEndTime: Boolean,
+    playbackSpeed: Float,
+    isTv: Boolean,
+    seekBy: (Int, Boolean) -> Unit,
+    seekTo: (Long) -> Unit,
+    commitPendingSeek: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    val endTimeFormat = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
+    val spriteSizes = remember(storyboard) { storyboardSpriteSizes(storyboard) }
+    val duration = durationMs.coerceAtLeast(1L)
+    var dragging by remember { mutableStateOf(false) }
+    var sliderPosition by remember { mutableFloatStateOf(positionMs.toFloat()) }
+    var timelineDirection by remember { mutableStateOf<Key?>(null) }
+    var timelineStartedAtMs by remember { mutableLongStateOf(0L) }
+    var timelineAppliedSeconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(positionMs, duration) {
+        if (!dragging) sliderPosition = positionMs.coerceIn(0L, duration).toFloat()
+    }
+    Column {
+        val previewMs = sliderPosition.toLong()
+        val cue = if (dragging) storyboard.firstOrNull { previewMs in it.startMs until it.endMs } else null
+        val spriteSize = cue?.let { spriteSizes[it.imageUrl] }
+        if (dragging && cue != null && spriteSize != null && cue.width > 0 && cue.height > 0) {
+            val scale = 192f / cue.width
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 6.dp)
+                    .size(192.dp, (cue.height * scale).dp)
+                    .clipToBounds()
+                    .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+            ) {
+                AsyncImage(
+                    model = cue.imageUrl,
+                    contentDescription = stringResource(R.string.seek_preview),
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier
+                        .size((spriteSize.first * scale).dp, (spriteSize.second * scale).dp)
+                        .offset((-cue.x * scale).dp, (-cue.y * scale).dp),
+                )
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+        Text(
+            formatTime(if (dragging) sliderPosition.toLong() else positionMs.coerceIn(0L, duration)),
+            color = Color.White.copy(alpha = 0.92f),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.widthIn(min = 44.dp),
+        )
+        Slider(
+            value = sliderPosition.coerceIn(0f, duration.toFloat()),
+            onValueChange = { dragging = true; sliderPosition = it },
+            onValueChangeFinished = {
+                seekTo(sliderPosition.toLong())
+                dragging = false
+            },
+            valueRange = 0f..duration.toFloat(),
+            enabled = durationMs > 0,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.24f),
+                disabledThumbColor = Color.White.copy(alpha = 0.5f),
+                disabledActiveTrackColor = Color.White.copy(alpha = 0.25f),
+                disabledInactiveTrackColor = Color.White.copy(alpha = 0.15f),
+            ),
+            modifier = Modifier
+                .weight(1f)
+                .onPreviewKeyEvent { event ->
+                    if (!isTv) return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.DirectionUp -> {
+                            if (event.type == KeyEventType.KeyDown) {
+                                focusManager.moveFocus(FocusDirection.Up)
+                                true
+                            } else false
+                        }
+                        Key.DirectionDown -> {
+                            if (event.type == KeyEventType.KeyDown) {
+                                focusManager.moveFocus(FocusDirection.Down)
+                                true
+                            } else false
+                        }
+                        Key.DirectionLeft -> {
+                            handleTimelineKey(
+                                event,
+                                -1,
+                                { seconds, commit -> seekBy(seconds, commit) },
+                                commitPendingSeek,
+                                { timelineDirection = it },
+                                { timelineStartedAtMs = it },
+                                { timelineAppliedSeconds = it },
+                                { timelineDirection },
+                                { timelineStartedAtMs },
+                                { timelineAppliedSeconds },
+                            )
+                        }
+                        Key.DirectionRight -> {
+                            handleTimelineKey(
+                                event,
+                                1,
+                                { seconds, commit -> seekBy(seconds, commit) },
+                                commitPendingSeek,
+                                { timelineDirection = it },
+                                { timelineStartedAtMs = it },
+                                { timelineAppliedSeconds = it },
+                                { timelineDirection },
+                                { timelineStartedAtMs },
+                                { timelineAppliedSeconds },
+                            )
+                        }
+                        else -> false
+                    }
+                },
+        )
+        Text(
+            formatTime(durationMs),
+            color = Color.White.copy(alpha = 0.92f),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.widthIn(min = 44.dp),
+        )
+        if (showBuffer) Text("+${formatTime((bufferedMs - positionMs).coerceAtLeast(0L))}", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
+        if (showEndTime && durationMs > positionMs) Text(
+            endTimeFormat.format(
+                Date(System.currentTimeMillis() + remainingPlaybackTimeMs(durationMs, positionMs, playbackSpeed)),
+            ),
+            color = Color.White.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.labelSmall,
+        )
+        }
+    }
+}
+
+private val SPEEDS = listOf(
+    0.25f, 0.5f, 0.75f, 1.0f, 1.1f, 1.25f, 1.5f, 1.75f, 2.0f, 2.25f, 2.5f, 2.75f, 3.0f,
+)
+
+@Composable
+private fun PlayerIconButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    isTv: Boolean,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused && isTv) 1.1f else 1f,
+        label = "player control focus",
+    )
+    val containerColor = when {
+        focused && isTv -> MaterialTheme.colorScheme.primary
+        selected -> Color.White.copy(alpha = 0.2f)
+        else -> Color.Transparent
+    }
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(if (isTv) 56.dp else 48.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = containerColor,
+            contentColor = if (focused && isTv) MaterialTheme.colorScheme.onPrimary else Color.White,
+        ),
+    ) {
+        Icon(icon, contentDescription)
+    }
+}
+
+@Composable
+private fun ControlBar(
+    bundle: StreamBundle,
+    stream: StreamEntry?,
+    subtitle: SubtitleTrack?,
+    playbackSpeed: Float,
+    isPlaying: Boolean,
+    completed: Boolean,
+    onTogglePlay: () -> Unit,
+    onSelectStream: (StreamEntry) -> Unit,
+    onSelectSubtitle: (SubtitleTrack?) -> Unit,
+    onSelectSpeed: (Float) -> Unit,
+    zoomed: Boolean,
+    onToggleZoom: () -> Unit,
+    isTv: Boolean,
+    playFocusRequester: FocusRequester,
+    previousEpisode: () -> Unit,
+    nextEpisode: () -> Unit,
+    hasPreviousEpisode: Boolean,
+    hasNextEpisode: Boolean,
+    seasons: List<Season>,
+    currentSeason: Long?,
+    currentEpisode: Long?,
+    playEpisode: (Long, Long) -> Unit,
+    openRating: () -> Unit,
+    onMenuOpenChange: (Boolean) -> Unit,
+    onHideControls: () -> Unit,
+) {
+    // Two-tier hierarchy: transport + episode controls on the left (primary), settings
+    // (quality/subtitles/speed/zoom) tucked to the right at reduced prominence.
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .onPreviewKeyEvent { event ->
+                // Down from the control bar dismisses the overlay (matches hide-on-Down
+                // convention); the root player surface picks the key back up when hidden.
+                if (isTv && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                    onHideControls()
+                    true
+                } else {
+                    false
+                }
+            }
+            .padding(horizontal = if (isTv) 16.dp else 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (isTv) 10.dp else 4.dp),
+        ) {
+            PlayerIconButton(
+                onClick = onTogglePlay,
+                icon = when {
+                    completed -> Icons.Default.Replay
+                    isPlaying -> Icons.Default.Pause
+                    else -> Icons.Default.PlayArrow
+                },
+                contentDescription = stringResource(
+                    when {
+                        completed -> R.string.replay
+                        isPlaying -> R.string.pause
+                        else -> R.string.play
+                    },
+                ),
+                isTv = isTv,
+                modifier = Modifier.focusRequester(playFocusRequester),
+            )
+            if (hasPreviousEpisode) {
+                PlayerIconButton(previousEpisode, Icons.Default.SkipPrevious, stringResource(R.string.previous_episode), isTv)
+            }
+            if (hasNextEpisode) {
+                PlayerIconButton(nextEpisode, Icons.Default.SkipNext, stringResource(R.string.next_episode), isTv)
+            }
+            if (seasons.isNotEmpty()) {
+                EpisodeSelector(seasons, currentSeason, currentEpisode, playEpisode, isTv, onMenuOpenChange)
+            }
+            PlayerIconButton(openRating, Icons.Default.StarRate, stringResource(R.string.rate_title), isTv)
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(if (isTv) 6.dp else 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlayerIconButton(
+                onClick = onToggleZoom,
+                icon = if (zoomed) Icons.Default.FitScreen else Icons.Default.ZoomIn,
+                contentDescription = stringResource(if (zoomed) R.string.fit_video else R.string.zoom_video),
+                isTv = isTv,
+                selected = zoomed,
+            )
+            if (bundle.streams.size > 1) {
+                QualitySelector(
+                    streams = bundle.streams,
+                    selected = stream,
+                    onSelect = onSelectStream,
+                    isTv = isTv,
+                    onMenuOpenChange = onMenuOpenChange,
+                )
+            }
+            if (bundle.subtitles.isNotEmpty()) {
+                SubtitleSelector(
+                    subtitles = bundle.subtitles,
+                    selected = subtitle,
+                    onSelect = onSelectSubtitle,
+                    isTv = isTv,
+                    onMenuOpenChange = onMenuOpenChange,
+                )
+            }
+            SpeedSelector(
+                speeds = SPEEDS,
+                selected = playbackSpeed,
+                onSelect = onSelectSpeed,
+                isTv = isTv,
+                onMenuOpenChange = onMenuOpenChange,
+                labelOverride = formatSpeed(playbackSpeed).takeIf { playbackSpeed != 1f },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EpisodeSelector(
+    seasons: List<Season>,
+    currentSeason: Long?,
+    currentEpisode: Long?,
+    playEpisode: (Long, Long) -> Unit,
+    isTv: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+) {
+    var expanded by remember(seasons, currentSeason, currentEpisode) { mutableStateOf(false) }
+    DisposableEffect(expanded) {
+        if (expanded) onMenuOpenChange(true)
+        onDispose { if (expanded) onMenuOpenChange(false) }
+    }
+    val episodes = remember(seasons) {
+        seasons.flatMap { season -> season.episodes.map { episode -> season to episode } }
+    }
+    val currentIndex = remember(episodes, currentSeason, currentEpisode) {
+        episodes.indexOfFirst { (season, episode) ->
+            season.id == currentSeason && episode.id == currentEpisode
+        }
+    }
+    val listState = rememberLazyListState()
+    LaunchedEffect(expanded, currentIndex) {
+        if (expanded && currentIndex >= 0) {
+            listState.scrollToItem(episodeMenuAnchorIndex(currentIndex))
+        }
+    }
+    Box {
+        PlayerIconButton({ expanded = true }, Icons.Default.VideoLibrary, stringResource(R.string.episode), isTv)
+        DropdownMenu(expanded, { expanded = false }) {
+            // A show with many seasons has hundreds of episodes; composing them all when the menu
+            // opens stalls the frame, so the rows are virtualized. The bounded height is required
+            // because the menu already places its content inside a vertical scroll.
+            LazyColumn(state = listState, modifier = Modifier.heightIn(max = EPISODE_MENU_MAX_HEIGHT)) {
+                items(episodes, key = { (season, episode) -> "${season.id}:${episode.id}" }) { (season, episode) ->
+                    DropdownMenuItem(
+                        onClick = { expanded = false; playEpisode(season.id, episode.id) },
+                        text = { Text("${season.title} • ${episode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                        trailingIcon = if (season.id == currentSeason && episode.id == currentEpisode) {
+                            { Icon(Icons.Default.Check, null) }
+                        } else null,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QualitySelector(
+    streams: List<StreamEntry>,
+    selected: StreamEntry?,
+    onSelect: (StreamEntry) -> Unit,
+    isTv: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+) {
+    var expanded by remember(streams) { mutableStateOf(false) }
+    DisposableEffect(expanded) {
+        if (expanded) onMenuOpenChange(true)
+        onDispose { if (expanded) onMenuOpenChange(false) }
+    }
+    Box {
+        PlayerIconButton(
+            onClick = { expanded = true },
+            icon = Icons.Default.HighQuality,
+            contentDescription = stringResource(R.string.quality),
+            isTv = isTv,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            streams.forEach { entry ->
+                DropdownMenuItem(
+                    onClick = { expanded = false; onSelect(entry) },
+                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                    text = {
+                        Text(entry.quality, style = MaterialTheme.typography.bodyLarge)
+                    },
+                    trailingIcon = if (entry == selected) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubtitleSelector(
+    subtitles: List<SubtitleTrack>,
+    selected: SubtitleTrack?,
+    onSelect: (SubtitleTrack?) -> Unit,
+    isTv: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    DisposableEffect(expanded) {
+        if (expanded) onMenuOpenChange(true)
+        onDispose { if (expanded) onMenuOpenChange(false) }
+    }
+    Box {
+        PlayerIconButton(
+            onClick = { expanded = true },
+            icon = Icons.Default.Subtitles,
+            contentDescription = stringResource(R.string.subtitles),
+            isTv = isTv,
+            selected = selected != null,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                onClick = { expanded = false; onSelect(null) },
+                modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                text = { Text(stringResource(R.string.subtitles_off)) },
+                trailingIcon = if (selected == null) {
+                    { Icon(Icons.Default.Check, contentDescription = null) }
+                } else null,
+            )
+            subtitles.forEach { track ->
+                DropdownMenuItem(
+                    onClick = { expanded = false; onSelect(track) },
+                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                    text = {
+                        Text(
+                            text = track.title.ifEmpty { track.code },
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    trailingIcon = if (track == selected) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedSelector(
+    speeds: List<Float>,
+    selected: Float,
+    onSelect: (Float) -> Unit,
+    isTv: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+    labelOverride: String? = null,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    DisposableEffect(expanded) {
+        if (expanded) onMenuOpenChange(true)
+        onDispose { if (expanded) onMenuOpenChange(false) }
+    }
+    Box {
+        if (labelOverride != null) {
+            // Text pill instead of an icon: shows the active speed without opening anything.
+            TextButton(
+                onClick = { expanded = true },
+                modifier = Modifier.tvFocusScale(isTv, 1.06f),
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+            ) { Text(labelOverride, style = MaterialTheme.typography.labelLarge) }
+        } else {
+            PlayerIconButton(
+                onClick = { expanded = true },
+                icon = Icons.Default.Speed,
+                contentDescription = stringResource(R.string.speed),
+                isTv = isTv,
+                selected = selected != 1f,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            speeds.forEach { speed ->
+                DropdownMenuItem(
+                    onClick = { expanded = false; onSelect(speed) },
+                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                    text = {
+                        Text(
+                            text = formatSpeed(speed),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    trailingIcon = if (speed == selected) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else null,
+                )
+            }
+        }
+    }
+}
+
+private fun formatSpeed(speed: Float) = if (speed == 1f) "1×" else "${speed}×"
+
+internal fun selectStream(
+    bundle: StreamBundle,
+    mode: QualityMode,
+    preferredQuality: String? = null,
+): StreamEntry? {
+    val streams = bundle.streams.filter { it.urls.isNotEmpty() }
+    if (streams.isEmpty()) return null
+    streams.firstOrNull { it.quality == preferredQuality }?.let { return it }
+    val target = preferredQuality?.qualityScore()?.takeIf { it > 0 } ?: mode.targetHeight
+    return when {
+        target != null -> streams.firstOrNull { it.quality.equals("${target}p", ignoreCase = true) }
+            ?: streams.minByOrNull { abs(it.qualityScore() - target) }
+        mode == QualityMode.Max -> streams.maxByOrNull { it.qualityScore() }
+        else -> streams.first()
+    }
+}
+
+internal fun nextLowerStream(bundle: StreamBundle, current: StreamEntry?): StreamEntry? {
+    val currentScore = current?.qualityScore() ?: return null
+    return bundle.streams
+        .filter { it.urls.isNotEmpty() && it.qualityScore() < currentScore }
+        .maxByOrNull { it.qualityScore() }
+}
+
+internal fun updateVideoTransform(
+    scale: Float,
+    offset: Offset,
+    centroid: Offset,
+    pan: Offset,
+    zoomChange: Float,
+    size: IntSize,
+): Pair<Float, Offset> {
+    val newScale = (scale * zoomChange).coerceIn(1f, MAX_VIDEO_ZOOM)
+    if (newScale == 1f || size.width <= 0 || size.height <= 0) return newScale to Offset.Zero
+
+    val ratio = newScale / scale
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val moved = offset * ratio + (centroid - center) * (1f - ratio) + pan
+    val maxX = size.width * (newScale - 1f) / 2f
+    val maxY = size.height * (newScale - 1f) / 2f
+    return newScale to Offset(
+        moved.x.coerceIn(-maxX, maxX),
+        moved.y.coerceIn(-maxY, maxY),
+    )
+}
+
+internal fun playbackStartPosition(sameContent: Boolean, currentPosition: Long, resumePosition: Long) =
+    if (sameContent) currentPosition.coerceAtLeast(0L) else resumePosition
+
+internal fun storyboardSpriteSizes(cues: List<StoryboardCue>) = cues
+    .groupBy { it.imageUrl }
+    .mapValues { (_, imageCues) ->
+        imageCues.maxOf { it.x + it.width } to imageCues.maxOf { it.y + it.height }
+    }
+
+internal fun episodeMenuAnchorIndex(currentIndex: Int) = (currentIndex - 2).coerceAtLeast(0)
+
+internal fun shouldAutoHideControls(visible: Boolean, playing: Boolean, menuOpen: Boolean) =
+    visible && playing && !menuOpen
+
+internal fun seekTarget(currentMs: Long, durationMs: Long, seconds: Int): Long {
+    val target = currentMs + seconds * 1_000L
+    return if (durationMs > 0L) target.coerceIn(0L, durationMs) else target.coerceAtLeast(0L)
+}
+
+internal fun nextSeekTarget(logicalTargetMs: Long?, reportedPositionMs: Long, durationMs: Long, seconds: Int) =
+    seekTarget(logicalTargetMs ?: reportedPositionMs, durationMs, seconds)
+
+internal fun seekTargetSettled(targetMs: Long, reportedPositionMs: Long) =
+    abs(targetMs - reportedPositionMs) <= 1_000L
+
+internal fun shouldShowControlsForPause(
+    playing: Boolean,
+    playWhenReady: Boolean,
+    isTv: Boolean,
+    showOnPause: Boolean,
+) = isTv && showOnPause && !playing && !playWhenReady
+
+internal fun timelineSeekSeconds(heldMs: Long): Int {
+    val elapsed = heldMs.coerceAtLeast(0L)
+    return when {
+        elapsed < TV_TIMELINE_HOLD_DELAY_MS -> TV_TIMELINE_SEEK_SECONDS
+        elapsed < TV_TIMELINE_FAST_HOLD_MS -> TV_TIMELINE_SEEK_SECONDS + (((elapsed - TV_TIMELINE_HOLD_DELAY_MS) / 250L) * 30L).toInt()
+        else -> (TV_TIMELINE_SEEK_SECONDS + 180 + (((elapsed - TV_TIMELINE_FAST_HOLD_MS) / 250L) * 60L).toInt())
+            .coerceAtMost(TV_TIMELINE_MAX_SEEK_SECONDS)
+    }
+}
+
+private fun handleTimelineKey(
+    event: KeyEvent,
+    direction: Int,
+    seekBy: (Int, Boolean) -> Unit,
+    commitPendingSeek: () -> Unit,
+    setDirection: (Key?) -> Unit,
+    setStartedAt: (Long) -> Unit,
+    setAppliedSeconds: (Int) -> Unit,
+    currentDirection: () -> Key?,
+    startedAt: () -> Long,
+    appliedSeconds: () -> Int,
+): Boolean {
+    val key = event.key
+    val native = event.nativeKeyEvent
+    return when (event.type) {
+        KeyEventType.KeyDown -> {
+            if (currentDirection() != key) {
+                setDirection(key)
+                setStartedAt(native.eventTime)
+                setAppliedSeconds(TV_TIMELINE_SEEK_SECONDS)
+                seekBy(direction * TV_TIMELINE_SEEK_SECONDS, false)
+            } else {
+                val total = timelineSeekSeconds(native.eventTime - startedAt())
+                val delta = total - appliedSeconds()
+                if (delta != 0) {
+                    seekBy(direction * delta, false)
+                    setAppliedSeconds(total)
+                }
+            }
+            true
+        }
+        KeyEventType.KeyUp -> {
+            if (currentDirection() == key) {
+                commitPendingSeek()
+                setDirection(null)
+                setStartedAt(0L)
+                setAppliedSeconds(0)
+                true
+            } else {
+                false
+            }
+        }
+        else -> false
+    }
+}
+
+internal fun formatSeekDelta(seconds: Int): String {
+    val sign = if (seconds > 0) "+" else "-"
+    val magnitude = abs(seconds)
+    return if (magnitude % 60 == 0) "$sign${magnitude / 60}m" else "$sign${magnitude}s"
+}
+
+internal fun remainingPlaybackTimeMs(durationMs: Long, positionMs: Long, speed: Float): Long =
+    (((durationMs - positionMs).coerceAtLeast(0L)).toDouble() / speed.coerceAtLeast(0.01f)).toLong()
+
+internal fun tvControlsVisibleAfterKey(visible: Boolean, key: Key) =
+    if (key == Key.DirectionUp) !visible else visible
+
+private fun StreamEntry.qualityScore() = quality.qualityScore()
+
+private fun String.qualityScore(): Int = when {
+    contains("2160", ignoreCase = true) || contains("4K", ignoreCase = true) -> 2160
+    contains("1440", ignoreCase = true) || contains("2K", ignoreCase = true) -> 1440
+    else -> Regex("""\d{3,4}""").find(this)?.value?.toIntOrNull() ?: 0
+}
+
+private fun formatTime(ms: Long): String {
+    val total = (if (ms < 0) 0 else ms) / 1000
+    val h = total / 3600
+    val m = (total % 3600) / 60
+    val s = total % 60
+    return if (h > 0) "$h:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
+    else "${m}:${s.toString().padStart(2, '0')}"
+}

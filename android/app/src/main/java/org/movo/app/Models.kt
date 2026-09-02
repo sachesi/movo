@@ -1,0 +1,37 @@
+package org.movo.app
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable enum class CatalogCategory { All, Films, Series, Cartoons, Animation }
+@Serializable data class MediaItem(val id: Long, val title: String, @SerialName("orig_title") val originalTitle: String? = null, val url: String, @SerialName("poster_url") val posterUrl: String? = null, val year: Int? = null, val category: String? = null, val rating: Float? = null, val info: String? = null)
+@Serializable data class Translator(val id: Long, val name: String, @SerialName("is_premium") val premium: Boolean, @SerialName("is_camrip") val camrip: Boolean = false, @SerialName("has_ads") val hasAds: Boolean = false, @SerialName("is_director_cut") val directorCut: Boolean = false)
+@Serializable data class Episode(val id: Long, @SerialName("season_id") val seasonId: Long, val title: String, @SerialName("watch_id") val watchId: String? = null, @SerialName("is_watched") val watched: Boolean = false)
+@Serializable data class Season(val id: Long, val title: String, val episodes: List<Episode>)
+@Serializable data class FranchisePart(val title: String, val url: String, @SerialName("is_current") val current: Boolean)
+@Serializable data class LinkedItem(val name: String, val url: String)
+@Serializable data class Person(val name: String, val url: String, @SerialName("photo_url") val photoUrl: String? = null, val role: String? = null)
+@Serializable data class Rating(val name: String, val value: Float, val votes: Long? = null, val url: String? = null)
+@Serializable data class VoiceRating(val title: String, val rating: Float)
+@Serializable data class ScheduleItem(val id: String, val episode: String, val title: String, @SerialName("original_title") val originalTitle: String? = null, val date: String? = null, @SerialName("release_status") val releaseStatus: String? = null, @SerialName("is_released") val released: Boolean, @SerialName("is_watched") val watched: Boolean)
+@Serializable data class ScheduleGroup(val name: String, val items: List<ScheduleItem>)
+@Serializable data class CollectionItem(val title: String, val url: String, @SerialName("image_url") val imageUrl: String? = null, val count: Int)
+@Serializable data class HomeSection(val id: String, val items: List<MediaItem>)
+@Serializable data class Comment(val id: String, val username: String, @SerialName("avatar_url") val avatarUrl: String? = null, val date: String, val text: String, @SerialName("has_spoiler") val hasSpoiler: Boolean = false, val indent: Int, val likes: Long, val liked: Boolean)
+@Serializable data class CommentsPage(val items: List<Comment>, val page: Int, @SerialName("total_pages") val totalPages: Int)
+@Serializable data class ActorRole(val name: String, val info: String, val films: List<MediaItem>)
+@Serializable data class ActorDetails(val name: String, @SerialName("original_name") val originalName: String? = null, @SerialName("photo_url") val photoUrl: String? = null, val careers: List<String>, @SerialName("birth_date") val birthDate: String? = null, @SerialName("birth_place") val birthPlace: String? = null, val height: String? = null, val films: List<MediaItem>, val roles: List<ActorRole> = emptyList())
+@Serializable data class SearchFilter(val name: String, val path: String, val genres: List<LinkedItem>, val years: List<LinkedItem>)
+@Serializable data class NotificationItem(val title: String, val url: String, val info: String)
+@Serializable data class NotificationGroup(val date: String, val items: List<NotificationItem>)
+@Serializable data class AccountData(val notifications: List<NotificationGroup>, @SerialName("premium_days") val premiumDays: Int? = null)
+@Serializable data class MediaDetails(val id: Long, val title: String, @SerialName("orig_title") val originalTitle: String? = null, val url: String, @SerialName("poster_url") val posterUrl: String? = null, @SerialName("poster_hq_url") val posterHqUrl: String? = null, val description: String, val year: Int? = null, @SerialName("media_type") val mediaType: String, @SerialName("rating_rezka") val ratingRezka: Float? = null, @SerialName("rating_imdb") val ratingImdb: Float? = null, @SerialName("rating_kp") val ratingKp: Float? = null, val genres: List<String>, val countries: List<String>, val directors: List<String>, val actors: List<String>, val duration: String? = null, val translators: List<Translator>, val seasons: List<Season>, val franchises: List<FranchisePart>, @SerialName("genre_links") val genreLinks: List<LinkedItem> = emptyList(), @SerialName("country_links") val countryLinks: List<LinkedItem> = emptyList(), @SerialName("directors_details") val directorDetails: List<Person> = emptyList(), @SerialName("actors_details") val actorDetails: List<Person> = emptyList(), val ratings: List<Rating> = emptyList(), @SerialName("voice_ratings") val voiceRatings: List<VoiceRating> = emptyList(), val schedules: List<ScheduleGroup> = emptyList(), val related: List<MediaItem> = emptyList(), @SerialName("included_in") val includedIn: List<LinkedItem> = emptyList(), @SerialName("from_collections") val fromCollections: List<LinkedItem> = emptyList(), @SerialName("trailer_available") val trailerAvailable: Boolean = false, @SerialName("rating_posted") val ratingPosted: Boolean = false, @SerialName("favorite_category_ids") val favoriteCategoryIds: List<Long> = emptyList())
+@Serializable data class StreamEntry(val quality: String, @SerialName("is_premium") val premium: Boolean, val urls: List<String>)
+@Serializable data class SubtitleTrack(val code: String, val title: String, val url: String, @SerialName("language_code") val languageCode: String? = null, @SerialName("is_default") val default: Boolean)
+@Serializable data class StoryboardCue(@SerialName("start_ms") val startMs: Long, @SerialName("end_ms") val endMs: Long, @SerialName("image_url") val imageUrl: String, val x: Int, val y: Int, val width: Int, val height: Int)
+@Serializable data class StreamBundle(val id: Long, @SerialName("translator_id") val translatorId: Long, val season: Long? = null, val episode: Long? = null, val streams: List<StreamEntry>, val subtitles: List<SubtitleTrack>, @SerialName("storyboard_url") val storyboardUrl: String? = null, val storyboard: List<StoryboardCue> = emptyList(), @SerialName("user_agent") val userAgent: String = "", val referer: String = "")
+@Serializable data class FavoriteGroup(val id: Long? = null, val name: String, val url: String, val count: Int)
+@Serializable data class HistoryEntry(val id: String, val title: String, val url: String, @SerialName("poster_url") val posterUrl: String? = null, val info: String? = null, @SerialName("additional_info") val additionalInfo: String? = null, val date: String? = null, @SerialName("is_watched") val watched: Boolean)
+@Serializable data class UserProfile(@SerialName("user_id") val userId: String, val username: String, @SerialName("is_logged_in") val loggedIn: Boolean, @SerialName("is_vip") val vip: Boolean, val email: String? = null, @SerialName("avatar_url") val avatarUrl: String? = null, @SerialName("premium_days") val premiumDays: Int? = null, @SerialName("session_persistent") val sessionPersistent: Boolean = false)
+@Serializable data class LoginResult(val user: UserProfile, val secret: String)
+@Serializable data class HistoryResult(val entries: List<HistoryEntry>)

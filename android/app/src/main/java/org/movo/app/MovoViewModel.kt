@@ -1,0 +1,788 @@
+package org.movo.app
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+data class AppState(
+    val restoring: Boolean = true,
+    val user: UserProfile? = null,
+    val loading: Boolean = false,
+    val error: String? = null,
+    val tab: Tab = Tab.Catalog,
+    val items: List<MediaItem> = emptyList(),
+    val homeSections: List<HomeSection> = emptyList(),
+    val category: CatalogCategory = CatalogCategory.All,
+    val sort: String = "popular",
+    val page: Int = 1,
+    val query: String = "",
+    val suggestions: List<String> = emptyList(),
+    val searchHistory: List<String> = emptyList(),
+    val searchFilters: List<SearchFilter> = emptyList(),
+    val collections: List<CollectionItem> = emptyList(),
+    val collectionPath: String? = null,
+    val collectionTitle: String? = null,
+    val favoriteGroups: List<FavoriteGroup> = emptyList(),
+    val favoriteGroup: Long? = null,
+    val history: List<HistoryEntry> = emptyList(),
+    val notifications: List<NotificationGroup> = emptyList(),
+    val notificationCount: Int = 0,
+    val premiumDays: Int? = null,
+    val details: MediaDetails? = null,
+    val actor: ActorDetails? = null,
+    val comments: CommentsPage? = null,
+    val trailerUrl: String? = null,
+    val resumeSeasonId: Long? = null,
+    val resumeEpisodeId: Long? = null,
+    val resumeTranslatorId: Long? = null,
+    val episodesTranslatorId: Long? = null,
+    val preparedStream: StreamBundle? = null,
+    val stream: StreamBundle? = null,
+    val playbackQuality: String? = null,
+    val playbackPositionMs: Long = 0,
+    val focusedUrl: String? = null,
+    val detailAction: DetailAction? = null,
+)
+
+enum class Tab { Catalog, Search, Collections, Favorites, History, Notifications, Account }
+enum class Screen { Restoring, Login, Player, Trailer, Details, Home }
+enum class DetailAction { Favorites, Comments, Rating }
+
+class MovoViewModel(application: Application) : AndroidViewModel(application) {
+    private val store = SessionStore(application)
+    private val _state = MutableStateFlow(AppState())
+    val state = _state.asStateFlow()
+    val screen = state.map {
+        when {
+            it.restoring -> Screen.Restoring
+            it.user == null -> Screen.Login
+            it.stream != null -> Screen.Player
+            it.trailerUrl != null -> Screen.Trailer
+            it.details != null -> Screen.Details
+            else -> Screen.Home
+        }
+    }.distinctUntilChanged()
+    private var activeOperations = 0
+    private var contentJob: Job? = null
+    private var detailsJob: Job? = null
+    private var episodesJob: Job? = null
+    private var playbackJob: Job? = null
+    private var progressJob: Job? = null
+    private var syncJob: Job? = null
+    private val detailsBackStack = ArrayDeque<String>()
+    private var pendingDetailsUrl: String? = null
+    private var detailsBackLoading = false
+    private var pathReturnFocus: String? = null
+
+    init { restore() }
+
+    private fun run(block: suspend () -> Unit) = viewModelScope.launch {
+        activeOperations++
+        _state.value = _state.value.copy(loading = true, error = null)
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            _state.value = _state.value.copy(error = error.message ?: "Operation failed")
+        } finally {
+            activeOperations--
+            _state.value = _state.value.copy(
+                loading = activeOperations > 0,
+                restoring = false,
+            )
+        }
+    }
+
+    private fun restore() = run {
+        warmUpNativeBridge()
+        try {
+            val secret = store.secret() ?: return@run
+            val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
+            _state.value = _state.value.copy(user = user)
+            runCatching { refreshAccountData(false) }
+        } catch (error: Exception) {
+            store.saveSecret(null)
+            throw error
+        }
+    }
+
+    fun login(login: String, password: String) = run {
+        require(login.isNotBlank() && password.isNotBlank()) { "Enter login and password" }
+        val result = NativeBridge.decode<LoginResult>("login", buildJsonObject { put("login", login.trim()); put("password", password) })
+        store.saveSecret(result.secret)
+        _state.value = _state.value.copy(user = result.user)
+        runCatching { refreshAccountData(false) }
+    }
+
+    fun logout() = run {
+        cancelRequests()
+        try { NativeBridge.call("logout") } finally {
+            store.saveSecret(null)
+            _state.value = AppState(restoring = false)
+        }
+    }
+
+    fun selectTab(tab: Tab, isTv: Boolean) {
+        cancelRequests()
+        detailsBackStack.clear()
+        pathReturnFocus = null
+        _state.value = _state.value.copy(
+            tab = tab,
+            details = null,
+            collectionPath = null,
+            collectionTitle = null,
+            focusedUrl = null,
+            error = null,
+        )
+        when (tab) {
+            Tab.Catalog -> if (isTv) loadHome() else loadCatalog()
+            Tab.Search -> {
+                _state.value = _state.value.copy(items = emptyList(), page = 1)
+                state.value.user?.userId?.let { userId -> viewModelScope.launch { _state.value = _state.value.copy(searchHistory = store.searchHistory(userId)) } }
+                state.value.query.takeIf { it.isNotBlank() }?.let(::search)
+            }
+            Tab.Collections -> loadCollections()
+            Tab.Favorites -> loadFavorites()
+            Tab.History -> loadHistory()
+            Tab.Notifications -> loadAccountData(true)
+            Tab.Account -> loadAccountData(false)
+        }
+    }
+
+    fun setCatalog(category: CatalogCategory = state.value.category, sort: String = state.value.sort) {
+        _state.value = _state.value.copy(category = category, sort = sort, focusedUrl = null)
+        loadCatalog()
+    }
+
+    fun loadHome() {
+        if (state.value.homeSections.isNotEmpty()) return
+        contentJob?.cancel()
+        contentJob = run {
+            val sections = NativeBridge.decode<List<HomeSection>>("home")
+            if (state.value.tab == Tab.Catalog) _state.value = _state.value.copy(homeSections = sections)
+        }
+    }
+
+    fun loadCatalog(append: Boolean = false) {
+        contentJob?.cancel()
+        contentJob = run {
+            val category = state.value.category
+            val sort = state.value.sort
+        val page = if (append) state.value.page + 1 else 1
+        val items = NativeBridge.decode<List<MediaItem>>("catalog", buildJsonObject {
+                put("category", category.name); put("filter", sort); put("page", page)
+        })
+            if (state.value.tab == Tab.Catalog && state.value.category == category && state.value.sort == sort) {
+                _state.value = _state.value.copy(items = if (append) state.value.items + items else items, page = page)
+            }
+        }
+    }
+
+    fun search(query: String, append: Boolean = false) {
+        contentJob?.cancel()
+        if (query.isBlank()) {
+            _state.value = _state.value.copy(query = "", items = emptyList())
+            return
+        }
+        val normalized = query.trim()
+        if (!append) {
+            _state.value = _state.value.copy(
+                query = normalized,
+                suggestions = emptyList(),
+                items = emptyList(),
+                page = 1,
+                focusedUrl = null,
+            )
+        }
+        contentJob = run {
+            val page = if (append) state.value.page + 1 else 1
+            val items = NativeBridge.decode<List<MediaItem>>("search", buildJsonObject { put("query", normalized); put("page", page) })
+            if (state.value.tab == Tab.Search && state.value.query == normalized) {
+                val history = if (append) state.value.searchHistory else store.saveSearch(state.value.user?.userId ?: return@run, normalized)
+                _state.value = _state.value.copy(query = normalized, searchHistory = history, suggestions = emptyList(), items = if (append) state.value.items + items else items, page = page)
+            }
+        }
+    }
+
+    fun clearSearchHistory() = viewModelScope.launch {
+        state.value.user?.userId?.let { store.clearSearchHistory(it) }
+        _state.value = _state.value.copy(searchHistory = emptyList())
+    }
+
+    fun suggest(query: String) {
+        contentJob?.cancel()
+        if (query.length < 2) {
+            _state.value = _state.value.copy(suggestions = emptyList())
+            return
+        }
+        contentJob = run {
+            val values = NativeBridge.decode<List<String>>("search_suggestions", buildJsonObject { put("query", query.trim()) })
+            if (state.value.tab == Tab.Search) _state.value = _state.value.copy(suggestions = values)
+        }
+    }
+
+    fun loadSearchFilters() = run {
+        if (state.value.searchFilters.isEmpty()) {
+            val filters = NativeBridge.decode<List<SearchFilter>>("search_filters")
+            _state.value = _state.value.copy(searchFilters = filters)
+        }
+    }
+
+    fun loadCollections(append: Boolean = false) {
+        contentJob?.cancel()
+        contentJob = run {
+            val page = if (append) state.value.page + 1 else 1
+            val values = NativeBridge.decode<List<CollectionItem>>("collections", buildJsonObject { put("page", page) })
+            if (state.value.tab == Tab.Collections && state.value.collectionPath == null) {
+                _state.value = _state.value.copy(collections = if (append) state.value.collections + values else values, page = page)
+            }
+        }
+    }
+
+    fun openCollection(collection: CollectionItem) {
+        openPath(collection.title, collection.url, returnFocus = collection.url)
+    }
+
+    fun openPath(title: String, path: String, returnFocus: String? = null) {
+        contentJob?.cancel()
+        pathReturnFocus = returnFocus
+        _state.value = _state.value.copy(collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null)
+        loadPath(path)
+    }
+
+    fun openDiscoveryPath(tab: Tab, title: String, path: String) {
+        discardDetails()
+        pathReturnFocus = null
+        _state.value = _state.value.copy(tab = tab, collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null)
+        loadPath(path)
+    }
+
+    fun closeCollection() {
+        contentJob?.cancel()
+        val returnFocus = pathReturnFocus
+        pathReturnFocus = null
+        _state.value = _state.value.copy(
+            collectionPath = null,
+            collectionTitle = null,
+            items = emptyList(),
+            page = 1,
+            focusedUrl = returnFocus,
+        )
+        when (state.value.tab) {
+            Tab.Collections -> loadCollections()
+            Tab.Search -> state.value.query.takeIf { it.isNotBlank() }?.let(::search)
+            else -> Unit
+        }
+    }
+
+    fun loadPath(path: String? = state.value.collectionPath, append: Boolean = false) {
+        val selectedPath = path ?: return
+        contentJob?.cancel()
+        contentJob = run {
+            val page = if (append) state.value.page + 1 else 1
+            val values = NativeBridge.decode<List<MediaItem>>("path", buildJsonObject { put("path", selectedPath); put("page", page) })
+            if (state.value.collectionPath == selectedPath) _state.value = _state.value.copy(items = if (append) state.value.items + values else values, page = page)
+        }
+    }
+
+    fun loadAccountData(markRead: Boolean = state.value.tab == Tab.Notifications) {
+        contentJob?.cancel()
+        contentJob = run {
+            refreshAccountData(markRead)
+        }
+    }
+
+    private suspend fun refreshAccountData(markRead: Boolean) {
+        val data = NativeBridge.decode<AccountData>("account_data")
+        val keys = data.notifications.flatMap { group -> group.items.map { "${it.url}|${it.info}" } }.toSet()
+        val userId = state.value.user?.userId ?: return
+        val seen = store.seenNotifications(userId)
+        if (markRead) store.markNotificationsSeen(userId, keys)
+        _state.value = _state.value.copy(
+            notifications = data.notifications,
+            premiumDays = data.premiumDays,
+            notificationCount = if (markRead) 0 else keys.count { it !in seen },
+        )
+    }
+
+    fun loadFavorites(group: Long? = state.value.favoriteGroup, append: Boolean = false) {
+        contentJob?.cancel()
+        contentJob = run {
+        val groups = NativeBridge.decode<List<FavoriteGroup>>("favorite_categories")
+        val selected = group ?: groups.firstOrNull()?.id
+        val page = if (append) state.value.page + 1 else 1
+        val items = NativeBridge.decode<List<MediaItem>>("favorites", buildJsonObject { selected?.let { put("category_id", it) }; put("page", page) })
+            if (state.value.tab == Tab.Favorites) {
+                _state.value = _state.value.copy(favoriteGroups = groups, favoriteGroup = selected, items = if (append) state.value.items + items else items, page = page)
+            }
+        }
+    }
+
+    fun loadHistory() {
+        contentJob?.cancel()
+        contentJob = run {
+        val history = NativeBridge.decode<HistoryResult>("history")
+            if (state.value.tab == Tab.History) {
+                _state.value = _state.value.copy(history = history.entries)
+            }
+        }
+    }
+
+    fun openDetails(url: String, returnFocus: String? = null) {
+        contentJob?.cancel()
+        detailsJob?.cancel()
+        val previousUrl = state.value.details?.url
+        if (previousUrl == null) {
+            detailsBackStack.clear()
+            _state.value = _state.value.copy(focusedUrl = returnFocus)
+        }
+        pendingDetailsUrl = url.takeIf { previousUrl != null && previousUrl != url }
+        detailsJob = run {
+            try {
+                loadDetails(url)
+                if (previousUrl != null && previousUrl != url) detailsBackStack.addLast(previousUrl)
+            } finally {
+                if (pendingDetailsUrl == url) pendingDetailsUrl = null
+            }
+        }
+    }
+
+    private suspend fun loadDetails(url: String) {
+        val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
+        val groups = NativeBridge.decode<List<FavoriteGroup>>("favorite_categories")
+        val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
+        _state.value = _state.value.copy(
+            details = details,
+            favoriteGroups = groups,
+            resumeSeasonId = resume?.first,
+            resumeEpisodeId = resume?.second,
+            resumeTranslatorId = resume?.third,
+            episodesTranslatorId = details.translators.firstOrNull()?.id,
+        )
+    }
+
+    fun closeDetails() {
+        if (detailsBackLoading) return
+        if (pendingDetailsUrl != null) {
+            pendingDetailsUrl = null
+            detailsJob?.cancel()
+            return
+        }
+        val previousUrl = detailsBackStack.removeLastOrNull()
+        if (previousUrl != null) {
+            detailsJob?.cancel()
+            episodesJob?.cancel()
+            playbackJob?.cancel()
+            progressJob?.cancel()
+            syncJob?.cancel()
+            _state.value = _state.value.copy(
+                actor = null,
+                comments = null,
+                trailerUrl = null,
+                detailAction = null,
+                preparedStream = null,
+                stream = null,
+                playbackQuality = null,
+            )
+            detailsBackLoading = true
+            detailsJob = run {
+                try {
+                    loadDetails(previousUrl)
+                } catch (error: Exception) {
+                    detailsBackStack.addLast(previousUrl)
+                    throw error
+                } finally {
+                    detailsBackLoading = false
+                }
+            }
+            return
+        }
+        discardDetails()
+    }
+
+    private fun discardDetails() {
+        pendingDetailsUrl = null
+        detailsBackLoading = false
+        detailsBackStack.clear()
+        detailsJob?.cancel()
+        episodesJob?.cancel()
+        playbackJob?.cancel()
+        progressJob?.cancel()
+        syncJob?.cancel()
+        _state.value = _state.value.copy(
+            details = null,
+            actor = null,
+            comments = null,
+            trailerUrl = null,
+            detailAction = null,
+            resumeSeasonId = null,
+            resumeEpisodeId = null,
+            resumeTranslatorId = null,
+            episodesTranslatorId = null,
+            preparedStream = null,
+            stream = null,
+            playbackQuality = null,
+        )
+    }
+
+    fun openPlayerAction(action: DetailAction, positionMs: Long) {
+        saveProgress(positionMs)
+        _state.value = _state.value.copy(stream = null, playbackQuality = null, detailAction = action)
+    }
+
+    fun consumeDetailAction() { _state.value = _state.value.copy(detailAction = null) }
+
+    fun openActor(url: String) {
+        detailsJob?.cancel()
+        detailsJob = run {
+            val actor = NativeBridge.decode<ActorDetails>("actor", buildJsonObject { put("url", url) })
+            if (state.value.details != null) _state.value = _state.value.copy(actor = actor)
+        }
+    }
+
+    fun closeActor() { _state.value = _state.value.copy(actor = null) }
+
+    fun loadComments(page: Int = 1) {
+        val details = state.value.details ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            val comments = NativeBridge.decode<CommentsPage>("comments", buildJsonObject { put("post_id", details.id); put("page", page) })
+            if (state.value.details?.id == details.id) _state.value = _state.value.copy(comments = comments)
+        }
+    }
+
+    fun closeComments() { _state.value = _state.value.copy(comments = null) }
+
+    fun likeComment(id: String) {
+        val details = state.value.details ?: return
+        val page = state.value.comments?.page ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            NativeBridge.call("like_comment", buildJsonObject { put("id", id) })
+            val comments = NativeBridge.decode<CommentsPage>("comments", buildJsonObject {
+                put("post_id", details.id)
+                put("page", page)
+            })
+            if (state.value.details?.url == details.url && state.value.comments != null) {
+                _state.value = _state.value.copy(comments = comments)
+            }
+        }
+    }
+
+    fun rate(rating: Int) {
+        val details = state.value.details ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            NativeBridge.call("rate", buildJsonObject { put("post_id", details.id); put("rating", rating) })
+            loadDetails(details.url)
+        }
+    }
+
+    fun loadTrailer() {
+        val details = state.value.details ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            val url = NativeBridge.decode<String?>("trailer", buildJsonObject { put("post_id", details.id) })
+            _state.value = _state.value.copy(trailerUrl = url)
+        }
+    }
+
+    fun clearTrailer() { _state.value = _state.value.copy(trailerUrl = null) }
+
+    fun toggleSchedule(item: ScheduleItem) {
+        if (item.id.isBlank()) return
+        val details = state.value.details ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            NativeBridge.call("toggle_schedule_watched", buildJsonObject { put("id", item.id) })
+            loadDetails(details.url)
+        }
+    }
+
+    fun loadEpisodes(translator: Translator) {
+        val details = state.value.details ?: return
+        episodesJob?.cancel()
+        episodesJob = run {
+            val seasons = NativeBridge.decode<List<Season>>("episodes", buildJsonObject { put("post_id", details.id); put("translator_id", translator.id) })
+            if (state.value.details?.url == details.url) {
+                _state.value = _state.value.copy(
+                    details = state.value.details?.copy(seasons = seasons),
+                    episodesTranslatorId = translator.id,
+                )
+            }
+        }
+    }
+
+    fun toggleFavorite(groupId: Long, favorite: Boolean) {
+        val details = state.value.details ?: return
+        detailsJob?.cancel()
+        detailsJob = run {
+            NativeBridge.call("set_favorite", buildJsonObject { put("url", details.url); put("post_id", details.id); put("category_id", groupId); put("favorite", favorite) })
+            if (state.value.details?.url == details.url) loadDetails(details.url)
+        }
+    }
+
+    private suspend fun fetchStream(
+        details: MediaDetails,
+        translator: Translator,
+        season: Long?,
+        episode: Long?,
+    ): StreamBundle {
+        val fields = buildJsonObject {
+            put("post_id", details.id)
+            if (season == null || episode == null) {
+                put("translator", NativeBridge.json.encodeToJsonElement(Translator.serializer(), translator))
+            } else {
+                put("translator_id", translator.id)
+                put("season", season)
+                put("episode", episode)
+            }
+        }
+        val type = if (season == null || episode == null) "movie_stream" else "episode_stream"
+        return NativeBridge.decode(type, fields)
+    }
+
+    fun preparePlayback(translator: Translator, season: Long? = null, episode: Long? = null) {
+        playbackJob?.cancel()
+        _state.value = _state.value.copy(preparedStream = null, playbackQuality = null)
+        playbackJob = run {
+            val details = state.value.details ?: return@run
+            val stream = fetchStream(details, translator, season, episode)
+            if (state.value.details?.url == details.url) {
+                _state.value = _state.value.copy(preparedStream = stream)
+            }
+        }
+    }
+
+    fun startPlayback(
+        translator: Translator,
+        preferredQuality: String,
+        qualityMode: QualityMode,
+        season: Long? = null,
+        episode: Long? = null,
+    ) {
+        playbackJob?.cancel()
+        playbackJob = run {
+            val details = state.value.details ?: return@run
+            val prepared = state.value.preparedStream?.takeIf {
+                it.translatorId == translator.id && it.season == season && it.episode == episode
+            }
+            val stream = prepared ?: fetchStream(details, translator, season, episode)
+            val selected = selectStream(stream, qualityMode, preferredQuality)
+            if (selected == null) {
+                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+                return@run
+            }
+            if (state.value.details?.url == details.url) {
+                _state.value = _state.value.copy(
+                    preparedStream = null,
+                    stream = stream,
+                    playbackQuality = selected.quality,
+                    playbackPositionMs = store.progress(progressKey(details.id, stream)),
+                )
+            }
+        }
+    }
+
+    fun cancelPlaybackPreparation() {
+        playbackJob?.cancel()
+        _state.value = _state.value.copy(preparedStream = null, playbackQuality = null)
+    }
+
+    fun playbackStarted() {
+        val details = state.value.details ?: return
+        val stream = state.value.stream ?: return
+        syncJob?.cancel()
+        syncJob = run {
+            if (stream.season != null && stream.episode != null) {
+                state.value.user?.userId?.let { store.saveLastEpisode(it, details.id, stream.season, stream.episode, stream.translatorId) }
+            }
+            NativeBridge.call("save_watch", buildJsonObject {
+                put("post_id", details.id)
+                put("translator_id", stream.translatorId)
+                stream.season?.let { put("season", it) }
+                stream.episode?.let { put("episode", it) }
+            })
+        }
+    }
+
+    fun saveProgress(positionMs: Long) {
+        val details = state.value.details ?: return
+        val stream = state.value.stream ?: return
+        val key = progressKey(details.id, stream)
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch { store.saveProgress(key, positionMs) }
+    }
+
+    fun hasAdjacentEpisode(offset: Int): Boolean {
+        val details = state.value.details ?: return false
+        val stream = state.value.stream ?: return false
+        val episodes = details.seasons.flatMap { season -> season.episodes.map { season.id to it } }
+        val index = episodes.indexOfFirst { (seasonId, episode) -> seasonId == stream.season && episode.id == stream.episode }
+        return index >= 0 && index + offset in episodes.indices
+    }
+
+    fun previousEpisode() = playAdjacentEpisode(-1, completed = false)
+    fun nextEpisode(completed: Boolean) = playAdjacentEpisode(1, completed)
+
+    fun selectPlaybackQuality(quality: String) {
+        _state.value = _state.value.copy(playbackQuality = quality)
+    }
+
+    fun playEpisode(season: Long, episode: Long) {
+        val details = state.value.details ?: return
+        val current = state.value.stream ?: return
+        val translator = details.translators.firstOrNull { it.id == current.translatorId } ?: return
+        playbackJob?.cancel()
+        playbackJob = run {
+            val next = fetchStream(details, translator, season, episode)
+            if (state.value.details?.url != details.url || state.value.stream != current) return@run
+            val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
+            if (selected == null) {
+                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+            } else {
+                _state.value = _state.value.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = store.progress(progressKey(details.id, next)))
+            }
+        }
+    }
+
+    private fun playAdjacentEpisode(offset: Int, completed: Boolean) {
+        val details = state.value.details ?: return
+        val current = state.value.stream ?: return
+        val episodes = details.seasons.flatMap { season -> season.episodes.map { season.id to it } }
+        val index = episodes.indexOfFirst { (seasonId, episode) -> seasonId == current.season && episode.id == current.episode }
+        val (season, episode) = episodes.getOrNull(index + offset) ?: return
+        val translator = details.translators.firstOrNull { it.id == current.translatorId } ?: return
+        playbackJob?.cancel()
+        playbackJob = run {
+            if (completed) {
+                store.clearProgress(progressKey(details.id, current))
+                runCatching {
+                    NativeBridge.call("mark_watched", buildJsonObject {
+                        put("post_id", details.id); put("translator_id", current.translatorId)
+                        current.season?.let { put("season", it) }; current.episode?.let { put("episode", it) }
+                    })
+                }
+            }
+            val next = fetchStream(details, translator, season, episode.id)
+            if (state.value.details?.url != details.url || state.value.stream != current) return@run
+            val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
+            if (selected == null) {
+                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+            } else {
+                _state.value = _state.value.copy(
+                    stream = next,
+                    playbackQuality = selected.quality,
+                    playbackPositionMs = 0,
+                )
+            }
+        }
+    }
+
+    fun closePlayer(completed: Boolean, positionMs: Long) {
+        playbackJob?.cancel()
+        val details = state.value.details
+        val stream = state.value.stream
+        progressJob?.cancel()
+        _state.value = _state.value.copy(stream = null, playbackQuality = null)
+        if (details == null || stream == null) return
+        run {
+            if (completed) {
+                store.clearProgress(progressKey(details.id, stream))
+                // Best-effort: marking watched depends on the server surfacing the save in time.
+                // Never let a transient "history item not found yet" / network hiccup wipe the
+                // completed state, surface an error banner, or drop the cleared progress. A
+                // finished playback is finalized locally first.
+                runCatching {
+                    NativeBridge.call("mark_watched", buildJsonObject {
+                        put("post_id", details.id)
+                        put("translator_id", stream.translatorId)
+                        stream.season?.let { put("season", it) }
+                        stream.episode?.let { put("episode", it) }
+                    })
+                }
+                // Reflect the just-synced watched state in an open History list without
+                // flipping the global loading/error state (quiet re-fetch).
+                if (state.value.tab == Tab.History) refreshHistory()
+            } else {
+                store.saveProgress(progressKey(details.id, stream), positionMs)
+            }
+        }
+    }
+
+    /** Quiet re-fetch of history (no loading/error mutation) so a freshly watched item
+     *  shows its synced state immediately when the History tab is already in view. */
+    private fun refreshHistory() {
+        contentJob?.cancel()
+        contentJob = viewModelScope.launch {
+            runCatching {
+                val result = NativeBridge.decode<HistoryResult>("history")
+                if (state.value.tab == Tab.History && state.value.user != null) {
+                    _state.value = _state.value.copy(history = result.entries)
+                }
+            }
+        }
+    }
+
+    private fun progressKey(mediaId: Long, stream: StreamBundle) = "${state.value.user?.userId}:$mediaId:${stream.season ?: 0}:${stream.episode ?: 0}"
+
+    private fun cancelRequests() {
+        contentJob?.cancel()
+        detailsJob?.cancel()
+        episodesJob?.cancel()
+        playbackJob?.cancel()
+        progressJob?.cancel()
+        syncJob?.cancel()
+    }
+
+    fun toggleHistory(entry: HistoryEntry) {
+        contentJob?.cancel()
+        contentJob = run {
+            NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", !entry.watched) })
+            val history = NativeBridge.decode<HistoryResult>("history")
+            if (state.value.tab == Tab.History) _state.value = _state.value.copy(history = history.entries)
+        }
+    }
+
+    fun removeHistory(entry: HistoryEntry) {
+        contentJob?.cancel()
+        contentJob = run {
+            NativeBridge.call("remove_history", buildJsonObject { put("id", entry.id) })
+            val history = NativeBridge.decode<HistoryResult>("history")
+            if (state.value.tab == Tab.History) _state.value = _state.value.copy(history = history.entries)
+        }
+    }
+
+    fun clearError() { _state.value = _state.value.copy(error = null) }
+
+    /** Re-runs the load for whatever tab is currently visible — used by the error banner's Retry. */
+    fun retry(isTv: Boolean) {
+        clearError()
+        state.value.collectionPath?.let {
+            loadPath(it)
+            return
+        }
+        when (state.value.tab) {
+            Tab.Catalog -> if (isTv) loadHome() else loadCatalog()
+            Tab.Collections -> loadCollections()
+            Tab.Favorites -> loadFavorites()
+            Tab.History -> loadHistory()
+            Tab.Notifications, Tab.Account -> loadAccountData(markRead = state.value.tab == Tab.Notifications)
+            Tab.Search -> {
+                state.value.query.takeIf { it.isNotBlank() }?.let(::search)
+                if (state.value.searchFilters.isEmpty()) loadSearchFilters()
+            }
+        }
+    }
+}
