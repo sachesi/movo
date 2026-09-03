@@ -65,6 +65,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
@@ -82,16 +85,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        deepLinks.value = intent?.data?.takeIf { it.scheme == "https" && it.host == "hdrzk.org" }?.toString()
+        takeDeepLink(intent)
         enableEdgeToEdge()
         setContent { MovoApp(deepLinks = deepLinks, consumeDeepLink = { deepLinks.value = null }) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        deepLinks.value = intent.data?.takeIf { it.scheme == "https" && it.host == "hdrzk.org" }?.toString()
+        takeDeepLink(intent)
+    }
+
+    /**
+     * Reads the link the activity was started with, then strips it off the intent. The intent
+     * survives recreation, so a link left in place is handled again on every rotation and drags
+     * the user back to the title they had already navigated away from.
+     */
+    private fun takeDeepLink(source: Intent?) {
+        deepLinks.value = source?.data
+            ?.takeIf { it.scheme == "https" && it.host == PROVIDER_HOST }
+            ?.toString()
+        source?.data = null
     }
 }
+
+private const val PROVIDER_HOST = "hdrzk.org"
 
 enum class Section { Home, Settings }
 
@@ -294,7 +311,24 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
             loadUrl(url)
         }
     }
-    DisposableEffect(webView) { onDispose { webView.stopLoading(); webView.destroy() } }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // Leaving the app does not leave the composition, so without this the trailer keeps playing
+    // its audio over whatever the user switched to.
+    DisposableEffect(lifecycleOwner, webView) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> webView.onPause()
+                Lifecycle.Event.ON_RESUME -> webView.onResume()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            webView.stopLoading()
+            webView.destroy()
+        }
+    }
     BackHandler { model.clearTrailer() }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
