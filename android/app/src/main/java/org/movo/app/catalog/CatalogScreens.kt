@@ -26,7 +26,6 @@ import org.movo.app.core.MediaItem
 import org.movo.app.core.MovoViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +66,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -443,14 +443,21 @@ internal fun MediaCard(
 
 @Composable
 private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCornerShape) {
+        // The placeholder tile is handed to the image rather than painted behind it: as a
+        // background it keeps being filled under every loaded poster for as long as the card is on
+        // screen, and posters cover most of a television's screen at once.
+        val tile = MaterialTheme.colorScheme.surfaceVariant
+        val placeholder = remember(tile) { ColorPainter(tile) }
         AsyncImage(
             model = item.posterUrl,
             contentDescription = null,
+            placeholder = placeholder,
+            error = placeholder,
+            fallback = placeholder,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .clip(shape),
             contentScale = ContentScale.Crop,
         )
         Column(Modifier.padding(if (isTv) 12.dp else 10.dp)) {

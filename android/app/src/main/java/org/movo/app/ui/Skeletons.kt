@@ -135,8 +135,14 @@ internal fun MediaGridSkeleton(isTv: Boolean) {
     )
     val alpha = { pulse.value }
     LazyVerticalGrid(
-        columns = if (isTv) GridCells.Fixed(7) else GridCells.Adaptive(140.dp),
-        contentPadding = PaddingValues(if (isTv) 24.dp else 12.dp),
+        // Same geometry as the grid it stands in for, so the content does not jump columns
+        // the moment it arrives.
+        columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(140.dp),
+        contentPadding = if (isTv) {
+            PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
+        } else {
+            PaddingValues(12.dp)
+        },
         horizontalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 12.dp),
         verticalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 16.dp),
         modifier = Modifier.fillMaxSize(),

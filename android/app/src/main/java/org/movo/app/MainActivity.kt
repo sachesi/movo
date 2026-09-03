@@ -110,6 +110,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         takeDeepLink(intent)
         enableEdgeToEdge()
+        // The theme's window background only has to cover the launch, before this activity draws.
+        // Left in place it is a second opaque fill of the whole screen under a Compose surface
+        // that already covers it, which on a television is the single largest piece of wasted
+        // fill rate in the app.
+        window.setBackgroundDrawable(null)
         setContent { MovoApp(deepLinks = deepLinks, consumeDeepLink = { deepLinks.value = null }) }
     }
 

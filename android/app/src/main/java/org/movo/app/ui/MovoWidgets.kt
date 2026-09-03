@@ -26,6 +26,7 @@ import androidx.tv.material3.lightColorScheme as tvLightColorScheme
 import org.movo.app.settings.save
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -47,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.mapSaver
@@ -56,7 +58,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.focus.onFocusChanged
@@ -64,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 
@@ -319,26 +321,32 @@ internal fun MovoChoiceChip(
 /**
  * TV focus treatment: gentle scale-up while focused.
  *
- * Smoothness notes:
- * - Only [graphicsLayer] reads the animated value, so focus changes never trigger
- *   recomposition — the layer just re-draws.
- * - A symmetric pivot (center) plus snap (no spring overshoot) keeps neighboring
- *   items from being clipped mid-animation.
+ * Nothing here is read from composition. The modifier returns before allocating anything off the
+ * television, the target is set from the focus callback rather than from snapshot state, and the
+ * only read of the animation is inside [graphicsLayer], which re-runs the layer instead of the
+ * composable. The earlier version drove the target from a `mutableStateOf` and set `zIndex` from
+ * the same flag: because this function returns a value rather than emitting, both reads landed in
+ * the *caller's* restart scope, so every D-pad move recomposed the whole card or list row that
+ * carried the modifier and re-measured its parent for the changed parent data. The scales here run
+ * from 1.02 to 1.1 against rows that already space their children, so dropping the z-order lift
+ * costs a few pixels of overlap at the trailing edge and nothing else.
  */
 @Composable
 internal fun Modifier.tvFocusScale(isTv: Boolean, focusedScale: Float = 1.08f): Modifier {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isTv && focused) focusedScale else 1f,
-        animationSpec = motionSpec(tween(durationMillis = 150, easing = LinearOutSlowInEasing)),
-        label = "TV focus",
-    )
+    if (!isTv) return this
+    val reducedMotion = LocalReducedMotion.current
+    val scale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
     return this
-        .onFocusChanged { focused = it.isFocused }
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-            transformOrigin = TransformOrigin.Center
+        .onFocusChanged { focus ->
+            val target = if (focus.isFocused) focusedScale else 1f
+            scope.launch {
+                if (reducedMotion) scale.snapTo(target)
+                else scale.animateTo(target, tween(durationMillis = 150, easing = LinearOutSlowInEasing))
+            }
         }
-        .zIndex(if (focused) 1f else 0f)
+        .graphicsLayer {
+            scaleX = scale.value
+            scaleY = scale.value
+        }
 }

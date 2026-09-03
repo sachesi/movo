@@ -87,8 +87,9 @@ import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
-import androidx.tv.material3.NavigationDrawer
+import androidx.tv.material3.ModalNavigationDrawer
 import androidx.tv.material3.NavigationDrawerItem
+import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerItemScale
 import androidx.tv.material3.Text as TvText
 
@@ -227,6 +228,22 @@ private fun TvHomeFlow(
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
 }
 
+/** What the collapsed drawer covers: its icons, plus the padding the sheet's column adds. */
+private val DRAWER_HORIZONTAL_PADDING = 12.dp
+private val COLLAPSED_DRAWER_WIDTH
+    @Composable get() =
+        NavigationDrawerItemDefaults.CollapsedDrawerItemWidth + DRAWER_HORIZONTAL_PADDING * 2
+
+/**
+ * The TV navigation sheet, laid over the content rather than beside it.
+ *
+ * The side-by-side [NavigationDrawer] sizes its sheet with `animateContentSize`, so expanding it
+ * hands the content a new width on every frame of the animation and re-measures the whole
+ * destination — the rails, the grid, everything — a dozen-odd times for each move into and out of
+ * the drawer, which is the most frequent thing a remote does. The modal sheet is drawn over the
+ * content instead, so the content is measured once and the sheet animates alone; the start padding
+ * below keeps the collapsed sheet off it, which is where the side-by-side layout put it anyway.
+ */
 @Composable
 internal fun TvNavigationDrawer(
     selectedTab: Tab,
@@ -236,14 +253,15 @@ internal fun TvNavigationDrawer(
     openSettings: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    NavigationDrawer(
+    val contentStart = COLLAPSED_DRAWER_WIDTH
+    ModalNavigationDrawer(
         modifier = Modifier.testTag("tv-navigation-drawer"),
         drawerContent = { drawerValue ->
             val expanded = drawerValue == DrawerValue.Open
             Column(
                 Modifier
                     .fillMaxHeight()
-                    .padding(horizontal = 12.dp, vertical = 20.dp)
+                    .padding(horizontal = DRAWER_HORIZONTAL_PADDING, vertical = 20.dp)
                     .selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -286,7 +304,7 @@ internal fun TvNavigationDrawer(
                 }
             }
         },
-        content = content,
+        content = { Box(Modifier.padding(start = contentStart)) { content() } },
     )
 }
 
