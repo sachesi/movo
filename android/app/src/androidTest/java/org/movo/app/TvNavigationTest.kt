@@ -14,6 +14,8 @@ import org.movo.app.home.ConfirmLogoutDialog
 import org.movo.app.home.TvNavigationDrawer
 import org.movo.app.search.TvSearchContent
 import org.movo.app.settings.AppSettings
+import androidx.datastore.preferences.core.Preferences
+import org.movo.app.settings.SettingsActions
 import org.movo.app.settings.SettingsContent
 import org.movo.app.settings.settings
 import org.movo.app.ui.TvHomeSkeleton
@@ -273,22 +275,8 @@ private fun TestSettings() {
     SettingsContent(
         settings = AppSettings(),
         isTv = true,
-        onLayoutModeChange = {},
-        onThemeChange = {},
-        onDynamicColorChange = {},
-        onQualityModeChange = {},
-        onAutoNextChange = {},
-        onSeekSecondsChange = {},
-        onPlaybackSpeedChange = {},
-        onVideoFitChange = {},
-        onShowBufferChange = {},
-        onShowEndTimeChange = {},
-        onBufferSecondsChange = {},
-        onTvCenterPausesChange = {},
-        onTvPauseShowsControlsChange = {},
-        onAskQualityChange = {},
-        onSaveQualityChange = {},
-        onSortVoicesChange = {},
-        onInitialTabChange = {},
+        actions = object : SettingsActions {
+            override fun <T> save(key: Preferences.Key<T>, value: T) = Unit
+        },
     )
 }
