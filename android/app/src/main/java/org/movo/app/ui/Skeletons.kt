@@ -6,8 +6,9 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.ui
 
+import org.movo.app.R
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode

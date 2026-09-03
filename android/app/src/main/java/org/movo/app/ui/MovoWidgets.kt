@@ -6,8 +6,9 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.ui
 
+import org.movo.app.settings.save
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState

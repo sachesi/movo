@@ -1,5 +1,7 @@
-package org.movo.app
+package org.movo.app.settings
 
+import org.movo.app.R
+import org.movo.app.core.Tab
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey

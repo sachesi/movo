@@ -1,5 +1,7 @@
-package org.movo.app
+package org.movo.app.core
 
+import org.movo.app.settings.save
+import org.movo.app.settings.QualityMode
 import org.movo.app.player.selectStream
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel

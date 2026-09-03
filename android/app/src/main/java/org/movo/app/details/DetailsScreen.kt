@@ -6,8 +6,34 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.details
 
+import org.movo.app.catalog.MediaCard
+import org.movo.app.ui.AdaptiveModal
+import org.movo.app.ui.ChoiceRow
+import org.movo.app.ui.ErrorBanner
+import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.tvFocusScale
+import org.movo.app.core.Comment
+import org.movo.app.core.Person
+import org.movo.app.core.Rating
+import org.movo.app.core.Tab
+import org.movo.app.settings.settings
+import org.movo.app.R
+import org.movo.app.core.ActorDetails
+import org.movo.app.core.AppState
+import org.movo.app.core.CommentsPage
+import org.movo.app.core.DetailAction
+import org.movo.app.core.FavoriteGroup
+import org.movo.app.core.MediaDetails
+import org.movo.app.core.MediaItem
+import org.movo.app.core.MovoViewModel
+import org.movo.app.core.StreamBundle
+import org.movo.app.core.StreamEntry
+import org.movo.app.core.Translator
+import org.movo.app.settings.AppSettings
+import org.movo.app.settings.Keys
+import org.movo.app.settings.save
 import org.movo.app.player.selectStream
 import android.content.Intent
 import androidx.activity.compose.BackHandler

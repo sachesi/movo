@@ -1,5 +1,6 @@
-package org.movo.app
+package org.movo.app.core
 
+import org.movo.app.settings.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException

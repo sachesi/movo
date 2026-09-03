@@ -1,7 +1,17 @@
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalTvMaterial3Api::class)
 
-package org.movo.app
+package org.movo.app.settings
 
+import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.tvFocusMemory
+import org.movo.app.settings.AppSettings
+import org.movo.app.settings.LayoutMode
+import org.movo.app.settings.QualityMode
+import org.movo.app.settings.ThemePref
+import org.movo.app.settings.VideoFit
+import org.movo.app.settings.settings
+import org.movo.app.R
+import org.movo.app.core.Tab
 import android.os.Build
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.selection.selectableGroup

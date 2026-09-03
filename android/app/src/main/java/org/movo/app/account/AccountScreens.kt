@@ -6,8 +6,20 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.account
 
+import org.movo.app.catalog.MediaGrid
+import org.movo.app.home.ConfirmLogoutDialog
+import org.movo.app.ui.Empty
+import org.movo.app.ui.Loading
+import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.tvFocusMemory
+import org.movo.app.ui.tvFocusScale
+import org.movo.app.R
+import org.movo.app.core.AppState
+import org.movo.app.core.FavoriteGroup
+import org.movo.app.core.HistoryEntry
+import org.movo.app.core.MovoViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.clickable

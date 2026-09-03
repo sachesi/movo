@@ -1,9 +1,9 @@
 package org.movo.app.player
 
-import org.movo.app.QualityMode
-import org.movo.app.StoryboardCue
-import org.movo.app.StreamBundle
-import org.movo.app.StreamEntry
+import org.movo.app.core.StoryboardCue
+import org.movo.app.core.StreamBundle
+import org.movo.app.core.StreamEntry
+import org.movo.app.settings.QualityMode
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.unit.IntSize

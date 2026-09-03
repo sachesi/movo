@@ -1,5 +1,9 @@
 package org.movo.app
 
+import org.movo.app.core.CoreTransport
+import org.movo.app.core.MovoViewModel
+import org.movo.app.core.NativeBridge
+import org.movo.app.core.Tab
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

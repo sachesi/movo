@@ -6,8 +6,30 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.home
 
+import org.movo.app.Section
+import org.movo.app.account.AccountScreen
+import org.movo.app.account.FavoritesScreen
+import org.movo.app.account.HistoryScreen
+import org.movo.app.account.NotificationsScreen
+import org.movo.app.catalog.CatalogScreen
+import org.movo.app.catalog.CollectionsScreen
+import org.movo.app.search.SearchScreen
+import org.movo.app.settings.SettingsContent
+import org.movo.app.ui.ErrorBanner
+import org.movo.app.ui.LocalTvFocusMemory
+import org.movo.app.ui.MovoBlue
+import org.movo.app.ui.TvFocusMemory
+import org.movo.app.ui.tvFocusScale
+import org.movo.app.settings.settings
+import org.movo.app.R
+import org.movo.app.core.AppState
+import org.movo.app.core.MovoViewModel
+import org.movo.app.core.Tab
+import org.movo.app.settings.AppSettings
+import org.movo.app.settings.Keys
+import org.movo.app.settings.save
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi

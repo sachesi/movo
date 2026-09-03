@@ -6,8 +6,19 @@
     ExperimentalTvMaterial3Api::class,
 )
 
-package org.movo.app
+package org.movo.app.search
 
+import org.movo.app.catalog.MediaGrid
+import org.movo.app.catalog.PathHeader
+import org.movo.app.ui.ChoiceRow
+import org.movo.app.ui.searchEmptyHint
+import org.movo.app.ui.searchEmptyTitle
+import org.movo.app.ui.tvFocusMemory
+import org.movo.app.ui.tvFocusScale
+import org.movo.app.R
+import org.movo.app.core.AppState
+import org.movo.app.core.MovoViewModel
+import org.movo.app.core.SearchFilter
 import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.BackHandler

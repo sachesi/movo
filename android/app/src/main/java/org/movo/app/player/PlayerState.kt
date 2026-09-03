@@ -1,7 +1,7 @@
 package org.movo.app.player
 
-import org.movo.app.StreamEntry
-import org.movo.app.SubtitleTrack
+import org.movo.app.core.StreamEntry
+import org.movo.app.core.SubtitleTrack
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
