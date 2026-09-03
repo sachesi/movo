@@ -1,6 +1,18 @@
 package org.movo.app
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.IOException
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -87,8 +99,43 @@ object NativeBridge {
  */
 suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.warmUp() }
 
-class SessionStore(context: Context) {
-    private val preferences by lazy { context.getSharedPreferences("account", Context.MODE_PRIVATE) }
+/**
+ * Account-scoped storage: the encrypted session, playback progress, and the per-user search and
+ * notification history.
+ *
+ * Backed by the same DataStore the settings use, with a one-shot migration off the
+ * SharedPreferences file earlier versions wrote, so an upgrade keeps the session it already had
+ * rather than signing the account out.
+ */
+private val Context.accountDataStore by preferencesDataStore(
+    name = ACCOUNT_STORE_NAME,
+    produceMigrations = { context -> accountMigrations(context, ACCOUNT_STORE_NAME) },
+)
+
+/**
+ * The one-shot move off the SharedPreferences file earlier versions wrote. Shared with the test
+ * that proves it, which builds a store of its own: the delegate above is a single instance for the
+ * whole process, so a test cannot get a fresh one.
+ */
+internal fun accountMigrations(context: Context, name: String) =
+    listOf(SharedPreferencesMigration(context, name))
+
+private const val ACCOUNT_STORE_NAME = "account"
+
+private val SESSION = stringPreferencesKey("session")
+
+private fun progressKeyOf(key: String) = longPreferencesKey("progress:$key")
+
+private fun lastEpisodeKeyOf(userId: String, postId: Long) = stringPreferencesKey("lastep:$userId:$postId")
+
+private fun searchHistoryKeyOf(userId: String) = stringPreferencesKey("search-history:$userId")
+
+private fun seenNotificationsKeyOf(userId: String) = stringSetPreferencesKey("seen-notifications:$userId")
+
+class SessionStore(
+    context: Context,
+    private val store: DataStore<Preferences> = context.accountDataStore,
+) {
     private val keyStore by lazy { KeyStore.getInstance("AndroidKeyStore").apply { load(null) } }
 
     // Resolved once: two callers racing here would each generate a key, and the second would
@@ -98,88 +145,88 @@ class SessionStore(context: Context) {
         generateKey()
     } }
 
+    private suspend fun read(): Preferences = store.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .first()
+
     /**
      * The stored session, or null when there is none and when the stored one can no longer be
      * decrypted. A ciphertext the keystore key no longer opens is gone for good, so it is dropped
      * rather than thrown over: the user signs in again instead of meeting a crash on every start.
      */
-    suspend fun secret(): String? = withContext(Dispatchers.IO) {
-        preferences.getString("session", null)?.let { encoded ->
-            try {
-                val bytes = Base64.decode(encoded, Base64.NO_WRAP)
-                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
-                cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
-            } catch (_: GeneralSecurityException) {
-                forgetSession()
-            } catch (_: IllegalArgumentException) {
-                forgetSession()
-            }
+    suspend fun secret(): String? = read()[SESSION]?.let { encoded ->
+        try {
+            val bytes = Base64.decode(encoded, Base64.NO_WRAP)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
+            cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
+        } catch (_: GeneralSecurityException) {
+            forgetSession()
+        } catch (_: IllegalArgumentException) {
+            forgetSession()
         }
     }
 
-    private fun forgetSession(): String? {
-        preferences.edit().remove("session").apply()
+    private suspend fun forgetSession(): String? {
+        store.edit { it.remove(SESSION) }
         return null
     }
 
-    suspend fun saveSecret(value: String?) = withContext(Dispatchers.IO) {
+    suspend fun saveSecret(value: String?) {
         if (value == null) {
-            preferences.edit().remove("session").apply()
-        } else {
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key)
-            val bytes = cipher.iv + cipher.doFinal(value.encodeToByteArray())
-            preferences.edit().putString("session", Base64.encodeToString(bytes, Base64.NO_WRAP)).apply()
+            forgetSession()
+            return
         }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val bytes = cipher.iv + cipher.doFinal(value.encodeToByteArray())
+        store.edit { it[SESSION] = Base64.encodeToString(bytes, Base64.NO_WRAP) }
     }
 
-    suspend fun progress(key: String) = withContext(Dispatchers.IO) {
-        preferences.getLong("progress:$key", 0L)
+    suspend fun progress(key: String) = read()[progressKeyOf(key)] ?: 0L
+
+    suspend fun saveProgress(key: String, position: Long) {
+        store.edit { it[progressKeyOf(key)] = position }
     }
 
-    suspend fun saveProgress(key: String, position: Long) = withContext(Dispatchers.IO) {
-        preferences.edit().putLong("progress:$key", position).apply()
-    }
-
-    suspend fun clearProgress(key: String) = withContext(Dispatchers.IO) {
-        preferences.edit().remove("progress:$key").apply()
+    suspend fun clearProgress(key: String) {
+        store.edit { it.remove(progressKeyOf(key)) }
     }
 
     /** Last episode played for a show (season, episode, translatorId), for resume-on-reopen. */
-    suspend fun lastWatchedEpisode(userId: String, postId: Long): Triple<Long, Long, Long>? = withContext(Dispatchers.IO) {
-        val raw = preferences.getString("lastep:$userId:$postId", null) ?: return@withContext null
-        val parts = raw.split('|')
-        if (parts.size != 3) null
-        else try { Triple(parts[0].toLong(), parts[1].toLong(), parts[2].toLong()) }
-        catch (_: NumberFormatException) { null }
+    suspend fun lastWatchedEpisode(userId: String, postId: Long): Triple<Long, Long, Long>? {
+        val parts = read()[lastEpisodeKeyOf(userId, postId)]?.split('|') ?: return null
+        if (parts.size != 3) return null
+        return try {
+            Triple(parts[0].toLong(), parts[1].toLong(), parts[2].toLong())
+        } catch (_: NumberFormatException) {
+            null
+        }
     }
 
-    suspend fun saveLastEpisode(userId: String, postId: Long, season: Long, episode: Long, translatorId: Long) = withContext(Dispatchers.IO) {
-        preferences.edit().putString("lastep:$userId:$postId", "$season|$episode|$translatorId").apply()
+    suspend fun saveLastEpisode(userId: String, postId: Long, season: Long, episode: Long, translatorId: Long) {
+        store.edit { it[lastEpisodeKeyOf(userId, postId)] = "$season|$episode|$translatorId" }
     }
 
-    suspend fun searchHistory(userId: String): List<String> = withContext(Dispatchers.IO) {
-        preferences.getString("search-history:$userId", null)?.let {
+    suspend fun searchHistory(userId: String): List<String> =
+        read()[searchHistoryKeyOf(userId)]?.let {
             runCatching { NativeBridge.json.decodeFromString<List<String>>(it) }.getOrDefault(emptyList())
         }.orEmpty()
-    }
 
-    suspend fun saveSearch(userId: String, query: String): List<String> = withContext(Dispatchers.IO) {
+    suspend fun saveSearch(userId: String, query: String): List<String> {
         val values = (listOf(query) + searchHistory(userId).filterNot { it.equals(query, true) }).take(20)
-        preferences.edit().putString("search-history:$userId", NativeBridge.json.encodeToString(values)).apply()
-        values
+        store.edit { it[searchHistoryKeyOf(userId)] = NativeBridge.json.encodeToString(values) }
+        return values
     }
 
-    suspend fun clearSearchHistory(userId: String) = withContext(Dispatchers.IO) {
-        preferences.edit().remove("search-history:$userId").apply()
+    suspend fun clearSearchHistory(userId: String) {
+        store.edit { it.remove(searchHistoryKeyOf(userId)) }
     }
 
-    suspend fun seenNotifications(userId: String): Set<String> = withContext(Dispatchers.IO) {
-        preferences.getStringSet("seen-notifications:$userId", emptySet()).orEmpty().toSet()
-    }
+    suspend fun seenNotifications(userId: String): Set<String> =
+        read()[seenNotificationsKeyOf(userId)].orEmpty()
 
-    suspend fun markNotificationsSeen(userId: String, keys: Set<String>) = withContext(Dispatchers.IO) {
-        preferences.edit().putStringSet("seen-notifications:$userId", keys).apply()
+    suspend fun markNotificationsSeen(userId: String, keys: Set<String>) {
+        store.edit { it[seenNotificationsKeyOf(userId)] = keys }
     }
 }
