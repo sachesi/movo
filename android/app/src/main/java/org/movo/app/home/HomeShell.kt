@@ -46,7 +46,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.focus.onFocusChanged
@@ -286,19 +285,15 @@ private fun TvDrawerSheet(
     val motion = motionSpec<Dp>(tween(durationMillis = 200, easing = FastOutSlowInEasing))
     LaunchedEffect(expanded) { width.animateTo(if (expanded) PANEL_WIDTH else RAIL_WIDTH, motion) }
 
-    // Opaque under the icons and fading out at the trailing edge, so the widened sheet reads as
-    // something laid over the posters rather than a rectangle cut out of them.
-    val surface = MaterialTheme.colorScheme.surface
-    val ground = remember(surface) {
-        Brush.horizontalGradient(0f to surface, 0.75f to surface, 1f to surface.copy(alpha = 0f))
-    }
 
     Box(
         Modifier
             .fillMaxHeight()
             .onFocusChanged { expanded = it.hasFocus }
             .focusGroup()
-            .background(ground)
+            // Opaque: the sheet is laid over the content, so whatever it covers has to stop
+            // showing through it.
+            .background(MaterialTheme.colorScheme.surface)
             .clipToBounds()
             .layout { measurable, constraints ->
                 val sheet = measurable.measure(constraints)
