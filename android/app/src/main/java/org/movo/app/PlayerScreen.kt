@@ -1054,31 +1054,67 @@ private fun ControlBar(
                 selected = zoomed,
             )
             if (bundle.streams.size > 1) {
-                QualitySelector(
-                    streams = bundle.streams,
+                PlayerMenu(
+                    items = bundle.streams,
                     selected = stream,
+                    label = { it.quality },
                     onSelect = onSelectStream,
                     isTv = isTv,
                     onMenuOpenChange = onMenuOpenChange,
-                )
+                    openKey = bundle.streams,
+                ) { open ->
+                    PlayerIconButton(
+                        onClick = open,
+                        icon = Icons.Default.HighQuality,
+                        contentDescription = stringResource(R.string.quality),
+                        isTv = isTv,
+                    )
+                }
             }
             if (bundle.subtitles.isNotEmpty()) {
-                SubtitleSelector(
-                    subtitles = bundle.subtitles,
+                PlayerMenu(
+                    items = bundle.subtitles,
                     selected = subtitle,
+                    label = { it.title.ifEmpty { it.code } },
                     onSelect = onSelectSubtitle,
                     isTv = isTv,
                     onMenuOpenChange = onMenuOpenChange,
-                )
+                    reset = stringResource(R.string.subtitles_off) to { onSelectSubtitle(null) },
+                ) { open ->
+                    PlayerIconButton(
+                        onClick = open,
+                        icon = Icons.Default.Subtitles,
+                        contentDescription = stringResource(R.string.subtitles),
+                        isTv = isTv,
+                        selected = subtitle != null,
+                    )
+                }
             }
-            SpeedSelector(
-                speeds = SPEEDS,
+            PlayerMenu(
+                items = SPEEDS,
                 selected = playbackSpeed,
+                label = { formatSpeed(it) },
                 onSelect = onSelectSpeed,
                 isTv = isTv,
                 onMenuOpenChange = onMenuOpenChange,
-                labelOverride = formatSpeed(playbackSpeed).takeIf { playbackSpeed != 1f },
-            )
+            ) { open ->
+                if (playbackSpeed != 1f) {
+                    // Text pill instead of an icon: shows the active speed without opening anything.
+                    TextButton(
+                        onClick = open,
+                        modifier = Modifier.tvFocusScale(isTv, 1.06f),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                    ) { Text(formatSpeed(playbackSpeed), style = MaterialTheme.typography.labelLarge) }
+                } else {
+                    PlayerIconButton(
+                        onClick = open,
+                        icon = Icons.Default.Speed,
+                        contentDescription = stringResource(R.string.speed),
+                        isTv = isTv,
+                        selected = false,
+                    )
+                }
+            }
         }
     }
 }
@@ -1133,151 +1169,64 @@ private fun EpisodeSelector(
     }
 }
 
+/**
+ * One of the player's dropdown menus: a control that opens a list with the current entry ticked.
+ *
+ * [trigger] draws the control and is handed the action that opens the menu. [reset] adds an entry
+ * above the list, for a menu whose selection can be cleared. [openKey] closes the menu when the
+ * thing it lists is replaced.
+ */
 @Composable
-private fun QualitySelector(
-    streams: List<StreamEntry>,
-    selected: StreamEntry?,
-    onSelect: (StreamEntry) -> Unit,
+private fun <T> PlayerMenu(
+    items: List<T>,
+    selected: T?,
+    label: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
     isTv: Boolean,
     onMenuOpenChange: (Boolean) -> Unit,
+    openKey: Any? = Unit,
+    reset: Pair<String, () -> Unit>? = null,
+    trigger: @Composable (open: () -> Unit) -> Unit,
 ) {
-    var expanded by remember(streams) { mutableStateOf(false) }
+    var expanded by remember(openKey) { mutableStateOf(false) }
     DisposableEffect(expanded) {
         if (expanded) onMenuOpenChange(true)
         onDispose { if (expanded) onMenuOpenChange(false) }
     }
     Box {
-        PlayerIconButton(
-            onClick = { expanded = true },
-            icon = Icons.Default.HighQuality,
-            contentDescription = stringResource(R.string.quality),
-            isTv = isTv,
-        )
+        trigger { expanded = true }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            streams.forEach { entry ->
+            if (reset != null) {
+                val (resetLabel, onReset) = reset
                 DropdownMenuItem(
-                    onClick = { expanded = false; onSelect(entry) },
+                    onClick = { expanded = false; onReset() },
                     modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                    text = {
-                        Text(entry.quality, style = MaterialTheme.typography.bodyLarge)
-                    },
-                    trailingIcon = if (entry == selected) {
-                        { Icon(Icons.Default.Check, contentDescription = null) }
-                    } else null,
+                    text = { Text(resetLabel) },
+                    trailingIcon = tickWhen(selected == null),
+                )
+            }
+            items.forEach { item ->
+                DropdownMenuItem(
+                    onClick = { expanded = false; onSelect(item) },
+                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                    text = { Text(label(item), style = MaterialTheme.typography.bodyLarge) },
+                    trailingIcon = tickWhen(item == selected),
                 )
             }
         }
     }
 }
 
-@Composable
-private fun SubtitleSelector(
-    subtitles: List<SubtitleTrack>,
-    selected: SubtitleTrack?,
-    onSelect: (SubtitleTrack?) -> Unit,
-    isTv: Boolean,
-    onMenuOpenChange: (Boolean) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    DisposableEffect(expanded) {
-        if (expanded) onMenuOpenChange(true)
-        onDispose { if (expanded) onMenuOpenChange(false) }
+/** Trailing tick for the entry a menu currently has selected. */
+private fun tickWhen(selected: Boolean): (@Composable () -> Unit)? =
+    if (selected) {
+        { Icon(Icons.Default.Check, contentDescription = null) }
+    } else {
+        null
     }
-    Box {
-        PlayerIconButton(
-            onClick = { expanded = true },
-            icon = Icons.Default.Subtitles,
-            contentDescription = stringResource(R.string.subtitles),
-            isTv = isTv,
-            selected = selected != null,
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            DropdownMenuItem(
-                onClick = { expanded = false; onSelect(null) },
-                modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                text = { Text(stringResource(R.string.subtitles_off)) },
-                trailingIcon = if (selected == null) {
-                    { Icon(Icons.Default.Check, contentDescription = null) }
-                } else null,
-            )
-            subtitles.forEach { track ->
-                DropdownMenuItem(
-                    onClick = { expanded = false; onSelect(track) },
-                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                    text = {
-                        Text(
-                            text = track.title.ifEmpty { track.code },
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    trailingIcon = if (track == selected) {
-                        { Icon(Icons.Default.Check, contentDescription = null) }
-                    } else null,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SpeedSelector(
-    speeds: List<Float>,
-    selected: Float,
-    onSelect: (Float) -> Unit,
-    isTv: Boolean,
-    onMenuOpenChange: (Boolean) -> Unit,
-    labelOverride: String? = null,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    DisposableEffect(expanded) {
-        if (expanded) onMenuOpenChange(true)
-        onDispose { if (expanded) onMenuOpenChange(false) }
-    }
-    Box {
-        if (labelOverride != null) {
-            // Text pill instead of an icon: shows the active speed without opening anything.
-            TextButton(
-                onClick = { expanded = true },
-                modifier = Modifier.tvFocusScale(isTv, 1.06f),
-                colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-            ) { Text(labelOverride, style = MaterialTheme.typography.labelLarge) }
-        } else {
-            PlayerIconButton(
-                onClick = { expanded = true },
-                icon = Icons.Default.Speed,
-                contentDescription = stringResource(R.string.speed),
-                isTv = isTv,
-                selected = selected != 1f,
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            speeds.forEach { speed ->
-                DropdownMenuItem(
-                    onClick = { expanded = false; onSelect(speed) },
-                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                    text = {
-                        Text(
-                            text = formatSpeed(speed),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
-                    trailingIcon = if (speed == selected) {
-                        { Icon(Icons.Default.Check, contentDescription = null) }
-                    } else null,
-                )
-            }
-        }
-    }
-}
 
 private fun formatSpeed(speed: Float) = if (speed == 1f) "1×" else "${speed}×"
 

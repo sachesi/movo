@@ -257,7 +257,7 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
         openRating = { model.openPlayerAction(DetailAction.Rating, it) },
         qualityChanged = { quality, persist ->
             model.selectPlaybackQuality(quality)
-            if (persist && settings.saveQuality) scope.launch { context.saveLastQuality(quality) }
+            if (persist && settings.saveQuality) scope.launch { context.save(Keys.LAST_QUALITY, quality) }
         },
     )
 }

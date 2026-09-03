@@ -1,6 +1,7 @@
 package org.movo.app
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -40,7 +41,8 @@ private const val SETTINGS_NAME = "movo_settings"
 
 private val Context.settingsDataStore by preferencesDataStore(name = SETTINGS_NAME)
 
-private object Keys {
+/** Preference keys; `internal` because callers name them when saving. */
+internal object Keys {
     val LAYOUT_MODE = stringPreferencesKey("layout_mode")
     val THEME = stringPreferencesKey("theme")
     val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
@@ -114,37 +116,10 @@ val Context.settings: Flow<AppSettings>
             )
         }
 
-suspend fun Context.saveLayoutMode(mode: LayoutMode) =
-    settingsDataStore.edit { it[Keys.LAYOUT_MODE] = mode.name }
-
-suspend fun Context.saveTheme(theme: ThemePref) =
-    settingsDataStore.edit { it[Keys.THEME] = theme.name }
-
-suspend fun Context.saveUseDynamicColor(enabled: Boolean) =
-    settingsDataStore.edit { it[Keys.USE_DYNAMIC_COLOR] = enabled }
-
-suspend fun Context.saveQualityMode(mode: QualityMode) =
-    settingsDataStore.edit { it[Keys.QUALITY_MODE] = mode.name }
-
-suspend fun Context.saveAutoNext(enabled: Boolean) =
-    settingsDataStore.edit { it[Keys.AUTO_NEXT] = enabled }
-
-suspend fun Context.saveSeekSeconds(seconds: Int) =
-    settingsDataStore.edit { it[Keys.SEEK_SECONDS] = seconds }
-
-suspend fun Context.savePlaybackSpeed(speed: Float) =
-    settingsDataStore.edit { it[Keys.PLAYBACK_SPEED] = speed }
-
-suspend fun Context.saveVideoFit(mode: VideoFit) =
-    settingsDataStore.edit { it[Keys.VIDEO_FIT] = mode.name }
-
-suspend fun Context.saveShowBuffer(enabled: Boolean) = settingsDataStore.edit { it[Keys.SHOW_BUFFER] = enabled }
-suspend fun Context.saveShowEndTime(enabled: Boolean) = settingsDataStore.edit { it[Keys.SHOW_END_TIME] = enabled }
-suspend fun Context.saveBufferSeconds(seconds: Int) = settingsDataStore.edit { it[Keys.BUFFER_SECONDS] = seconds }
-suspend fun Context.saveTvCenterPauses(enabled: Boolean) = settingsDataStore.edit { it[Keys.TV_CENTER_PAUSES] = enabled }
-suspend fun Context.saveTvPauseShowsControls(enabled: Boolean) = settingsDataStore.edit { it[Keys.TV_PAUSE_SHOWS_CONTROLS] = enabled }
-suspend fun Context.saveAskQuality(enabled: Boolean) = settingsDataStore.edit { it[Keys.ASK_QUALITY] = enabled }
-suspend fun Context.saveSaveQuality(enabled: Boolean) = settingsDataStore.edit { it[Keys.SAVE_QUALITY] = enabled }
-suspend fun Context.saveLastQuality(quality: String) = settingsDataStore.edit { it[Keys.LAST_QUALITY] = quality }
-suspend fun Context.saveSortVoices(enabled: Boolean) = settingsDataStore.edit { it[Keys.SORT_VOICES] = enabled }
-suspend fun Context.saveInitialTab(tab: Tab) = settingsDataStore.edit { it[Keys.INITIAL_TAB] = tab.name }
+/**
+ * Writes one preference. Callers name the key, so a new setting needs a key and a call site
+ * rather than another one-line wrapper. Enum-valued settings store their [Enum.name].
+ */
+suspend fun <T> Context.save(key: Preferences.Key<T>, value: T) {
+    settingsDataStore.edit { it[key] = value }
+}

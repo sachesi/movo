@@ -155,7 +155,7 @@ internal fun DetailsScreen(
         val episode = if (series) previewEpisode?.id ?: return@LaunchedEffect else null
         automaticPlayback = false
         showPlayback = false
-        if (settings.saveQuality) scope.launch { context.saveLastQuality(quality.quality) }
+        if (settings.saveQuality) scope.launch { context.save(Keys.LAST_QUALITY, quality.quality) }
         model.startPlayback(voice, quality.quality, settings.qualityMode, season, episode)
     }
     BackHandler { model.closeDetails() }
@@ -480,7 +480,7 @@ internal fun DetailsScreen(
                 val voice = translator
                 val quality = selectedQuality
                 if (voice != null && quality != null) {
-                    if (settings.saveQuality) scope.launch { context.saveLastQuality(quality.quality) }
+                    if (settings.saveQuality) scope.launch { context.save(Keys.LAST_QUALITY, quality.quality) }
                     model.startPlayback(voice, quality.quality, settings.qualityMode, season, episode)
                 }
             },
