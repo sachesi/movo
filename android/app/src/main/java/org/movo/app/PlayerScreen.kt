@@ -113,12 +113,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.text.DateFormat
 import java.util.Date
+import java.util.concurrent.atomic.AtomicLong
 
 internal const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
 internal const val TV_TIMELINE_SEEK_SECONDS = 2 * 60
 internal const val TV_TIMELINE_HOLD_DELAY_MS = 500L
 internal const val TV_TIMELINE_FAST_HOLD_MS = 2_000L
 internal const val TV_TIMELINE_MAX_SEEK_SECONDS = 20 * 60
+
+/** Distinguishes concurrently live [MediaSession]s; Media3 refuses two sharing an id. */
+private val sessionCounter = AtomicLong()
+
 private const val PHONE_CONTROLS_TIMEOUT_MS = 3_000L
 private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
 private const val BUTTON_VIDEO_ZOOM = 1.5f
@@ -263,8 +268,14 @@ fun PlayerScreen(
     }
 
     // MediaSession: surfaces playback to lock screen, media switches and TV remotes.
+    // Switching episodes replaces the player while this screen stays composed, so the
+    // replacement session is built before the outgoing one is released. Media3 rejects a
+    // second session holding an id already in its process-wide registry, so each one is
+    // given an id of its own instead of the default empty string.
     val mediaSession = remember(player) {
-        MediaSession.Builder(context, player).build()
+        MediaSession.Builder(context, player)
+            .setId("movo-${sessionCounter.getAndIncrement()}")
+            .build()
     }
     DisposableEffect(mediaSession, player) {
         onDispose {
