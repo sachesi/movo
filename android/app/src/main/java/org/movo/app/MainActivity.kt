@@ -21,6 +21,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -146,7 +147,7 @@ private fun MovoApp(
         LayoutMode.Tv -> true
     }
 
-    val activity = context as ComponentActivity
+    val activity = checkNotNull(LocalActivity.current) { "MovoApp must be hosted by an activity" }
     val windowSize = calculateWindowSizeClass(activity)
     val useRail = usesNavigationRail(isTv, windowSize.widthSizeClass)
     val compactHeight = windowSize.heightSizeClass == WindowHeightSizeClass.Compact

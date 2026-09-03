@@ -1,9 +1,9 @@
 package org.movo.app
 
-import android.app.Activity
 import android.os.SystemClock
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -173,7 +173,7 @@ fun PlayerScreen(
     actions: PlayerActions,
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
+    val activity = LocalActivity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val playerFocusRequester = remember { FocusRequester() }
     val controlsFocusRequester = remember { FocusRequester() }

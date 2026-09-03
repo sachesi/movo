@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -50,12 +51,19 @@ object NativeBridge {
      */
     internal var transport: CoreTransport? = null
 
+    /**
+     * Where the blocking call and the parse of its reply run. Injected rather than named inline so
+     * a test can hand the work to its own scheduler and know when it has finished.
+     */
+    @PublishedApi
+    internal var dispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val core: CoreTransport get() = transport ?: JniTransport
 
     /** Resolves [core], which loads the Rust library on the calling thread. */
     internal fun warmUp() { core }
 
-    suspend fun call(type: String, fields: JsonObject = buildJsonObject {}): String = withContext(Dispatchers.IO) {
+    suspend fun call(type: String, fields: JsonObject = buildJsonObject {}): String = withContext(dispatcher) {
         val request = buildJsonObject { put("type", type); fields.forEach { (key, value) -> put(key, value) } }
         val response = json.parseToJsonElement(core.send(request.toString())).jsonObject
         response["error"]?.jsonPrimitive?.content?.let {
@@ -70,7 +78,7 @@ object NativeBridge {
      * large enough that parsing them on the UI thread drops frames.
      */
     suspend inline fun <reified T> decode(type: String, fields: JsonObject = buildJsonObject {}): T =
-        withContext(Dispatchers.IO) { json.decodeFromString<T>(call(type, fields)) }
+        withContext(dispatcher) { json.decodeFromString<T>(call(type, fields)) }
 }
 
 /**
