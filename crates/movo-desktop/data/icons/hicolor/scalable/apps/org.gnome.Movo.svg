@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#121624"/>
+      <stop offset="50%" stop-color="#0A0D15"/>
+      <stop offset="100%" stop-color="#05060A"/>
+    </radialGradient>
+
+    <radialGradient id="blueAura" cx="50%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#00B0FF" stop-opacity="0.38"/>
+      <stop offset="40%" stop-color="#0066FF" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="vibrantElectric" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#38EFFF"/>
+      <stop offset="30%" stop-color="#00A6FF"/>
+      <stop offset="70%" stop-color="#0055FF"/>
+      <stop offset="100%" stop-color="#002699"/>
+    </linearGradient>
+
+    <linearGradient id="rimBorder" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="70%" stop-color="#00B0FF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.7"/>
+    </linearGradient>
+
+    <linearGradient id="playInnerStroke" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <filter id="blueGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.85"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="14" flood-color="#0077FF" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#00F5FF" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect x="10" y="10" width="492" height="492" rx="118" fill="url(#bgGrad)"/>
+  <rect x="10" y="10" width="492" height="492" rx="118" fill="url(#blueAura)"/>
+  <rect x="10" y="10" width="492" height="492" rx="118" fill="none" stroke="url(#rimBorder)" stroke-width="2.2"/>
+
+  <circle cx="256" cy="256" r="185" fill="none" stroke="#FFFFFF" stroke-opacity="0.025" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="215" fill="none" stroke="#FFFFFF" stroke-opacity="0.015" stroke-width="1.5" stroke-dasharray="6 10"/>
+
+  <g filter="url(#blueGlow)">
+    <path d="M 198 150
+C 198 136, 213 128, 225 135
+L 360 241
+C 371 248, 371 264, 360 271
+L 225 377
+C 213 384, 198 376, 198 362
+Z" fill="url(#vibrantElectric)"/>
+    <path d="M 198 150
+C 198 136, 213 128, 225 135
+L 360 241
+C 371 248, 371 264, 360 271
+L 225 377
+C 213 384, 198 376, 198 362
+Z" fill="none" stroke="url(#playInnerStroke)" stroke-width="2.5"/>
+  </g>
+</svg>

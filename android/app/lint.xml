@@ -12,4 +12,13 @@
     <issue id="UnsafeOptInUsageError">
         <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
     </issue>
+
+    <!--
+      The leanback banner is one fixed-size launcher asset: 320x180 at the density every
+      television reports. No phone ever shows it, so the density variants this check asks for
+      would be bytes nothing reads.
+    -->
+    <issue id="IconDensities">
+        <ignore regexp="tv_banner" />
+    </issue>
 </lint>

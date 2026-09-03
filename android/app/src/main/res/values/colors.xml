@@ -1,5 +1,4 @@
 <resources>
     <!-- Window chrome / first-frame surface. -->
     <color name="movo_surface">#F9F9FF</color>
-    <color name="icon_background">#101114</color>
 </resources>

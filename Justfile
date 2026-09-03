@@ -97,6 +97,56 @@ pot:
 run: mo
     cargo run -p movo
 
+# Regenerate the Android raster icons from the vector masters in design/icons.
+icons:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v rsvg-convert >/dev/null || { echo "Install librsvg (rsvg-convert)" >&2; exit 1; }
+    src=design/icons
+    res=android/app/src/main/res
+    # The masters are built from drop-shadow filters, which VectorDrawable cannot express, so the
+    # adaptive icon layers ship as bitmaps. Only the monochrome layer stays a vector.
+    for bucket in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
+        density="${bucket%%:*}"; size="${bucket##*:}"
+        mkdir -p "$res/drawable-$density"
+        for layer in ic_launcher_background ic_launcher_foreground; do
+            rsvg-convert -w "$size" -h "$size" "$src/$layer.svg" -o "$res/drawable-$density/$layer.png"
+        done
+    done
+    # Launcher icon, 48dp. Used on Android 6 to 7.1, which predate adaptive icons.
+    for bucket in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+        density="${bucket%%:*}"; size="${bucket##*:}"
+        mkdir -p "$res/mipmap-$density"
+        rsvg-convert -w "$size" -h "$size" "$src/icon_phone.svg" -o "$res/mipmap-$density/ic_launcher.png"
+    done
+    # Leanback banner: 320x180, at the density every television reports.
+    mkdir -p "$res/drawable-xhdpi"
+    rsvg-convert -w 320 -h 180 "$src/banner_tv_minimal_320x180.svg" -o "$res/drawable-xhdpi/tv_banner.png"
+    echo "Regenerated the icons under $res"
+
+# Install the desktop entry and icons for the current user.
+install-desktop:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The shell resolves a window's icon through the icon theme by application ID, so the app
+    # runs without one until these land where the theme can see them.
+    share="${XDG_DATA_HOME:-$HOME/.local/share}"
+    data=crates/movo-desktop/data
+    install -Dm644 "$data/org.gnome.Movo.desktop" "$share/applications/org.gnome.Movo.desktop"
+    install -Dm644 "$data/icons/hicolor/scalable/apps/org.gnome.Movo.svg" \
+        "$share/icons/hicolor/scalable/apps/org.gnome.Movo.svg"
+    install -Dm644 "$data/icons/hicolor/512x512/apps/org.gnome.Movo.png" \
+        "$share/icons/hicolor/512x512/apps/org.gnome.Movo.png"
+    if command -v gtk-update-icon-cache >/dev/null; then
+        gtk-update-icon-cache -qtf "$share/icons/hicolor" || true
+    fi
+    if command -v update-desktop-database >/dev/null; then
+        update-desktop-database -q "$share/applications" || true
+    fi
+    echo "Installed to $share"
+    command -v movo >/dev/null ||
+        echo "note: the entry runs 'movo', which is not on PATH yet. cargo install --path crates/movo-desktop"
+
 # Format, lint and test the Rust workspace. Tests against the live provider are ignored by default.
 check:
     #!/usr/bin/env bash

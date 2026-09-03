@@ -67,6 +67,9 @@ impl Component for App {
     view! {
         adw::ApplicationWindow {
             set_title: Some("Movo"),
+            // Names the installed hicolor icon; the shell has nothing else to go on for the
+            // window, the switcher or the dock.
+            set_icon_name: Some(crate::APP_ID),
             set_default_size: (1280, 820),
 
             #[local_ref]

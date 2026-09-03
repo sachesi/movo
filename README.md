@@ -57,8 +57,9 @@ The `Justfile` holds every build recipe; `just` on its own lists them.
 Desktop:
 
 ```sh
-just run          # compile the translation catalogs, then run the client
-just check        # cargo fmt, clippy and the test suite
+just run             # compile the translation catalogs, then run the client
+just check           # cargo fmt, clippy and the test suite
+just install-desktop # desktop entry and icons, so the shell has an icon for the window
 ```
 
 Android:
@@ -80,6 +81,7 @@ just apk-install  # build and install on a connected device
 ```
 crates/movo-core       provider engine: session, auth, catalog, streams, storage
 crates/movo-desktop    GTK 4 / Libadwaita client (relm4)
+crates/movo-desktop/data  desktop entry and hicolor icons
 crates/movo-android    JNI bridge exposing movo-core to the Android app
 android/               Jetpack Compose application
 docs/authentication.md account, session and stored-data contract

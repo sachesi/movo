@@ -1,7 +1,6 @@
 use movo::app::App;
+use movo::APP_ID;
 use relm4::RelmApp;
-
-const APP_ID: &str = "org.gnome.Movo";
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
