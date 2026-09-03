@@ -8,6 +8,8 @@
 
 package org.movo.app.ui
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRestorer
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -141,9 +143,28 @@ internal class TvFocusMemory(entries: Map<String, String> = emptyMap()) {
 
 internal val LocalTvFocusMemory = staticCompositionLocalOf<TvFocusMemory?> { null }
 
-/** One-shot latch for a focus restore that must not fire again on a later placement. */
+/** One-shot latch for a focus request that must not fire again on a later placement. */
 private class RestoreOnce {
     var done = false
+}
+
+/**
+ * Takes focus the first time the node is placed.
+ *
+ * Not a launched effect: a request against a node that has not been placed yet is dropped, and
+ * the caller is then left with a dialog or a banner nothing on the remote can reach.
+ */
+@Composable
+internal fun Modifier.tvInitialFocus(enabled: Boolean = true): Modifier {
+    if (!enabled) return this
+    val focusRequester = remember { FocusRequester() }
+    val requested = remember { RestoreOnce() }
+    return this.focusRequester(focusRequester).onPlaced {
+        if (!requested.done) {
+            requested.done = true
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
 }
 
 /** Records focus gains for [key] and, on the destination's first composition, restores it. */
@@ -179,7 +200,11 @@ internal fun AdaptiveModal(
             Surface(
                 modifier = Modifier
                     .widthIn(max = 760.dp)
-                    .fillMaxHeight(0.88f),
+                    .fillMaxHeight(0.88f)
+                    // Without a group to enter, the first press of the D-pad after the sheet
+                    // opens lands nowhere.
+                    .focusRestorer()
+                    .focusGroup(),
                 shape = RoundedCornerShape(24.dp),
                 tonalElevation = 6.dp,
             ) { content() }

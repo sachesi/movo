@@ -219,6 +219,8 @@ internal fun ErrorBanner(
     retry: (() -> Unit)? = null,
     isTv: Boolean = false,
 ) {
+    // The banner floats over a focus group it is not part of, so on a television nothing would
+    // carry the highlight to it; it claims focus on arrival instead.
     Snackbar(
         modifier = modifier.padding(12.dp),
         containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -228,10 +230,13 @@ internal fun ErrorBanner(
                 if (retry != null) {
                     TextButton(
                         onClick = { dismiss(); retry() },
-                        modifier = Modifier.tvFocusScale(isTv),
+                        modifier = Modifier.tvFocusScale(isTv).tvInitialFocus(isTv),
                     ) { Text(stringResource(R.string.retry)) }
                 }
-                TextButton(onClick = dismiss) { Text(stringResource(R.string.dismiss)) }
+                TextButton(
+                    onClick = dismiss,
+                    modifier = Modifier.tvFocusScale(isTv).tvInitialFocus(isTv && retry == null),
+                ) { Text(stringResource(R.string.dismiss)) }
             }
         },
     ) { Text(message) }

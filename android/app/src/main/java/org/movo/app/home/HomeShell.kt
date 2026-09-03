@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.spring
+import org.movo.app.ui.tvInitialFocus
 import org.movo.app.ui.LocalReducedMotion
 import org.movo.app.ui.motionSpec
 import org.movo.app.Section
@@ -364,8 +365,6 @@ private fun HomeTopAppBar(state: AppState, model: MovoViewModel, isTv: Boolean, 
 
 @Composable
 internal fun ConfirmLogoutDialog(isTv: Boolean, dismiss: () -> Unit, confirm: () -> Unit) {
-    val cancelFocusRequester = remember { FocusRequester() }
-    if (isTv) LaunchedEffect(Unit) { cancelFocusRequester.requestFocus() }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text(stringResource(R.string.sign_out_title)) },
@@ -378,7 +377,7 @@ internal fun ConfirmLogoutDialog(isTv: Boolean, dismiss: () -> Unit, confirm: ()
             if (isTv) {
                 TvButton(
                     onClick = dismiss,
-                    modifier = Modifier.focusRequester(cancelFocusRequester).testTag("tv-dialog-cancel"),
+                    modifier = Modifier.tvInitialFocus().testTag("tv-dialog-cancel"),
                 ) {
                     TvText(stringResource(R.string.cancel))
                 }

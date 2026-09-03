@@ -8,6 +8,7 @@
 
 package org.movo.app.account
 
+import org.movo.app.ui.tvInitialFocus
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.catalog.MediaGrid
@@ -631,7 +632,6 @@ internal fun TvHistoryCard(
     remove: () -> Unit,
 ) {
     var confirmRemoval by remember { mutableStateOf(false) }
-    val cancelFocusRequester = remember { FocusRequester() }
 
     Row(
         Modifier.fillMaxWidth().focusRestorer().focusGroup(),
@@ -682,7 +682,6 @@ internal fun TvHistoryCard(
     }
 
     if (confirmRemoval) {
-        LaunchedEffect(Unit) { cancelFocusRequester.requestFocus() }
         AlertDialog(
             onDismissRequest = { confirmRemoval = false },
             title = { Text(stringResource(R.string.remove_history_title)) },
@@ -696,7 +695,7 @@ internal fun TvHistoryCard(
                 TvButton(
                     onClick = { confirmRemoval = false },
                     modifier = Modifier
-                        .focusRequester(cancelFocusRequester)
+                        .tvInitialFocus()
                         .testTag("tv-history-cancel"),
                 ) {
                     TvText(stringResource(R.string.cancel))

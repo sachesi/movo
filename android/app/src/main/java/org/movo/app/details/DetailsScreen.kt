@@ -8,6 +8,16 @@
 
 package org.movo.app.details
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.focusRestorer
+import org.movo.app.ui.LocalTvFocusMemory
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
+import org.movo.app.ui.TvFocusMemory
+import org.movo.app.ui.tvFocusMemory
 import org.movo.app.catalog.MediaCard
 import org.movo.app.ui.AdaptiveModal
 import org.movo.app.ui.ChoiceRow
@@ -186,21 +196,40 @@ internal fun DetailsScreen(
         model.startPlayback(voice, quality.quality, settings.qualityMode, season, episode)
     }
     BackHandler { model.closeDetails() }
+    // The details page is its own top-level route, outside the TV shell that normally provides
+    // this, so it carries a memory of its own: returning from the player or a person's page puts
+    // the highlight back on the row the user left, not on the back arrow.
+    val focusMemory = rememberSaveable(details.url, saver = TvFocusMemory.Saver) { TvFocusMemory() }
+    focusMemory.destination = details.url
+    focusMemory.fallback = "details:play"
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(details.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(model::closeDetails, Modifier.tvFocusScale(isTv)) {
+                    IconButton(
+                        model::closeDetails,
+                        Modifier.tvFocusScale(isTv).then(if (isTv) Modifier.tvFocusMemory("details:back") else Modifier),
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
+                windowInsets = if (isTv) {
+                    WindowInsets(
+                        left = TV_OVERSCAN_HORIZONTAL,
+                        top = TV_OVERSCAN_VERTICAL,
+                        right = TV_OVERSCAN_HORIZONTAL,
+                    )
+                } else {
+                    TopAppBarDefaults.windowInsets
+                },
             )
         },
     ) { padding ->
+      CompositionLocalProvider(LocalTvFocusMemory provides (if (isTv) focusMemory else null)) {
         Box(Modifier.padding(padding).fillMaxSize()) {
             key(details.url) {
                 LazyColumn(
@@ -208,8 +237,16 @@ internal fun DetailsScreen(
                         .widthIn(max = 1200.dp)
                         .fillMaxSize()
                         .align(Alignment.TopCenter)
+                        .then(if (isTv) Modifier.focusRestorer() else Modifier)
                         .focusGroup(),
-                    contentPadding = PaddingValues(if (isTv) 32.dp else if (wideContent) 24.dp else 16.dp),
+                    contentPadding = if (isTv) {
+                        PaddingValues(
+                            horizontal = TV_OVERSCAN_HORIZONTAL,
+                            vertical = TV_OVERSCAN_VERTICAL,
+                        )
+                    } else {
+                        PaddingValues(if (wideContent) 24.dp else 16.dp)
+                    },
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
             item {
@@ -284,7 +321,7 @@ internal fun DetailsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            FilledTonalIconButton(onClick = { showFavorites = true }, modifier = Modifier.tvFocusScale(isTv)) {
+                            FilledTonalIconButton(onClick = { showFavorites = true }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:favorite")) {
                                 Icon(
                                     if (details.favoriteCategoryIds.isEmpty()) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
                                     contentDescription = stringResource(R.string.favorite),
@@ -293,7 +330,7 @@ internal fun DetailsScreen(
                             Button(
                                 onClick = { automaticPlayback = !settings.askQuality; showPlayback = true },
                                 enabled = translators.isNotEmpty() && !state.loading,
-                                modifier = Modifier.tvFocusScale(isTv),
+                                modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:play"),
                             ) {
                                 if (state.loading) {
                                     CircularProgressIndicator(
@@ -309,10 +346,10 @@ internal fun DetailsScreen(
                             if (details.trailerAvailable && (wideContent || isTv)) {
                                 FilledTonalIconButton(model::loadTrailer, Modifier.tvFocusScale(isTv)) { Icon(Icons.Default.Movie, stringResource(R.string.trailer)) }
                             }
-                            FilledTonalIconButton(onClick = { showRating = true }, modifier = Modifier.tvFocusScale(isTv), enabled = !details.ratingPosted) {
+                            FilledTonalIconButton(onClick = { showRating = true }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:rate"), enabled = !details.ratingPosted) {
                                 Icon(Icons.Default.StarRate, stringResource(R.string.rate_title))
                             }
-                            FilledTonalIconButton(onClick = { model.loadComments() }, modifier = Modifier.tvFocusScale(isTv)) {
+                            FilledTonalIconButton(onClick = { model.loadComments() }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:comments")) {
                                 Icon(Icons.AutoMirrored.Filled.Comment, stringResource(R.string.comments))
                             }
                             FilledTonalIconButton(onClick = {
@@ -462,6 +499,7 @@ internal fun DetailsScreen(
             state.error?.let { item { ErrorBanner(it, model::clearError) } }
                 }
             }
+      }
         }
     }
 
@@ -775,29 +813,29 @@ private fun PlaybackSheet(
                     ) {
                         items(season.episodes, key = { "${season.id}:${it.id}" }) { episode ->
                             val contentAlpha = if (episode.watched) .6f else 1f
+                            val playable = selectedQuality != null && !loading
+                            val start = {
+                                startingEpisodeId = episode.id
+                                play(season.id, episode.id)
+                            }
+                            // The whole row is the target. Aiming a remote at the icon on the far
+                            // side of a 760dp sheet, with the title the user is reading on the
+                            // other, is the wrong shape for a ten-foot interface.
                             ListItem(
                                 headlineContent = { Text(episode.title, modifier = Modifier.alpha(contentAlpha)) },
                                 supportingContent = episode.watchId?.let { id -> { Text(id, Modifier.alpha(contentAlpha), maxLines = 1) } },
+                                modifier = Modifier
+                                    .tvFocusScale(isTv, 1.02f)
+                                    .clickable(enabled = playable, onClickLabel = stringResource(R.string.play_episode, episode.title), onClick = start),
                                 trailingContent = {
-                                    FilledTonalIconButton(
-                                        onClick = {
-                                            startingEpisodeId = episode.id
-                                            play(season.id, episode.id)
-                                        },
-                                        modifier = Modifier.tvFocusScale(isTv),
-                                        enabled = selectedQuality != null && !loading,
-                                    ) {
-                                        if (loading && startingEpisodeId == episode.id) {
-                                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Icon(
-                                                Icons.Default.PlayArrow,
-                                                contentDescription = stringResource(
-                                                    R.string.play_episode,
-                                                    episode.title,
-                                                ),
-                                            )
-                                        }
+                                    if (loading && startingEpisodeId == episode.id) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(
+                                            Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            tint = LocalContentColor.current.copy(alpha = if (playable) 1f else .38f),
+                                        )
                                     }
                                 },
                             )
