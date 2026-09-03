@@ -1,2 +1,5 @@
 /target
 /.lumen_ref
+keystore.properties
+*.jks
+*.keystore
