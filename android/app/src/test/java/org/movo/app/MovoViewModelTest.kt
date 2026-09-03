@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -31,6 +32,9 @@ private class FakeCore(private val replies: Map<String, String>) : CoreTransport
 private const val CATALOG_REPLY =
     """{"data":[{"id":1,"title":"Dune","url":"/films/dune"}]}"""
 private const val SUGGESTIONS_REPLY = """{"data":["dune","dune two"]}"""
+
+/** Comfortably shorter than the debounce, so four keystrokes still make one request. */
+private const val SUGGEST_KEYSTROKE_GAP_MS = 50L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -68,7 +72,12 @@ class MovoViewModelTest {
     fun typingSendsOneSuggestionRequestPerPause() = runTest {
         val model = model(testScheduler)
         model.selectTab(Tab.Search, isTv = false)
-        "dune".forEach { model.suggest(it.toString().repeat(2)) }
+        // Time has to pass between the keystrokes: without it every launch is cancelled before it
+        // is ever dispatched, and the test would pass whether or not the typing is debounced.
+        "dune".forEach {
+            model.suggest("query$it")
+            advanceTimeBy(SUGGEST_KEYSTROKE_GAP_MS)
+        }
         advanceUntilIdle()
 
         assertEquals(1, core.requested.count { it == "search_suggestions" })
