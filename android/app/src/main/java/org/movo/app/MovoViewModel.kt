@@ -4,11 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.buildJsonObject
@@ -54,6 +56,9 @@ data class AppState(
     val detailAction: DetailAction? = null,
 )
 
+/** How long typing has to settle before suggestions are fetched. */
+private const val SUGGEST_DEBOUNCE_MS = 300L
+
 enum class Tab { Catalog, Search, Collections, Favorites, History, Notifications, Account }
 enum class Screen { Restoring, Login, Player, Trailer, Details, Home }
 enum class DetailAction { Favorites, Comments, Rating }
@@ -74,6 +79,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }.distinctUntilChanged()
     private var activeOperations = 0
     private var contentJob: Job? = null
+    private var suggestJob: Job? = null
     private var detailsJob: Job? = null
     private var episodesJob: Job? = null
     private var playbackJob: Job? = null
@@ -88,19 +94,19 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun run(block: suspend () -> Unit) = viewModelScope.launch {
         activeOperations++
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         try {
             block()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            _state.value = _state.value.copy(error = error.message ?: "Operation failed")
+            _state.update { it.copy(error = error.message ?: "Operation failed") }
         } finally {
             activeOperations--
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 loading = activeOperations > 0,
                 restoring = false,
-            )
+            ) }
         }
     }
 
@@ -109,7 +115,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val secret = store.secret() ?: return@run
             val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
-            _state.value = _state.value.copy(user = user)
+            _state.update { it.copy(user = user) }
             runCatching { refreshAccountData(false) }
         } catch (error: BridgeException) {
             // Only forget the session the provider actually turned down. Clearing it on any
@@ -123,7 +129,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         require(login.isNotBlank() && password.isNotBlank()) { "Enter login and password" }
         val result = NativeBridge.decode<LoginResult>("login", buildJsonObject { put("login", login.trim()); put("password", password) })
         store.saveSecret(result.secret)
-        _state.value = _state.value.copy(user = result.user)
+        _state.update { it.copy(user = result.user) }
         runCatching { refreshAccountData(false) }
     }
 
@@ -139,19 +145,19 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         cancelRequests()
         detailsBackStack.clear()
         pathReturnFocus = null
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             tab = tab,
             details = null,
             collectionPath = null,
             collectionTitle = null,
             focusedUrl = null,
             error = null,
-        )
+        ) }
         when (tab) {
             Tab.Catalog -> if (isTv) loadHome() else loadCatalog()
             Tab.Search -> {
-                _state.value = _state.value.copy(items = emptyList(), page = 1)
-                state.value.user?.userId?.let { userId -> viewModelScope.launch { _state.value = _state.value.copy(searchHistory = store.searchHistory(userId)) } }
+                _state.update { it.copy(items = emptyList(), page = 1) }
+                state.value.user?.userId?.let { userId -> viewModelScope.launch { _state.update { it.copy(searchHistory = store.searchHistory(userId)) } } }
                 state.value.query.takeIf { it.isNotBlank() }?.let(::search)
             }
             Tab.Collections -> loadCollections()
@@ -163,7 +169,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setCatalog(category: CatalogCategory = state.value.category, sort: String = state.value.sort) {
-        _state.value = _state.value.copy(category = category, sort = sort, focusedUrl = null)
+        _state.update { it.copy(category = category, sort = sort, focusedUrl = null) }
         loadCatalog()
     }
 
@@ -172,7 +178,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob?.cancel()
         contentJob = run {
             val sections = NativeBridge.decode<List<HomeSection>>("home")
-            if (state.value.tab == Tab.Catalog) _state.value = _state.value.copy(homeSections = sections)
+            if (state.value.tab == Tab.Catalog) _state.update { it.copy(homeSections = sections) }
         }
     }
 
@@ -186,58 +192,69 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 put("category", category.name); put("filter", sort); put("page", page)
         })
             if (state.value.tab == Tab.Catalog && state.value.category == category && state.value.sort == sort) {
-                _state.value = _state.value.copy(items = if (append) state.value.items + items else items, page = page)
+                _state.update { it.copy(items = if (append) state.value.items + items else items, page = page) }
             }
         }
     }
 
     fun search(query: String, append: Boolean = false) {
         contentJob?.cancel()
+        suggestJob?.cancel()
         if (query.isBlank()) {
-            _state.value = _state.value.copy(query = "", items = emptyList())
+            _state.update { it.copy(query = "", items = emptyList()) }
             return
         }
         val normalized = query.trim()
         if (!append) {
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 query = normalized,
                 suggestions = emptyList(),
                 items = emptyList(),
                 page = 1,
                 focusedUrl = null,
-            )
+            ) }
         }
         contentJob = run {
             val page = if (append) state.value.page + 1 else 1
             val items = NativeBridge.decode<List<MediaItem>>("search", buildJsonObject { put("query", normalized); put("page", page) })
             if (state.value.tab == Tab.Search && state.value.query == normalized) {
                 val history = if (append) state.value.searchHistory else store.saveSearch(state.value.user?.userId ?: return@run, normalized)
-                _state.value = _state.value.copy(query = normalized, searchHistory = history, suggestions = emptyList(), items = if (append) state.value.items + items else items, page = page)
+                _state.update { it.copy(query = normalized, searchHistory = history, suggestions = emptyList(), items = if (append) state.value.items + items else items, page = page) }
             }
         }
     }
 
     fun clearSearchHistory() = viewModelScope.launch {
         state.value.user?.userId?.let { store.clearSearchHistory(it) }
-        _state.value = _state.value.copy(searchHistory = emptyList())
+        _state.update { it.copy(searchHistory = emptyList()) }
     }
 
+    /**
+     * Suggestions for what the user is typing. Deliberately not on [contentJob] and not routed
+     * through [run]: sharing the content job made every keystroke cancel the search whose results
+     * were on screen, and a suggestion lookup has no business raising the global spinner or
+     * banner. Cancelling the previous job also cancels its pending delay, which is what keeps
+     * this to one request per pause rather than one per character.
+     */
     fun suggest(query: String) {
-        contentJob?.cancel()
+        suggestJob?.cancel()
         if (query.length < 2) {
-            _state.value = _state.value.copy(suggestions = emptyList())
+            _state.update { it.copy(suggestions = emptyList()) }
             return
         }
-        contentJob = run {
-            val values = NativeBridge.decode<List<String>>("search_suggestions", buildJsonObject { put("query", query.trim()) })
-            if (state.value.tab == Tab.Search) _state.value = _state.value.copy(suggestions = values)
+        suggestJob = viewModelScope.launch {
+            delay(SUGGEST_DEBOUNCE_MS)
+            val values = runCatching {
+                NativeBridge.decode<List<String>>("search_suggestions", buildJsonObject { put("query", query.trim()) })
+            }.getOrNull() ?: return@launch
+            if (state.value.tab == Tab.Search) _state.update { it.copy(suggestions = values) }
         }
     }
 
     fun loadSearchFilters() = run {
         if (state.value.searchFilters.isEmpty()) {
             val filters = NativeBridge.decode<List<SearchFilter>>("search_filters")
-            _state.value = _state.value.copy(searchFilters = filters)
+            _state.update { it.copy(searchFilters = filters) }
         }
     }
 
@@ -247,7 +264,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val page = if (append) state.value.page + 1 else 1
             val values = NativeBridge.decode<List<CollectionItem>>("collections", buildJsonObject { put("page", page) })
             if (state.value.tab == Tab.Collections && state.value.collectionPath == null) {
-                _state.value = _state.value.copy(collections = if (append) state.value.collections + values else values, page = page)
+                _state.update { it.copy(collections = if (append) state.value.collections + values else values, page = page) }
             }
         }
     }
@@ -259,14 +276,14 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun openPath(title: String, path: String, returnFocus: String? = null) {
         contentJob?.cancel()
         pathReturnFocus = returnFocus
-        _state.value = _state.value.copy(collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null)
+        _state.update { it.copy(collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null) }
         loadPath(path)
     }
 
     fun openDiscoveryPath(tab: Tab, title: String, path: String) {
         discardDetails()
         pathReturnFocus = null
-        _state.value = _state.value.copy(tab = tab, collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null)
+        _state.update { it.copy(tab = tab, collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null) }
         loadPath(path)
     }
 
@@ -274,13 +291,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob?.cancel()
         val returnFocus = pathReturnFocus
         pathReturnFocus = null
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             collectionPath = null,
             collectionTitle = null,
             items = emptyList(),
             page = 1,
             focusedUrl = returnFocus,
-        )
+        ) }
         when (state.value.tab) {
             Tab.Collections -> loadCollections()
             Tab.Search -> state.value.query.takeIf { it.isNotBlank() }?.let(::search)
@@ -294,7 +311,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob = run {
             val page = if (append) state.value.page + 1 else 1
             val values = NativeBridge.decode<List<MediaItem>>("path", buildJsonObject { put("path", selectedPath); put("page", page) })
-            if (state.value.collectionPath == selectedPath) _state.value = _state.value.copy(items = if (append) state.value.items + values else values, page = page)
+            if (state.value.collectionPath == selectedPath) _state.update { it.copy(items = if (append) state.value.items + values else values, page = page) }
         }
     }
 
@@ -311,11 +328,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val userId = state.value.user?.userId ?: return
         val seen = store.seenNotifications(userId)
         if (markRead) store.markNotificationsSeen(userId, keys)
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             notifications = data.notifications,
             premiumDays = data.premiumDays,
             notificationCount = if (markRead) 0 else keys.count { it !in seen },
-        )
+        ) }
     }
 
     fun loadFavorites(group: Long? = state.value.favoriteGroup, append: Boolean = false) {
@@ -326,7 +343,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val page = if (append) state.value.page + 1 else 1
         val items = NativeBridge.decode<List<MediaItem>>("favorites", buildJsonObject { selected?.let { put("category_id", it) }; put("page", page) })
             if (state.value.tab == Tab.Favorites) {
-                _state.value = _state.value.copy(favoriteGroups = groups, favoriteGroup = selected, items = if (append) state.value.items + items else items, page = page)
+                _state.update { it.copy(favoriteGroups = groups, favoriteGroup = selected, items = if (append) state.value.items + items else items, page = page) }
             }
         }
     }
@@ -336,7 +353,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob = run {
         val history = NativeBridge.decode<HistoryResult>("history")
             if (state.value.tab == Tab.History) {
-                _state.value = _state.value.copy(history = history.entries)
+                _state.update { it.copy(history = history.entries) }
             }
         }
     }
@@ -347,7 +364,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val previousUrl = state.value.details?.url
         if (previousUrl == null) {
             detailsBackStack.clear()
-            _state.value = _state.value.copy(focusedUrl = returnFocus)
+            _state.update { it.copy(focusedUrl = returnFocus) }
         }
         pendingDetailsUrl = url.takeIf { previousUrl != null && previousUrl != url }
         detailsJob = run {
@@ -364,14 +381,14 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
         val groups = NativeBridge.decode<List<FavoriteGroup>>("favorite_categories")
         val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             details = details,
             favoriteGroups = groups,
             resumeSeasonId = resume?.first,
             resumeEpisodeId = resume?.second,
             resumeTranslatorId = resume?.third,
             episodesTranslatorId = details.translators.firstOrNull()?.id,
-        )
+        ) }
     }
 
     fun closeDetails() {
@@ -388,7 +405,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             playbackJob?.cancel()
             progressJob?.cancel()
             syncJob?.cancel()
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 actor = null,
                 comments = null,
                 trailerUrl = null,
@@ -396,7 +413,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 preparedStream = null,
                 stream = null,
                 playbackQuality = null,
-            )
+            ) }
             detailsBackLoading = true
             detailsJob = run {
                 try {
@@ -422,7 +439,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         progressJob?.cancel()
         syncJob?.cancel()
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             details = null,
             actor = null,
             comments = null,
@@ -435,36 +452,36 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             preparedStream = null,
             stream = null,
             playbackQuality = null,
-        )
+        ) }
     }
 
     fun openPlayerAction(action: DetailAction, positionMs: Long) {
         saveProgress(positionMs)
-        _state.value = _state.value.copy(stream = null, playbackQuality = null, detailAction = action)
+        _state.update { it.copy(stream = null, playbackQuality = null, detailAction = action) }
     }
 
-    fun consumeDetailAction() { _state.value = _state.value.copy(detailAction = null) }
+    fun consumeDetailAction() { _state.update { it.copy(detailAction = null) } }
 
     fun openActor(url: String) {
         detailsJob?.cancel()
         detailsJob = run {
             val actor = NativeBridge.decode<ActorDetails>("actor", buildJsonObject { put("url", url) })
-            if (state.value.details != null) _state.value = _state.value.copy(actor = actor)
+            if (state.value.details != null) _state.update { it.copy(actor = actor) }
         }
     }
 
-    fun closeActor() { _state.value = _state.value.copy(actor = null) }
+    fun closeActor() { _state.update { it.copy(actor = null) } }
 
     fun loadComments(page: Int = 1) {
         val details = state.value.details ?: return
         detailsJob?.cancel()
         detailsJob = run {
             val comments = NativeBridge.decode<CommentsPage>("comments", buildJsonObject { put("post_id", details.id); put("page", page) })
-            if (state.value.details?.id == details.id) _state.value = _state.value.copy(comments = comments)
+            if (state.value.details?.id == details.id) _state.update { it.copy(comments = comments) }
         }
     }
 
-    fun closeComments() { _state.value = _state.value.copy(comments = null) }
+    fun closeComments() { _state.update { it.copy(comments = null) } }
 
     fun likeComment(id: String) {
         val details = state.value.details ?: return
@@ -477,7 +494,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 put("page", page)
             })
             if (state.value.details?.url == details.url && state.value.comments != null) {
-                _state.value = _state.value.copy(comments = comments)
+                _state.update { it.copy(comments = comments) }
             }
         }
     }
@@ -496,11 +513,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         detailsJob?.cancel()
         detailsJob = run {
             val url = NativeBridge.decode<String?>("trailer", buildJsonObject { put("post_id", details.id) })
-            _state.value = _state.value.copy(trailerUrl = url)
+            _state.update { it.copy(trailerUrl = url) }
         }
     }
 
-    fun clearTrailer() { _state.value = _state.value.copy(trailerUrl = null) }
+    fun clearTrailer() { _state.update { it.copy(trailerUrl = null) } }
 
     fun toggleSchedule(item: ScheduleItem) {
         if (item.id.isBlank()) return
@@ -518,10 +535,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         episodesJob = run {
             val seasons = NativeBridge.decode<List<Season>>("episodes", buildJsonObject { put("post_id", details.id); put("translator_id", translator.id) })
             if (state.value.details?.url == details.url) {
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     details = state.value.details?.copy(seasons = seasons),
                     episodesTranslatorId = translator.id,
-                )
+                ) }
             }
         }
     }
@@ -557,12 +574,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun preparePlayback(translator: Translator, season: Long? = null, episode: Long? = null) {
         playbackJob?.cancel()
-        _state.value = _state.value.copy(preparedStream = null, playbackQuality = null)
+        _state.update { it.copy(preparedStream = null, playbackQuality = null) }
         playbackJob = run {
             val details = state.value.details ?: return@run
             val stream = fetchStream(details, translator, season, episode)
             if (state.value.details?.url == details.url) {
-                _state.value = _state.value.copy(preparedStream = stream)
+                _state.update { it.copy(preparedStream = stream) }
             }
         }
     }
@@ -583,23 +600,23 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val stream = prepared ?: fetchStream(details, translator, season, episode)
             val selected = selectStream(stream, qualityMode, preferredQuality)
             if (selected == null) {
-                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+                _state.update { it.copy(error = "Selected quality is unavailable") }
                 return@run
             }
             if (state.value.details?.url == details.url) {
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     preparedStream = null,
                     stream = stream,
                     playbackQuality = selected.quality,
                     playbackPositionMs = store.progress(progressKey(details.id, stream)),
-                )
+                ) }
             }
         }
     }
 
     fun cancelPlaybackPreparation() {
         playbackJob?.cancel()
-        _state.value = _state.value.copy(preparedStream = null, playbackQuality = null)
+        _state.update { it.copy(preparedStream = null, playbackQuality = null) }
     }
 
     fun playbackStarted() {
@@ -639,7 +656,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun nextEpisode(completed: Boolean) = playAdjacentEpisode(1, completed)
 
     fun selectPlaybackQuality(quality: String) {
-        _state.value = _state.value.copy(playbackQuality = quality)
+        _state.update { it.copy(playbackQuality = quality) }
     }
 
     fun playEpisode(season: Long, episode: Long) {
@@ -652,9 +669,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
-                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+                _state.update { it.copy(error = "Selected quality is unavailable") }
             } else {
-                _state.value = _state.value.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = store.progress(progressKey(details.id, next)))
+                _state.update { it.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = store.progress(progressKey(details.id, next))) }
             }
         }
     }
@@ -681,13 +698,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
-                _state.value = _state.value.copy(error = "Selected quality is unavailable")
+                _state.update { it.copy(error = "Selected quality is unavailable") }
             } else {
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     stream = next,
                     playbackQuality = selected.quality,
                     playbackPositionMs = 0,
-                )
+                ) }
             }
         }
     }
@@ -697,7 +714,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details
         val stream = state.value.stream
         progressJob?.cancel()
-        _state.value = _state.value.copy(stream = null, playbackQuality = null)
+        _state.update { it.copy(stream = null, playbackQuality = null) }
         if (details == null || stream == null) return
         run {
             if (completed) {
@@ -731,7 +748,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 val result = NativeBridge.decode<HistoryResult>("history")
                 if (state.value.tab == Tab.History && state.value.user != null) {
-                    _state.value = _state.value.copy(history = result.entries)
+                    _state.update { it.copy(history = result.entries) }
                 }
             }
         }
@@ -741,6 +758,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun cancelRequests() {
         contentJob?.cancel()
+        suggestJob?.cancel()
         detailsJob?.cancel()
         episodesJob?.cancel()
         playbackJob?.cancel()
@@ -753,7 +771,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob = run {
             NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", !entry.watched) })
             val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.tab == Tab.History) _state.value = _state.value.copy(history = history.entries)
+            if (state.value.tab == Tab.History) _state.update { it.copy(history = history.entries) }
         }
     }
 
@@ -762,11 +780,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob = run {
             NativeBridge.call("remove_history", buildJsonObject { put("id", entry.id) })
             val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.tab == Tab.History) _state.value = _state.value.copy(history = history.entries)
+            if (state.value.tab == Tab.History) _state.update { it.copy(history = history.entries) }
         }
     }
 
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     /** Re-runs the load for whatever tab is currently visible — used by the error banner's Retry. */
     fun retry(isTv: Boolean) {

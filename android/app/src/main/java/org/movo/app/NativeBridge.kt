@@ -28,14 +28,36 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class BridgeException(message: String, val sessionRejected: Boolean) : IllegalStateException(message)
 
-object NativeBridge {
+/** Sends one serialized request to the core and returns its serialized reply. */
+internal fun interface CoreTransport {
+    fun send(request: String): String
+}
+
+private object JniTransport : CoreTransport {
     init { System.loadLibrary("movo_android") }
+
     private external fun invoke(request: String): String
+
+    override fun send(request: String) = invoke(request)
+}
+
+object NativeBridge {
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    /**
+     * Where requests go. Held behind a lazy default so the Rust library is loaded on first use
+     * rather than on first touch of this object, which is what lets a JVM test swap it out.
+     */
+    internal var transport: CoreTransport? = null
+
+    private val core: CoreTransport get() = transport ?: JniTransport
+
+    /** Resolves [core], which loads the Rust library on the calling thread. */
+    internal fun warmUp() { core }
 
     suspend fun call(type: String, fields: JsonObject = buildJsonObject {}): String = withContext(Dispatchers.IO) {
         val request = buildJsonObject { put("type", type); fields.forEach { (key, value) -> put(key, value) } }
-        val response = json.parseToJsonElement(invoke(request.toString())).jsonObject
+        val response = json.parseToJsonElement(core.send(request.toString())).jsonObject
         response["error"]?.jsonPrimitive?.content?.let {
             throw BridgeException(it, response["rejected"]?.jsonPrimitive?.booleanOrNull == true)
         }
@@ -52,10 +74,10 @@ object NativeBridge {
 }
 
 /**
- * Touches [NativeBridge] from a worker thread so the Rust library is dlopen-ed there. Referencing
- * the object at all triggers its initializer, so this has to live outside it to be of any use.
+ * Loads the Rust library from a worker thread, so the first real request does not pay for the
+ * dlopen on whichever thread happens to make it.
  */
-suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.json }
+suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.warmUp() }
 
 class SessionStore(context: Context) {
     private val preferences by lazy { context.getSharedPreferences("account", Context.MODE_PRIVATE) }
