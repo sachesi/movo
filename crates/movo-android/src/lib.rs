@@ -305,7 +305,7 @@ fn caught(run: impl FnOnce() -> String) -> String {
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_movo_app_NativeBridge_invoke(
+pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
     mut env: JNIEnv,
     _class: JClass,
     request: JString,

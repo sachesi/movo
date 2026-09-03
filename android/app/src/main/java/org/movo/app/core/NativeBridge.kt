@@ -47,16 +47,26 @@ internal fun interface CoreTransport {
     fun send(request: String): String
 }
 
-private object JniTransport : CoreTransport {
-    init { System.loadLibrary("movo_android") }
-
-    private external fun invoke(request: String): String
-
-    override fun send(request: String) = invoke(request)
-}
-
 object NativeBridge {
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    /**
+     * The entry point into the Rust core.
+     *
+     * Declared here, private, and named exactly this. The symbol the core exports spells out the
+     * package and class name of whatever declares it, and nothing checks the two against each
+     * other at build time: moving this method to another class, marking it `internal` (which
+     * mangles the name it gets on the JVM) or moving the file to another package all compile
+     * cleanly and then fail with an UnsatisfiedLinkError on the app's first request.
+     */
+    private external fun invoke(request: String): String
+
+    /** Holds the library load off until something actually sends, so a test can swap it out first. */
+    private object JniTransport : CoreTransport {
+        init { System.loadLibrary("movo_android") }
+
+        override fun send(request: String) = invoke(request)
+    }
 
     /**
      * Where requests go. Held behind a lazy default so the Rust library is loaded on first use

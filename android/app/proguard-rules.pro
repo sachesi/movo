@@ -1,6 +1,6 @@
 # The Rust core is reached over JNI, so the bridge class, its native method names and the
 # JNI entry point signature must survive shrinking and obfuscation.
--keep class org.movo.app.NativeBridge { *; }
+-keep class org.movo.app.core.NativeBridge { *; }
 -keepclasseswithmembernames class * {
     native <methods>;
 }

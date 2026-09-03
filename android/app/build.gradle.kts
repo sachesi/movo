@@ -51,6 +51,8 @@ android {
     // per-app language picker on Android 13 and later.
     androidResources { generateLocaleConfig = true }
     packaging { jniLibs.useLegacyPackaging = false }
+    // The unit tests render real composables under Robolectric, which needs the resources.
+    testOptions { unitTests.isIncludeAndroidResources = true }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/jniLibs"))
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -70,6 +72,11 @@ composeCompiler {
 }
 
 val rustRoot = rootProject.projectDir.parentFile
+
+tasks.withType<Test>().configureEach {
+    inputs.file(File(rustRoot, "crates/movo-android/src/lib.rs"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
 
 val buildRust by tasks.registering(Exec::class) {
     workingDir = rustRoot
@@ -110,6 +117,8 @@ dependencies {
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("androidx.test:core:1.7.0")
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
