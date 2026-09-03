@@ -27,7 +27,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -56,7 +55,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -70,9 +68,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalContext
@@ -249,13 +245,13 @@ internal fun AccountScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
         return
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        ElevatedCard(Modifier.widthIn(max = 720.dp).padding(if (isTv) 40.dp else 20.dp)) {
+        ElevatedCard(Modifier.widthIn(max = 720.dp).padding(20.dp)) {
             Column(
                 Modifier.padding(24.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    AsyncImage(user.avatarUrl, null, Modifier.size(if (isTv) 112.dp else 80.dp).clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Crop)
+                    AsyncImage(user.avatarUrl, null, Modifier.size(80.dp).clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Crop)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(user.username, style = MaterialTheme.typography.headlineSmall)
                         user.email?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -277,15 +273,15 @@ internal fun AccountScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
                 }
                 HorizontalDivider()
                 Text(stringResource(R.string.official_account), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton({ confirmLogout = true }, Modifier.tvFocusScale(isTv)) {
+                OutlinedButton({ confirmLogout = true }) {
                     Icon(Icons.AutoMirrored.Filled.Logout, null); Text(stringResource(R.string.menu_sign_out))
                 }
                 HorizontalDivider()
-                AboutSection(isTv)
+                AboutSection()
             }
         }
     }
-    if (confirmLogout) ConfirmLogoutDialog(isTv, { confirmLogout = false }) {
+    if (confirmLogout) ConfirmLogoutDialog(isTv = false, dismiss = { confirmLogout = false }) {
         confirmLogout = false
         model.logout()
     }
@@ -392,7 +388,7 @@ private fun TvAccountScreen(state: AppState, requestLogout: () -> Unit) {
 }
 
 @Composable
-private fun AboutSection(isTv: Boolean) {
+private fun AboutSection() {
     val context = LocalContext.current
     val version = remember(context) {
         runCatching {
@@ -403,7 +399,6 @@ private fun AboutSection(isTv: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
-            .tvFocusScale(isTv, 1.01f)
             .clickable { expanded = !expanded },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -553,24 +548,13 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
         )
         return
     }
-    var focused by remember { mutableStateOf(false) }
-    var hasFocus by remember { mutableStateOf(false) }
     var confirmRemoval by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(16.dp)
     ElevatedCard(
         onClick = { model.openDetails(entry.url, entry.id) },
         modifier = Modifier
             .fillMaxWidth()
-            .onFocusChanged {
-                focused = it.isFocused
-                hasFocus = it.hasFocus
-            }
-            .then(
-                if (focused && isTv) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape)
-                else Modifier,
-            )
-            .alpha(if (entry.watched && !(hasFocus && isTv)) .72f else 1f),
-        shape = shape,
+            .alpha(if (entry.watched) .72f else 1f),
+        shape = RoundedCornerShape(16.dp),
     ) {
         ListItem(
             headlineContent = { Text(entry.title.ifEmpty { stringResource(R.string.unknown) }) },
@@ -582,7 +566,7 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
                     model = entry.posterUrl,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(if (isTv) 88.dp else 64.dp, if (isTv) 132.dp else 92.dp)
+                        .size(64.dp, 92.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop,
@@ -591,7 +575,7 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
             trailingContent = {
                 val watched = entry.watched
                 Row {
-                    IconButton({ model.toggleHistory(entry) }, Modifier.tvFocusScale(isTv)) {
+                    IconButton({ model.toggleHistory(entry) }) {
                         Icon(
                             if (watched) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                             contentDescription = stringResource(
@@ -599,7 +583,7 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
                             ),
                         )
                     }
-                    IconButton({ confirmRemoval = true }, Modifier.tvFocusScale(isTv)) {
+                    IconButton({ confirmRemoval = true }) {
                         Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.remove_history))
                     }
                 }
@@ -613,12 +597,12 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
             title = { Text(stringResource(R.string.remove_history_title)) },
             text = { Text(stringResource(R.string.remove_history_message, entry.title)) },
             confirmButton = {
-                TextButton({ confirmRemoval = false; model.removeHistory(entry) }, Modifier.tvFocusScale(isTv)) {
+                TextButton({ confirmRemoval = false; model.removeHistory(entry) }) {
                     Text(stringResource(R.string.remove))
                 }
             },
             dismissButton = {
-                TextButton({ confirmRemoval = false }, Modifier.tvFocusScale(isTv)) { Text(stringResource(R.string.cancel)) }
+                TextButton({ confirmRemoval = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

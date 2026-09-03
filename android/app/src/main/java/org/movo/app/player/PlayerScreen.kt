@@ -72,7 +72,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -708,34 +707,29 @@ fun PlayerScreen(
             enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + scaleIn(initialScale = 0.88f),
             exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + scaleOut(targetScale = 0.88f),
         ) {
-            Box(
-                Modifier.size(104.dp),
-                contentAlignment = Alignment.Center,
+            IconButton(
+                onClick = ::togglePlayback,
+                modifier = Modifier.size(if (isTv) 88.dp else 76.dp).tvFocusScale(isTv, 1.1f),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.94f),
+                    contentColor = Color.Black,
+                ),
             ) {
-                IconButton(
-                    onClick = ::togglePlayback,
-                    modifier = Modifier.size(if (isTv) 88.dp else 76.dp).tvFocusScale(isTv, 1.1f),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.White.copy(alpha = 0.94f),
-                        contentColor = Color.Black,
-                    ),
-                ) {
-                    Icon(
-                        imageVector = when {
-                            content.completed -> Icons.Default.Replay
-                            ui.isPlaying -> Icons.Default.Pause
-                            else -> Icons.Default.PlayArrow
+                Icon(
+                    imageVector = when {
+                        content.completed -> Icons.Default.Replay
+                        ui.isPlaying -> Icons.Default.Pause
+                        else -> Icons.Default.PlayArrow
+                    },
+                    contentDescription = stringResource(
+                        when {
+                            content.completed -> R.string.replay
+                            ui.isPlaying -> R.string.pause
+                            else -> R.string.play
                         },
-                        contentDescription = stringResource(
-                            when {
-                                content.completed -> R.string.replay
-                                ui.isPlaying -> R.string.pause
-                                else -> R.string.play
-                            },
-                        ),
-                        modifier = Modifier.size(if (isTv) 48.dp else 40.dp),
-                    )
-                }
+                    ),
+                    modifier = Modifier.size(if (isTv) 48.dp else 40.dp),
+                )
             }
         }
 

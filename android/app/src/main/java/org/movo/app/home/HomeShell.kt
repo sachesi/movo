@@ -11,10 +11,8 @@ package org.movo.app.home
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.spring
 import org.movo.app.ui.tvInitialFocus
 import org.movo.app.ui.LocalReducedMotion
-import org.movo.app.ui.motionSpec
 import org.movo.app.Section
 import org.movo.app.account.AccountScreen
 import org.movo.app.account.FavoritesScreen
@@ -29,7 +27,6 @@ import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TvFocusMemory
 import org.movo.app.ui.toTvColorScheme
-import org.movo.app.ui.tvFocusScale
 import org.movo.app.settings.settings
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.R
@@ -41,17 +38,13 @@ import org.movo.app.settings.save
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +64,6 @@ import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,17 +75,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.Button as TvButton
@@ -125,12 +112,12 @@ internal fun HomeFlow(
     Scaffold(
         topBar = {
             if (section == Section.Home) {
-                HomeTopAppBar(state, model, isTv) { section = Section.Settings }
+                HomeTopAppBar(state, model) { section = Section.Settings }
             } else {
                 CenterAlignedTopAppBar(
                     title = { Text(stringResource(R.string.settings_title)) },
                     navigationIcon = {
-                        IconButton({ section = Section.Home }, Modifier.tvFocusScale(isTv)) {
+                        IconButton({ section = Section.Home }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
@@ -145,7 +132,7 @@ internal fun HomeFlow(
         },
     ) { padding ->
         Row(Modifier.padding(padding).fillMaxSize()) {
-            if (section == Section.Home && useRail) HomeNavigationRail(state, model, isTv) { section = Section.Settings }
+            if (section == Section.Home && useRail) HomeNavigationRail(state, model) { section = Section.Settings }
             Box(
                 Modifier
                     .weight(1f)
@@ -161,14 +148,16 @@ internal fun HomeFlow(
                     },
                 ) { s ->
                     when (s) {
-                        Section.Home -> HomeTabs(state, false, compactHeight, model)
+                        Section.Home -> HomeTabs(state, compactHeight, model)
                         Section.Settings -> SettingsDestination(settings, false)
                     }
                 }
                 if (state.loading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
                 }
-                state.error?.let { ErrorBanner(it, model::clearError, Modifier.align(Alignment.BottomCenter), retry = { model.retry(isTv) }, isTv = isTv) }
+                state.error?.let {
+                    ErrorBanner(it, model::clearError, Modifier.align(Alignment.BottomCenter), retry = { model.retry(false) })
+                }
             }
         }
     }
@@ -316,7 +305,7 @@ private fun SettingsDestination(settings: AppSettings, isTv: Boolean) {
 }
 
 @Composable
-private fun HomeTopAppBar(state: AppState, model: MovoViewModel, isTv: Boolean, onOpenSettings: () -> Unit) {
+private fun HomeTopAppBar(state: AppState, model: MovoViewModel, onOpenSettings: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
     TopAppBar(
@@ -331,10 +320,10 @@ private fun HomeTopAppBar(state: AppState, model: MovoViewModel, isTv: Boolean, 
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onOpenSettings, modifier = Modifier.tvFocusScale(isTv)) {
+            IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
             }
-            IconButton(onClick = { expanded = true }, modifier = Modifier.tvFocusScale(isTv)) {
+            IconButton(onClick = { expanded = true }) {
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu))
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -345,7 +334,7 @@ private fun HomeTopAppBar(state: AppState, model: MovoViewModel, isTv: Boolean, 
             }
         },
     )
-    if (confirmLogout) ConfirmLogoutDialog(isTv, { confirmLogout = false }) {
+    if (confirmLogout) ConfirmLogoutDialog(isTv = false, dismiss = { confirmLogout = false }) {
         confirmLogout = false
         model.logout()
     }
@@ -430,69 +419,27 @@ private fun HomeBottomBar(state: AppState, model: MovoViewModel) {
 private fun HomeNavigationRail(
     state: AppState,
     model: MovoViewModel,
-    isTv: Boolean,
     openSettings: () -> Unit,
 ) {
-    val tabs = Tab.entries
     NavigationRail {
         Spacer(Modifier.height(12.dp))
-        tabs.forEach { tab ->
-            MovoNavigationRailItem(
+        Tab.entries.forEach { tab ->
+            NavigationRailItem(
                 selected = state.tab == tab,
-                onClick = { if (state.tab != tab) model.selectTab(tab, isTv) },
+                onClick = { if (state.tab != tab) model.selectTab(tab, false) },
                 icon = { TabIcon(tab, state.notificationCount) },
                 label = { Text(stringResource(tab.label)) },
-                isTv = isTv,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
-        MovoNavigationRailItem(
+        NavigationRailItem(
             selected = false,
             onClick = openSettings,
             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
             label = { Text(stringResource(R.string.settings_title)) },
-            isTv = isTv,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
-}
-
-@Composable
-private fun MovoNavigationRailItem(
-    selected: Boolean,
-    onClick: () -> Unit,
-    icon: @Composable () -> Unit,
-    label: @Composable () -> Unit,
-    isTv: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val focused by interactionSource.collectIsFocusedAsState()
-    val tvFocused = isTv && focused
-    val scale by animateFloatAsState(
-        targetValue = if (tvFocused) 1.06f else 1f,
-        animationSpec = motionSpec(spring()),
-        label = "navigation focus",
-    )
-    NavigationRailItem(
-        selected = selected,
-        onClick = onClick,
-        icon = icon,
-        label = label,
-        modifier = modifier
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-            .background(
-                if (tvFocused) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                RoundedCornerShape(20.dp),
-            )
-            .graphicsLayer { scaleX = scale; scaleY = scale },
-        colors = NavigationRailItemDefaults.colors(
-            selectedIconColor = if (tvFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-            selectedTextColor = if (tvFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-            indicatorColor = if (tvFocused) Color.Transparent else MaterialTheme.colorScheme.secondaryContainer,
-            unselectedIconColor = if (tvFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            unselectedTextColor = if (tvFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        interactionSource = interactionSource,
-    )
 }
 
 @Composable
@@ -511,14 +458,9 @@ private fun BadgedIcon(icon: ImageVector, count: Int) {
 @Composable
 private fun HomeTabs(
     state: AppState,
-    isTv: Boolean,
     compactHeight: Boolean,
     model: MovoViewModel,
 ) {
-    if (isTv) {
-        HomeTabContent(state.tab, state, true, compactHeight, model)
-        return
-    }
     // Directional slide: forward for tabs later in the list, back for earlier ones, so
     // navigation reads spatially instead of a flat cross-fade.
     val reducedMotion = LocalReducedMotion.current
