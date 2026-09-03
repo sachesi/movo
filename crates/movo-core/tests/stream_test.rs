@@ -1,11 +1,9 @@
-use movo_core::client::details::DetailsScraper;
-use movo_core::client::stream::StreamExtractor;
 use std::collections::HashMap;
 
 #[test]
 fn test_parse_cleartext_streams() {
     let raw = "[360p]https://cdn.example.com/360.mp4:hls:manifest.m3u8 or https://cdn.example.com/360.mp4,[720p]https://cdn.example.com/720.mp4:hls:manifest.m3u8,[<span class=\"pjs-prem-quality\">1080p Ultra</span>]https://cdn.example.com/1080u.mp4,[<i class=\"pjs-prem-quality\">4K (2160p)</i>]https://cdn.example.com/4k.mp4:hls:manifest.m3u8";
-    let entries = StreamExtractor::parse_stream_entries(raw);
+    let entries = movo_core::client::stream::parse_stream_entries(raw);
 
     assert_eq!(entries.len(), 4);
     // Highest quality first: 4K -> 1080p Ultra -> 720p -> 360p
@@ -37,9 +35,11 @@ fn test_translator_stream_flags() {
           <li data-translator_id="77" data-camrip="1" data-ad="0" data-director="1">Voice</li>
         </ul>
     "#;
-    let details =
-        DetailsScraper::parse_details_html(html, "https://example.test/films/123-test.html")
-            .unwrap();
+    let details = movo_core::client::details::parse_details_html(
+        html,
+        "https://example.test/films/123-test.html",
+    )
+    .unwrap();
     let translator = &details.translators[0];
     assert!(translator.is_camrip);
     assert!(!translator.has_ads);
@@ -49,7 +49,7 @@ fn test_translator_stream_flags() {
 #[test]
 fn test_parse_subtitles() {
     let raw_sub = "[rus]https://cdn.example.com/sub_ru.vtt,[eng]https://cdn.example.com/sub_en.vtt";
-    let tracks = StreamExtractor::parse_subtitles(raw_sub);
+    let tracks = movo_core::client::stream::parse_subtitles(raw_sub);
 
     assert_eq!(tracks.len(), 2);
     assert_eq!(tracks[0].code, "rus");
@@ -65,7 +65,7 @@ fn test_parse_subtitles_with_meta_default_and_lns() {
     lns.insert("sub_rus".to_string(), "rus".to_string());
     lns.insert("sub_eng".to_string(), "eng".to_string());
 
-    let tracks = StreamExtractor::parse_subtitles_with_meta(raw_sub, "rus", &lns);
+    let tracks = movo_core::client::stream::parse_subtitles_with_meta(raw_sub, "rus", &lns);
 
     assert_eq!(tracks.len(), 2);
     assert_eq!(tracks[0].code, "sub_rus");
@@ -80,7 +80,7 @@ fn test_parse_subtitles_with_meta_default_and_lns() {
 #[test]
 fn test_dedupe_by_url_first_wins() {
     let raw = "[720p]https://cdn.example.com/720.mp4,[1080p]https://cdn.example.com/720.mp4";
-    let entries = StreamExtractor::parse_stream_entries(raw);
+    let entries = movo_core::client::stream::parse_stream_entries(raw);
 
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].quality, "720p");
@@ -116,7 +116,7 @@ fn test_hls_best_url_selection() {
 
 #[test]
 fn test_streams_object_does_not_require_legacy_url() {
-    let bundle = StreamExtractor::parse_stream_json(
+    let bundle = movo_core::client::stream::parse_stream_json(
         r#"{"success":true,"streams":{"720p":"https://cdn.example.com/video.m3u8"}}"#,
         1,
         2,

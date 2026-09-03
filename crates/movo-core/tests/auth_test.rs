@@ -1,9 +1,8 @@
-use movo_core::client::auth::AuthManager;
 use movo_core::client::models::UserProfile;
 
 #[test]
 fn test_official_account_fixtures() {
-    let categories = AuthManager::parse_favorites_categories(
+    let categories = movo_core::client::auth::parse_favorites_categories(
         r#"<li class="b-favorites_content__cats_list_item" data-cat_id="4">
             <span class="name">Избранное</span><span class="num">12</span>
         </li>"#,
@@ -11,7 +10,7 @@ fn test_official_account_fixtures() {
     assert_eq!(categories[0].id, Some(4));
     assert_eq!(categories[0].count, 12);
 
-    let history = AuthManager::parse_history(
+    let history = movo_core::client::auth::parse_history(
         r#"<div class="b-videosaves__list_item"></div>
         <div class="b-videosaves__list_item watched-row">
             <button class="delete" data-id="77"></button>
@@ -32,10 +31,10 @@ fn test_extract_user_info_and_vip() {
         </div>
     "#;
 
-    let username = AuthManager::extract_logged_in_username(html_vip);
+    let username = movo_core::client::auth::extract_logged_in_username(html_vip);
     assert_eq!(username, Some("RezkaFan".to_string()));
 
-    let is_vip = AuthManager::extract_vip_status(html_vip);
+    let is_vip = movo_core::client::auth::extract_vip_status(html_vip);
     assert!(is_vip);
 
     let html_normal = r#"
@@ -44,10 +43,10 @@ fn test_extract_user_info_and_vip() {
         </div>
     "#;
 
-    let username_normal = AuthManager::extract_logged_in_username(html_normal);
+    let username_normal = movo_core::client::auth::extract_logged_in_username(html_normal);
     assert_eq!(username_normal, Some("RegularUser".to_string()));
 
-    let is_vip_normal = AuthManager::extract_vip_status(html_normal);
+    let is_vip_normal = movo_core::client::auth::extract_vip_status(html_normal);
     assert!(!is_vip_normal);
 }
 

@@ -8,20 +8,15 @@ pub mod session;
 pub mod stream;
 
 use crate::storage::history::WatchHistory;
-use auth::AuthManager;
-use catalog::CatalogScraper;
-use details::DetailsScraper;
 use models::{
     AccountData, ActorDetails, CatalogCategory, Collection, CommentsPage, FavoritesCollection,
     HomeSection, MediaDetails, MediaItem, SearchFilter, ServerHistoryEntry, StreamBundle,
     Translator, UserProfile,
 };
-use search::SearchScraper;
 use session::RezkaSession;
 use std::collections::HashSet;
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
-use stream::StreamExtractor;
 
 #[derive(Debug, serde::Serialize)]
 pub struct SyncedHistory {
@@ -57,7 +52,7 @@ impl RezkaClient {
 
     pub async fn import_session(&self, secret: &str) -> Result<UserProfile, String> {
         self.session.import_session(secret)?;
-        let profile = AuthManager::check_profile(&self.session)
+        let profile = auth::check_profile(&self.session)
             .await?
             .ok_or_else(|| "Stored session has expired".to_string())?;
         self.set_account(Some(profile.clone()));
@@ -104,62 +99,62 @@ impl RezkaClient {
         filter: Option<&str>,
         page: usize,
     ) -> Result<Vec<MediaItem>, String> {
-        CatalogScraper::fetch_catalog(&self.session, category, filter, page).await
+        catalog::fetch_catalog(&self.session, category, filter, page).await
     }
 
     pub async fn search_full(&self, query: &str, page: usize) -> Result<Vec<MediaItem>, String> {
-        SearchScraper::search_full(&self.session, query, page).await
+        search::search_full(&self.session, query, page).await
     }
 
     pub async fn search_suggestions(&self, query: &str) -> Result<Vec<String>, String> {
-        SearchScraper::suggestions(&self.session, query).await
+        search::suggestions(&self.session, query).await
     }
 
     pub async fn home(&self) -> Result<Vec<HomeSection>, String> {
-        SearchScraper::home(&self.session).await
+        search::home(&self.session).await
     }
 
     pub async fn search_filters(&self) -> Result<Vec<SearchFilter>, String> {
-        SearchScraper::filters(&self.session).await
+        search::filters(&self.session).await
     }
 
     pub async fn fetch_collections(&self, page: usize) -> Result<Vec<Collection>, String> {
-        SearchScraper::collections(&self.session, page).await
+        search::collections(&self.session, page).await
     }
 
     pub async fn fetch_path(&self, path: &str, page: usize) -> Result<Vec<MediaItem>, String> {
-        SearchScraper::path(&self.session, path, page).await
+        search::path(&self.session, path, page).await
     }
 
     pub async fn fetch_details(&self, url: &str) -> Result<MediaDetails, String> {
-        DetailsScraper::fetch_details(&self.session, url).await
+        details::fetch_details(&self.session, url).await
     }
 
     pub async fn fetch_actor(&self, url: &str) -> Result<ActorDetails, String> {
-        DetailsScraper::fetch_actor(&self.session, url).await
+        details::fetch_actor(&self.session, url).await
     }
 
     pub async fn fetch_comments(&self, post_id: i64, page: usize) -> Result<CommentsPage, String> {
-        DetailsScraper::fetch_comments(&self.session, post_id, page).await
+        details::fetch_comments(&self.session, post_id, page).await
     }
 
     pub async fn fetch_trailer(&self, post_id: i64) -> Result<Option<String>, String> {
-        DetailsScraper::fetch_trailer(&self.session, post_id).await
+        details::fetch_trailer(&self.session, post_id).await
     }
 
     pub async fn post_rating(&self, post_id: i64, rating: u8) -> Result<(), String> {
         self.ensure_signed_in()?;
-        DetailsScraper::post_rating(&self.session, post_id, rating).await
+        details::post_rating(&self.session, post_id, rating).await
     }
 
     pub async fn like_comment(&self, id: &str) -> Result<(), String> {
         self.ensure_signed_in()?;
-        DetailsScraper::like_comment(&self.session, id).await
+        details::like_comment(&self.session, id).await
     }
 
     pub async fn account_data(&self) -> Result<AccountData, String> {
         self.ensure_signed_in()?;
-        let (notifications, premium_days) = AuthManager::fetch_notifications(&self.session).await?;
+        let (notifications, premium_days) = auth::fetch_notifications(&self.session).await?;
         Ok(AccountData {
             notifications,
             premium_days,
@@ -168,7 +163,7 @@ impl RezkaClient {
 
     pub async fn toggle_schedule_watched(&self, id: &str) -> Result<(), String> {
         self.ensure_signed_in()?;
-        AuthManager::toggle_schedule_watched(&self.session, id).await
+        auth::toggle_schedule_watched(&self.session, id).await
     }
 
     pub async fn fetch_episodes(
@@ -176,7 +171,7 @@ impl RezkaClient {
         post_id: i64,
         translator_id: i64,
     ) -> Result<Vec<models::Season>, String> {
-        DetailsScraper::fetch_episodes(&self.session, post_id, translator_id).await
+        details::fetch_episodes(&self.session, post_id, translator_id).await
     }
 
     pub async fn fetch_movie_stream(
@@ -184,8 +179,7 @@ impl RezkaClient {
         post_id: i64,
         translator: &Translator,
     ) -> Result<StreamBundle, String> {
-        let mut bundle =
-            StreamExtractor::fetch_movie_stream(&self.session, post_id, translator).await?;
+        let mut bundle = stream::fetch_movie_stream(&self.session, post_id, translator).await?;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
     }
@@ -197,14 +191,9 @@ impl RezkaClient {
         season: i64,
         episode: i64,
     ) -> Result<StreamBundle, String> {
-        let mut bundle = StreamExtractor::fetch_episode_stream(
-            &self.session,
-            post_id,
-            translator_id,
-            season,
-            episode,
-        )
-        .await?;
+        let mut bundle =
+            stream::fetch_episode_stream(&self.session, post_id, translator_id, season, episode)
+                .await?;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
     }
@@ -215,7 +204,7 @@ impl RezkaClient {
     }
 
     pub async fn login(&self, email_or_login: &str, password: &str) -> Result<UserProfile, String> {
-        let mut profile = AuthManager::login(&self.session, email_or_login, password).await?;
+        let mut profile = auth::login(&self.session, email_or_login, password).await?;
         let mut settings = crate::storage::settings::AppSettings::load();
         settings.user_id = Some(profile.user_id.clone());
         if settings.save().is_err() {
@@ -256,7 +245,7 @@ impl RezkaClient {
         settings: &mut crate::storage::settings::AppSettings,
         legacy: bool,
     ) -> Result<Option<UserProfile>, String> {
-        match AuthManager::check_profile(&self.session).await {
+        match auth::check_profile(&self.session).await {
             Ok(Some(mut profile)) => {
                 if legacy {
                     profile.is_session_persistent =
@@ -291,7 +280,7 @@ impl RezkaClient {
             .user
             .as_ref()
             .map(|user| user.user_id.clone());
-        let result = AuthManager::logout(&self.session, user_id.as_deref());
+        let result = auth::logout(&self.session, user_id.as_deref());
         self.set_account(None);
         let mut settings = crate::storage::settings::AppSettings::load();
         settings.user_id = None;
@@ -308,7 +297,7 @@ impl RezkaClient {
 
     pub async fn fetch_favorites_categories(&self) -> Result<Vec<FavoritesCollection>, String> {
         self.ensure_signed_in()?;
-        AuthManager::fetch_favorites_categories(&self.session).await
+        auth::fetch_favorites_categories(&self.session).await
     }
 
     pub async fn fetch_favorites_page(
@@ -317,7 +306,7 @@ impl RezkaClient {
         page: usize,
     ) -> Result<Vec<MediaItem>, String> {
         self.ensure_signed_in()?;
-        AuthManager::fetch_favorites_page(&self.session, cat_id, page).await
+        auth::fetch_favorites_page(&self.session, cat_id, page).await
     }
 
     pub async fn set_favorite(
@@ -332,7 +321,7 @@ impl RezkaClient {
         if current.favorite_category_ids.contains(&cat_id) == favorite {
             return Ok(());
         }
-        AuthManager::add_to_favorites(&self.session, post_id, cat_id).await?;
+        auth::add_to_favorites(&self.session, post_id, cat_id).await?;
         let confirmed = self.fetch_details(details_url).await?;
         if confirmed.favorite_category_ids.contains(&cat_id) == favorite {
             Ok(())
@@ -343,7 +332,7 @@ impl RezkaClient {
 
     async fn fetch_history(&self) -> Result<Vec<ServerHistoryEntry>, String> {
         self.ensure_signed_in()?;
-        AuthManager::fetch_history(&self.session).await
+        auth::fetch_history(&self.session).await
     }
 
     pub async fn sync_history(&self) -> Result<SyncedHistory, String> {
@@ -375,7 +364,7 @@ impl RezkaClient {
         if post_id <= 0 || translator_id <= 0 {
             return Err("Cannot sync history without valid media and voice-over IDs".to_string());
         }
-        AuthManager::save_watch(&self.session, post_id, translator_id, season, episode).await?;
+        auth::save_watch(&self.session, post_id, translator_id, season, episode).await?;
         self.wait_for_history_entry(post_id).await.map(|_| ())
     }
 
@@ -385,19 +374,19 @@ impl RezkaClient {
             .user()
             .ok_or_else(|| "Authentication required".to_string())?
             .user_id;
-        let media_id = AuthManager::fetch_history(&self.session)
+        let media_id = auth::fetch_history(&self.session)
             .await?
             .into_iter()
             .find(|entry| entry.id == id)
             .and_then(|entry| entry.media_id())
             .ok_or_else(|| "History item was not found".to_string())?;
-        AuthManager::remove_history(&self.session, id).await?;
+        auth::remove_history(&self.session, id).await?;
         WatchHistory::remove_media_for(&user_id, media_id)
     }
 
     pub async fn set_history_watched(&self, id: &str, watched: bool) -> Result<(), String> {
         self.ensure_signed_in()?;
-        let current = AuthManager::fetch_history(&self.session).await?;
+        let current = auth::fetch_history(&self.session).await?;
         let entry = current
             .iter()
             .find(|entry| entry.id == id)
@@ -405,11 +394,11 @@ impl RezkaClient {
         if entry.is_watched == watched {
             return Ok(());
         }
-        AuthManager::toggle_history_watched(&self.session, id).await?;
+        auth::toggle_history_watched(&self.session, id).await?;
         // The endpoint flips the flag rather than setting it, so the request is
         // never retried. Read the state back instead: a toggle whose reply was
         // lost still landed, and reporting failure for it would be wrong.
-        let confirmed = AuthManager::fetch_history(&self.session)
+        let confirmed = auth::fetch_history(&self.session)
             .await?
             .into_iter()
             .find(|entry| entry.id == id)
@@ -431,7 +420,7 @@ impl RezkaClient {
         self.ensure_signed_in()?;
         let entry = self.wait_for_history_entry(post_id).await?;
         if !entry.is_watched {
-            AuthManager::toggle_history_watched(&self.session, &entry.id).await?;
+            auth::toggle_history_watched(&self.session, &entry.id).await?;
         }
         if let (Some(season), Some(episode)) = (season, episode) {
             let seasons = self.fetch_episodes(post_id, translator_id).await?;
@@ -445,7 +434,7 @@ impl RezkaClient {
                     .watch_id
                     .as_deref()
                     .ok_or_else(|| "Finished episode has no watched-state ID".to_string())?;
-                AuthManager::toggle_schedule_watched(&self.session, watch_id).await?;
+                auth::toggle_schedule_watched(&self.session, watch_id).await?;
             }
         }
         Ok(())
@@ -453,7 +442,7 @@ impl RezkaClient {
 
     async fn wait_for_history_entry(&self, post_id: i64) -> Result<ServerHistoryEntry, String> {
         for attempt in 0..10 {
-            if let Some(entry) = AuthManager::fetch_history(&self.session)
+            if let Some(entry) = auth::fetch_history(&self.session)
                 .await?
                 .into_iter()
                 .find(|entry| entry.media_id() == Some(post_id))

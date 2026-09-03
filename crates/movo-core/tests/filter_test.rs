@@ -1,4 +1,3 @@
-use movo_core::client::catalog::CatalogScraper;
 use movo_core::client::session::RezkaSession;
 
 #[tokio::test]
@@ -22,7 +21,7 @@ async fn test_query_param_filters() {
 
     for (label, path) in endpoints {
         let html = session.get_html(path).await.expect("get_html failed");
-        let items = CatalogScraper::parse_catalog_html(&html);
+        let items = movo_core::client::catalog::parse_catalog_html(&html);
         println!(
             "{}: Got {} items. First: '{}' (ID: {})",
             label,
@@ -44,8 +43,8 @@ async fn test_filtered_pagination() {
         .await
         .unwrap();
 
-    let items1 = CatalogScraper::parse_catalog_html(&p1);
-    let items2 = CatalogScraper::parse_catalog_html(&p2);
+    let items1 = movo_core::client::catalog::parse_catalog_html(&p1);
+    let items2 = movo_core::client::catalog::parse_catalog_html(&p2);
 
     println!(
         "Series Watching P1 first: '{}' (ID: {})",

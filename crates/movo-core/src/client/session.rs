@@ -1,4 +1,5 @@
-use super::anubis::{AnubisSolution, AnubisSolver};
+use super::anubis;
+use super::anubis::AnubisSolution;
 use reqwest::cookie::CookieStore;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, REFERER, USER_AGENT};
 use std::collections::HashMap;
@@ -239,7 +240,7 @@ impl RezkaSession {
         }
 
         log::info!("Anubis challenge encountered for {}, solving...", full_url);
-        let solution = AnubisSolver::extract_and_solve(&self.base_url, body, full_url).await?;
+        let solution = anubis::extract_and_solve(&self.base_url, body, full_url).await?;
         self.pass_anubis(&solution, full_url).await
     }
 
@@ -345,7 +346,7 @@ impl RezkaSession {
         self.capture_host_cookies(&resp, full_url);
         let (status, content_type, html) = Self::read_response(resp).await?;
 
-        if AnubisSolver::is_challenge(&html) {
+        if anubis::is_challenge(&html) {
             log::info!(
                 "Anubis challenge encountered on GET {}, solving PoW...",
                 full_url
@@ -439,7 +440,7 @@ impl RezkaSession {
         self.capture_host_cookies(&resp, full_url);
         let (status, content_type, body) = Self::read_response(resp).await?;
 
-        if AnubisSolver::is_challenge(&body) {
+        if anubis::is_challenge(&body) {
             log::info!(
                 "Anubis challenge encountered on POST {}, solving PoW...",
                 full_url
