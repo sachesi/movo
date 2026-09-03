@@ -270,16 +270,8 @@ impl Component for SearchView {
                     let _ = sender.output(SearchOutput::AccountInvalidated);
                     return;
                 }
-                if !self.grid.is_pending(page) {
-                    return;
-                }
-                match loaded.result {
-                    Ok(items) => self.grid.accept(page, items),
-                    Err(error) => {
-                        if let Some(message) = self.grid.reject(page, error) {
-                            let _ = sender.output(SearchOutput::Warning(message));
-                        }
-                    }
+                if let Some(message) = self.grid.apply(page, loaded.result) {
+                    let _ = sender.output(SearchOutput::Warning(message));
                 }
             }
             SearchCommand::Filters(loaded) => match loaded.result {

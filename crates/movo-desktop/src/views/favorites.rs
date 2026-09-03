@@ -169,16 +169,8 @@ impl Component for FavoritesView {
                     let _ = sender.output(FavoritesOutput::AccountInvalidated);
                     return;
                 }
-                if !self.grid.is_pending(page) {
-                    return;
-                }
-                match loaded.result {
-                    Ok(items) => self.grid.accept(page, items),
-                    Err(error) => {
-                        if let Some(message) = self.grid.reject(page, error) {
-                            let _ = sender.output(FavoritesOutput::Warning(message));
-                        }
-                    }
+                if let Some(message) = self.grid.apply(page, loaded.result) {
+                    let _ = sender.output(FavoritesOutput::Warning(message));
                 }
             }
         }

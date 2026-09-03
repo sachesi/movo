@@ -21,14 +21,10 @@ pub struct App {
     state: Rc<AppState>,
     // Views that do not depend on the account are only held so their
     // components stay alive for as long as the window does.
-    #[allow(dead_code)]
-    home: Controller<HomeView>,
-    #[allow(dead_code)]
-    catalog: Controller<CatalogView>,
-    #[allow(dead_code)]
-    search: Controller<SearchView>,
-    #[allow(dead_code)]
-    collections: Controller<CollectionsView>,
+    _home: Controller<HomeView>,
+    _catalog: Controller<CatalogView>,
+    _search: Controller<SearchView>,
+    _collections: Controller<CollectionsView>,
     notifications: Controller<NotificationsView>,
     favorites: Controller<FavoritesView>,
     history: Controller<HistoryView>,
@@ -283,10 +279,10 @@ impl Component for App {
 
         let model = App {
             state,
-            home,
-            catalog,
-            search,
-            collections,
+            _home: home,
+            _catalog: catalog,
+            _search: search,
+            _collections: collections,
             notifications,
             favorites,
             history,

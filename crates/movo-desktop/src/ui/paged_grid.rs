@@ -96,6 +96,25 @@ impl PagedGrid {
         self.pending == Some(page)
     }
 
+    /// Applies a finished page request.
+    ///
+    /// A page the grid is no longer awaiting is dropped: it belongs to a
+    /// query, category or sort order the user has already moved away from.
+    /// Returns a message to surface as a notification when a later page
+    /// failed, where a full-page error would hide results still on screen.
+    pub fn apply(&mut self, page: usize, result: Result<Vec<MediaItem>, String>) -> Option<String> {
+        if !self.is_pending(page) {
+            return None;
+        }
+        match result {
+            Ok(items) => {
+                self.accept(page, items);
+                None
+            }
+            Err(error) => self.reject(page, error),
+        }
+    }
+
     pub fn accept(&mut self, page: usize, items: Vec<MediaItem>) {
         self.pending = None;
         if page == 1 {

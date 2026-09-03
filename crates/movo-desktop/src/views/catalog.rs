@@ -164,19 +164,8 @@ impl Component for CatalogView {
             return;
         }
 
-        // A page that is no longer awaited belongs to a category or sort order
-        // the user has already moved away from.
-        if !self.grid.is_pending(page) {
-            return;
-        }
-
-        match loaded.result {
-            Ok(items) => self.grid.accept(page, items),
-            Err(error) => {
-                if let Some(message) = self.grid.reject(page, error) {
-                    let _ = sender.output(CatalogOutput::Warning(message));
-                }
-            }
+        if let Some(message) = self.grid.apply(page, loaded.result) {
+            let _ = sender.output(CatalogOutput::Warning(message));
         }
     }
 }

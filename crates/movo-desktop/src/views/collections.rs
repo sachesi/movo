@@ -100,18 +100,11 @@ impl Component for CollectionsView {
             let _ = sender.output(CollectionsOutput::AccountInvalidated);
             return;
         }
-        if !self.grid.is_pending(page) {
-            return;
-        }
-        match loaded.result {
-            Ok(collections) => self
-                .grid
-                .accept(page, collections.iter().map(as_media).collect()),
-            Err(error) => {
-                if let Some(message) = self.grid.reject(page, error) {
-                    let _ = sender.output(CollectionsOutput::Warning(message));
-                }
-            }
+        let rows = loaded
+            .result
+            .map(|collections| collections.iter().map(as_media).collect());
+        if let Some(message) = self.grid.apply(page, rows) {
+            let _ = sender.output(CollectionsOutput::Warning(message));
         }
     }
 }
