@@ -55,6 +55,11 @@ pub struct AnubisSolution {
 /// request MUST echo it back.
 pub const VERIFICATION_COOKIE: &str = "techaro.lol-anubis-cookie-verification";
 
+/// Refuse a challenge harder than this. It caps both the proof-of-work search,
+/// which never ends past 64 because no digest can carry that many leading
+/// zeroes, and the metarefresh wait, which the challenge otherwise sets itself.
+const MAX_DIFFICULTY: usize = 8;
+
 pub fn is_challenge(html: &str) -> bool {
     html.contains("anubis_challenge") || html.contains("/.within.website/x/cmd/anubis/")
 }
@@ -76,7 +81,13 @@ pub async fn extract_and_solve(
     let challenge_data: AnubisChallengeData = serde_json::from_str(&challenge_json)
         .map_err(|e| format!("Failed to parse anubis challenge JSON: {}", e))?;
 
+    // The prefix is pasted in front of the pass-challenge path. Left
+    // unchecked, a value like `@elsewhere.example` would move the whole
+    // request to a host of the page's choosing.
     let prefix: String = serde_json::from_str(&prefix_json).unwrap_or_default();
+    if !prefix.is_empty() && (!prefix.starts_with('/') || prefix.contains("..")) {
+        return Err(format!("Anubis base prefix is invalid: {prefix}"));
+    }
 
     let inner = challenge_data
         .challenge
@@ -87,12 +98,17 @@ pub async fn extract_and_solve(
     let challenge_id = inner.id.clone();
     let difficulty = rules.difficulty.or(inner.difficulty).unwrap_or(0);
     let algorithm = rules.algorithm.unwrap_or_default();
+    if difficulty > MAX_DIFFICULTY {
+        return Err(format!(
+            "Anubis challenge difficulty {difficulty} is above the {MAX_DIFFICULTY} this client attempts"
+        ));
+    }
 
     let start = Instant::now();
     let (nonce, hash) = match algorithm {
         AnubisAlgorithm::Fast | AnubisAlgorithm::Slow => solve_pow(random_data, difficulty),
         AnubisAlgorithm::Metarefresh => {
-            let wait_ms = (difficulty + 1) as u64 * 1000;
+            let wait_ms = (difficulty as u64 + 1) * 1000;
             log::info!(
                 "Anubis metarefresh: waiting {}ms before pass-challenge",
                 wait_ms
@@ -156,6 +172,48 @@ fn solve_pow(random_data: &str, difficulty: usize) -> (u64, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn challenge_html(prefix: &str, difficulty: usize) -> String {
+        format!(
+            r#"<script id="anubis_base_prefix" type="application/json">"{prefix}"</script>
+               <script id="anubis_challenge" type="application/json">
+               {{"rules":{{"algorithm":"metarefresh","difficulty":{difficulty}}},
+                 "challenge":{{"id":"abc","randomData":"seed"}}}}</script>"#
+        )
+    }
+
+    #[tokio::test]
+    async fn a_challenge_harder_than_the_client_attempts_is_refused() {
+        let html = challenge_html("", 99);
+        let error = extract_and_solve("https://example.com", &html, "https://example.com/x")
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("99"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn a_base_prefix_that_would_move_the_host_is_refused() {
+        let html = challenge_html("@elsewhere.example", 0);
+        let error = extract_and_solve("https://example.com", &html, "https://example.com/x")
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("prefix"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn a_path_base_prefix_is_kept() {
+        let html = challenge_html("/behind", 0);
+        let solution = extract_and_solve("https://example.com", &html, "https://example.com/x")
+            .await
+            .unwrap();
+
+        assert_eq!(
+            solution.pass_url,
+            "https://example.com/behind/.within.website/x/cmd/anubis/api/pass-challenge"
+        );
+    }
 
     #[test]
     fn solves_the_proof_of_work_challenge() {
