@@ -329,10 +329,11 @@ pub fn parse_stream_entries(decoded: &str) -> Vec<StreamEntry> {
             continue;
         }
 
-        let raw_q = if let (Some(start), Some(end)) = (chunk.find('['), chunk.find(']')) {
-            &chunk[start + 1..end]
-        } else {
-            "Unknown"
+        // The closing bracket has to follow the opening one; a chunk that
+        // spells them the other way round would slice a reversed range.
+        let raw_q = match (chunk.find('['), chunk.find(']')) {
+            (Some(start), Some(end)) if start < end => &chunk[start + 1..end],
+            _ => "Unknown",
         };
         let quality = clean_quality_label(raw_q);
 

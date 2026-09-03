@@ -130,3 +130,12 @@ fn test_streams_object_does_not_require_legacy_url() {
         Some("https://cdn.example.com/video.m3u8")
     );
 }
+
+#[test]
+fn a_chunk_with_reversed_brackets_does_not_panic() {
+    let entries =
+        movo_core::client::stream::parse_stream_entries("]https://cdn.example.com/a.mp4[");
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].quality, "Unknown");
+}
