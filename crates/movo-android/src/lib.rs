@@ -13,6 +13,12 @@ use std::sync::LazyLock;
 use tokio::sync::RwLock;
 
 static CLIENT: LazyLock<RwLock<RezkaClient>> = LazyLock::new(|| RwLock::new(RezkaClient::new()));
+
+/// Serializes account mutations against each other without shutting readers
+/// out. The mutations only need `&RezkaClient`; taking the write lock for them
+/// blocked every catalog, search and details request for as long as the
+/// mutation ran, and some of them poll the provider for several seconds.
+static MUTATIONS: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 static RUNTIME: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().expect("Android runtime"));
 
@@ -248,7 +254,8 @@ fn invoke(command: Command) -> Result<Value, String> {
             | Command::ToggleScheduleWatched { .. }
             | Command::SaveWatch { .. }
             | Command::MarkWatched { .. }) => {
-                let client = CLIENT.write().await;
+                let _mutation = MUTATIONS.lock().await;
+                let client = CLIENT.read().await;
                 invoke_read(command, &client).await
             }
             command => {
@@ -283,6 +290,25 @@ pub extern "system" fn Java_org_movo_app_NativeBridge_invoke(
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    /// An in-flight mutation holds the mutation lock and a read lock. Reads
+    /// must still get through: some mutations poll the provider for seconds.
+    #[test]
+    fn a_running_mutation_does_not_block_reads() {
+        RUNTIME.block_on(async {
+            let mutation = MUTATIONS.lock().await;
+            let held = CLIENT.read().await;
+
+            let reader = tokio::time::timeout(Duration::from_millis(50), CLIENT.read()).await;
+            assert!(reader.is_ok());
+
+            let second = tokio::time::timeout(Duration::from_millis(50), MUTATIONS.lock()).await;
+            assert!(second.is_err(), "mutations must stay serialized");
+
+            drop(held);
+            drop(mutation);
+        });
+    }
 
     #[test]
     fn client_state_allows_parallel_readers() {
