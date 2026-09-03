@@ -8,6 +8,7 @@
 
 package org.movo.app
 
+import org.movo.app.player.selectStream
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalAnimationApi
