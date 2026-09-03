@@ -8,6 +8,7 @@
 
 package org.movo.app.search
 
+import org.movo.app.ui.sectionHeading
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.catalog.MediaGrid
@@ -162,7 +163,7 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
         }
         if (query.isBlank() && state.searchHistory.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).sectionHeading())
                 TextButton(model::clearSearchHistory, Modifier.tvFocusScale(isTv)) { Text(stringResource(R.string.clear)) }
             }
             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -275,7 +276,7 @@ internal fun TvSearchContent(
                 Text(
                     stringResource(R.string.recent_searches),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).sectionHeading(),
                 )
                 TvButton(
                     onClick = clearHistory,

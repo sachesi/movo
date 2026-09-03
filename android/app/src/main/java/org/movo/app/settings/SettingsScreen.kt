@@ -2,6 +2,9 @@
 
 package org.movo.app.settings
 
+import androidx.compose.runtime.Stable
+import androidx.datastore.preferences.core.Preferences
+import org.movo.app.ui.sectionHeading
 import androidx.compose.foundation.layout.PaddingValues
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
@@ -59,33 +62,23 @@ import androidx.tv.material3.Surface as TvSurface
 import androidx.tv.material3.Switch as TvSwitch
 import androidx.tv.material3.Text as TvText
 
+/** Where the settings editor writes. One method, because every setting is one key and one value. */
+@Stable
+interface SettingsActions {
+    fun <T> save(key: Preferences.Key<T>, value: T)
+}
+
 /**
  * Settings editor (content only — the host `Scaffold` supplies the top bar + insets).
  *
- * Reads the current [settings] and reports changes through the callbacks; the host observes the
- * backing DataStore and re-applies theme / layout-mode changes live.
+ * Reads the current [settings] and writes through [actions]; the host observes the backing
+ * DataStore and re-applies theme / layout-mode changes live.
  */
 @Composable
 fun SettingsContent(
     settings: AppSettings,
     isTv: Boolean,
-    onLayoutModeChange: (LayoutMode) -> Unit,
-    onThemeChange: (ThemePref) -> Unit,
-    onDynamicColorChange: (Boolean) -> Unit,
-    onQualityModeChange: (QualityMode) -> Unit,
-    onAutoNextChange: (Boolean) -> Unit,
-    onSeekSecondsChange: (Int) -> Unit,
-    onPlaybackSpeedChange: (Float) -> Unit,
-    onVideoFitChange: (VideoFit) -> Unit,
-    onShowBufferChange: (Boolean) -> Unit,
-    onShowEndTimeChange: (Boolean) -> Unit,
-    onBufferSecondsChange: (Int) -> Unit,
-    onTvCenterPausesChange: (Boolean) -> Unit,
-    onTvPauseShowsControlsChange: (Boolean) -> Unit,
-    onAskQualityChange: (Boolean) -> Unit,
-    onSaveQualityChange: (Boolean) -> Unit,
-    onSortVoicesChange: (Boolean) -> Unit,
-    onInitialTabChange: (Tab) -> Unit,
+    actions: SettingsActions,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxSize()) {
@@ -105,7 +98,7 @@ fun SettingsContent(
                     values = LayoutMode.entries,
                     selected = settings.layoutMode,
                     label = { stringResource(it.label) },
-                    choose = onLayoutModeChange,
+                    choose = { actions.save(Keys.LAYOUT_MODE, it.name) },
                     isTv = isTv,
                 )
                 ChoiceSection(
@@ -113,10 +106,10 @@ fun SettingsContent(
                     values = Tab.entries,
                     selected = settings.initialTab,
                     label = { stringResource(it.settingsLabel) },
-                    choose = onInitialTabChange,
+                    choose = { actions.save(Keys.INITIAL_TAB, it.name) },
                     isTv = isTv,
                 )
-                SwitchItem(stringResource(R.string.sort_voices), settings.sortVoices, isTv, onSortVoicesChange)
+                SwitchItem(stringResource(R.string.sort_voices), settings.sortVoices, isTv) { actions.save(Keys.SORT_VOICES, it) }
                 }
             }
 
@@ -127,7 +120,7 @@ fun SettingsContent(
                     values = ThemePref.entries,
                     selected = settings.theme,
                     label = { stringResource(it.label) },
-                    choose = onThemeChange,
+                    choose = { actions.save(Keys.THEME, it.name) },
                     isTv = isTv,
                 )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -135,7 +128,7 @@ fun SettingsContent(
                         label = stringResource(R.string.dynamic_color),
                         checked = settings.useDynamicColor,
                         isTv = isTv,
-                        onCheckedChange = onDynamicColorChange,
+                        onCheckedChange = { actions.save(Keys.USE_DYNAMIC_COLOR, it) },
                     )
                 }
                 }
@@ -148,16 +141,16 @@ fun SettingsContent(
                     values = QualityMode.entries,
                     selected = settings.qualityMode,
                     label = { stringResource(it.label) },
-                    choose = onQualityModeChange,
+                    choose = { actions.save(Keys.QUALITY_MODE, it.name) },
                     isTv = isTv,
                 )
-                SwitchItem(stringResource(R.string.auto_next), settings.autoNext, isTv, onAutoNextChange)
+                SwitchItem(stringResource(R.string.auto_next), settings.autoNext, isTv) { actions.save(Keys.AUTO_NEXT, it) }
                 ChoiceSection(
                     title = stringResource(R.string.seek_interval),
                     values = listOf(5, 10, 15, 30),
                     selected = settings.seekSeconds,
                     label = { stringResource(R.string.seconds_short, it) },
-                    choose = onSeekSecondsChange,
+                    choose = { actions.save(Keys.SEEK_SECONDS, it) },
                     isTv = isTv,
                 )
                 ChoiceSection(
@@ -165,7 +158,7 @@ fun SettingsContent(
                     values = listOf(.75f, 1f, 1.25f, 1.5f, 2f),
                     selected = settings.playbackSpeed,
                     label = { "${it}×" },
-                    choose = onPlaybackSpeedChange,
+                    choose = { actions.save(Keys.PLAYBACK_SPEED, it) },
                     isTv = isTv,
                 )
                 ChoiceSection(
@@ -173,24 +166,24 @@ fun SettingsContent(
                     values = VideoFit.entries,
                     selected = settings.videoFit,
                     label = { stringResource(it.label) },
-                    choose = onVideoFitChange,
+                    choose = { actions.save(Keys.VIDEO_FIT, it.name) },
                     isTv = isTv,
                 )
-                SwitchItem(stringResource(R.string.ask_quality), settings.askQuality, isTv, onAskQualityChange)
-                SwitchItem(stringResource(R.string.save_quality), settings.saveQuality, isTv, onSaveQualityChange)
+                SwitchItem(stringResource(R.string.ask_quality), settings.askQuality, isTv) { actions.save(Keys.ASK_QUALITY, it) }
+                SwitchItem(stringResource(R.string.save_quality), settings.saveQuality, isTv) { actions.save(Keys.SAVE_QUALITY, it) }
                 }
             }
 
             item {
                 SettingsGroup(title = stringResource(R.string.settings_group_player_overlay), isTv = isTv) {
-                SwitchItem(stringResource(R.string.show_buffer), settings.showBuffer, isTv, onShowBufferChange)
-                SwitchItem(stringResource(R.string.show_end_time), settings.showEndTime, isTv, onShowEndTimeChange)
+                SwitchItem(stringResource(R.string.show_buffer), settings.showBuffer, isTv) { actions.save(Keys.SHOW_BUFFER, it) }
+                SwitchItem(stringResource(R.string.show_end_time), settings.showEndTime, isTv) { actions.save(Keys.SHOW_END_TIME, it) }
                 ChoiceSection(
                     title = stringResource(R.string.buffer_window),
                     values = listOf(0, 15, 30, 60, 120, 180),
                     selected = settings.bufferSeconds,
                     label = { if (it == 0) stringResource(R.string.layout_auto) else stringResource(R.string.seconds_short, it) },
-                    choose = onBufferSecondsChange,
+                    choose = { actions.save(Keys.BUFFER_SECONDS, it) },
                     isTv = isTv,
                 )
                 }
@@ -198,8 +191,8 @@ fun SettingsContent(
 
             item {
                 SettingsGroup(title = stringResource(R.string.settings_group_tv), isTv = isTv) {
-                SwitchItem(stringResource(R.string.tv_center_pauses), settings.tvCenterPauses, isTv, onTvCenterPausesChange)
-                if (settings.tvCenterPauses) SwitchItem(stringResource(R.string.tv_pause_shows_controls), settings.tvPauseShowsControls, isTv, onTvPauseShowsControlsChange)
+                SwitchItem(stringResource(R.string.tv_center_pauses), settings.tvCenterPauses, isTv) { actions.save(Keys.TV_CENTER_PAUSES, it) }
+                if (settings.tvCenterPauses) SwitchItem(stringResource(R.string.tv_pause_shows_controls), settings.tvPauseShowsControls, isTv) { actions.save(Keys.TV_PAUSE_SHOWS_CONTROLS, it) }
                 }
             }
 
@@ -219,7 +212,7 @@ private fun SettingsGroup(
         text = title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 4.dp).sectionHeading(),
     )
     val modifier = Modifier
         .fillMaxWidth()
@@ -243,7 +236,7 @@ private fun SettingsGroup(
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).sectionHeading(),
         style = MaterialTheme.typography.titleMedium,
     )
 }

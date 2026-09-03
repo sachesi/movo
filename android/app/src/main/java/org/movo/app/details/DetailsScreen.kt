@@ -8,6 +8,7 @@
 
 package org.movo.app.details
 
+import org.movo.app.ui.sectionHeading
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.CompositionLocalProvider
@@ -393,6 +394,7 @@ internal fun DetailsScreen(
                             } else {
                                 MaterialTheme.typography.titleMedium
                             },
+                            modifier = Modifier.sectionHeading(),
                         )
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(
@@ -435,7 +437,7 @@ internal fun DetailsScreen(
             if (details.actorDetails.isNotEmpty() || details.directorDetails.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.people), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.people), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(details.directorDetails + details.actorDetails, key = { "${it.url}:${it.name}" }) { person ->
                                 AssistChip(
@@ -453,7 +455,7 @@ internal fun DetailsScreen(
             if (details.schedules.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         details.schedules.forEach { group ->
                             if (group.name.isNotBlank()) Text(group.name, style = MaterialTheme.typography.titleMedium)
                             group.items.forEach { episode ->
@@ -475,7 +477,7 @@ internal fun DetailsScreen(
             if (details.includedIn.isNotEmpty() || details.fromCollections.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.from_collections), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.from_collections), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(details.includedIn + details.fromCollections, key = { "${it.url}:${it.name}" }) { link ->
                                 AssistChip(onClick = { model.openDiscoveryPath(Tab.Collections, link.name, link.url) }, label = { Text(link.name) }, modifier = Modifier.tvFocusScale(isTv))
@@ -487,7 +489,7 @@ internal fun DetailsScreen(
             if (details.related.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.related), style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.related), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(details.related, key = { it.url }) { item ->
                                 Box(Modifier.width(if (isTv) 180.dp else 150.dp)) { MediaCard(item, isTv) { model.openDetails(item.url) } }

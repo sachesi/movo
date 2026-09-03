@@ -8,6 +8,8 @@
 
 package org.movo.app.ui
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRestorer
 import android.content.Context
@@ -70,6 +72,9 @@ internal val MovoBlue = Color(0xFF9CCAFF)
  * app checks it and snaps instead of moving.
  */
 internal val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/** Marks a section title, so a screen reader can jump between sections instead of reading through. */
+internal fun Modifier.sectionHeading() = semantics { heading() }
 
 /** Reads [Settings.Global.ANIMATOR_DURATION_SCALE], which is 0 when animations are off. */
 internal fun reducedMotionEnabled(context: Context) =

@@ -8,6 +8,7 @@
 
 package org.movo.app.catalog
 
+import org.movo.app.ui.sectionHeading
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.Empty
@@ -209,6 +210,7 @@ internal fun TvHomeScreen(
                         stringResource(section.title),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.sectionHeading(),
                     )
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),

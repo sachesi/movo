@@ -23,6 +23,7 @@ import org.movo.app.account.NotificationsScreen
 import org.movo.app.catalog.CatalogScreen
 import org.movo.app.catalog.CollectionsScreen
 import org.movo.app.search.SearchScreen
+import org.movo.app.settings.SettingsActions
 import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.LocalTvFocusMemory
@@ -30,6 +31,7 @@ import org.movo.app.ui.TvFocusMemory
 import org.movo.app.ui.toTvColorScheme
 import org.movo.app.ui.tvFocusScale
 import org.movo.app.settings.settings
+import androidx.datastore.preferences.core.Preferences
 import org.movo.app.R
 import org.movo.app.core.AppState
 import org.movo.app.core.MovoViewModel
@@ -304,27 +306,14 @@ internal fun TvNavigationDrawer(
 private fun SettingsDestination(settings: AppSettings, isTv: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    SettingsContent(
-        settings = settings,
-        isTv = isTv,
-        onLayoutModeChange = { scope.launch { context.save(Keys.LAYOUT_MODE, it.name) } },
-        onThemeChange = { scope.launch { context.save(Keys.THEME, it.name) } },
-        onDynamicColorChange = { scope.launch { context.save(Keys.USE_DYNAMIC_COLOR, it) } },
-        onQualityModeChange = { scope.launch { context.save(Keys.QUALITY_MODE, it.name) } },
-        onAutoNextChange = { scope.launch { context.save(Keys.AUTO_NEXT, it) } },
-        onSeekSecondsChange = { scope.launch { context.save(Keys.SEEK_SECONDS, it) } },
-        onPlaybackSpeedChange = { scope.launch { context.save(Keys.PLAYBACK_SPEED, it) } },
-        onVideoFitChange = { scope.launch { context.save(Keys.VIDEO_FIT, it.name) } },
-        onShowBufferChange = { scope.launch { context.save(Keys.SHOW_BUFFER, it) } },
-        onShowEndTimeChange = { scope.launch { context.save(Keys.SHOW_END_TIME, it) } },
-        onBufferSecondsChange = { scope.launch { context.save(Keys.BUFFER_SECONDS, it) } },
-        onTvCenterPausesChange = { scope.launch { context.save(Keys.TV_CENTER_PAUSES, it) } },
-        onTvPauseShowsControlsChange = { scope.launch { context.save(Keys.TV_PAUSE_SHOWS_CONTROLS, it) } },
-        onAskQualityChange = { scope.launch { context.save(Keys.ASK_QUALITY, it) } },
-        onSaveQualityChange = { scope.launch { context.save(Keys.SAVE_QUALITY, it) } },
-        onSortVoicesChange = { scope.launch { context.save(Keys.SORT_VOICES, it) } },
-        onInitialTabChange = { scope.launch { context.save(Keys.INITIAL_TAB, it.name) } },
-    )
+    val actions = remember(context, scope) {
+        object : SettingsActions {
+            override fun <T> save(key: Preferences.Key<T>, value: T) {
+                scope.launch { context.save(key, value) }
+            }
+        }
+    }
+    SettingsContent(settings = settings, isTv = isTv, actions = actions)
 }
 
 @Composable
