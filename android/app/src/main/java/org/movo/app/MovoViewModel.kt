@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -56,6 +58,14 @@ data class AppState(
     val detailAction: DetailAction? = null,
 )
 
+/**
+ * Something the app should say once and forget. Anything still true after the screen is rebuilt
+ * belongs on [AppState] instead: this is only for what the UI shows and moves past.
+ */
+sealed interface AppEffect {
+    data class Message(val text: String) : AppEffect
+}
+
 /** How long typing has to settle before suggestions are fetched. */
 private const val SUGGEST_DEBOUNCE_MS = 300L
 
@@ -77,6 +87,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             else -> Screen.Home
         }
     }.distinctUntilChanged()
+    // Buffered rather than a SharedFlow: a message raised while the app is backgrounded waits
+    // there and is shown on resume instead of being dropped.
+    private val _effects = Channel<AppEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
     private var activeOperations = 0
     private var contentJob: Job? = null
     private var suggestJob: Job? = null
@@ -601,7 +615,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val stream = prepared ?: fetchStream(details, translator, season, episode)
             val selected = selectStream(stream, qualityMode, preferredQuality)
             if (selected == null) {
-                _state.update { it.copy(error = "Selected quality is unavailable") }
+                notify("Selected quality is unavailable")
                 return@run
             }
             if (state.value.details?.url == details.url) {
@@ -674,7 +688,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
-                _state.update { it.copy(error = "Selected quality is unavailable") }
+                notify("Selected quality is unavailable")
             } else {
                 _state.update { it.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = store.progress(progressKey(details.id, next))) }
             }
@@ -703,7 +717,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
-                _state.update { it.copy(error = "Selected quality is unavailable") }
+                notify("Selected quality is unavailable")
             } else {
                 _state.update { it.copy(
                     stream = next,
@@ -789,6 +803,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val history = NativeBridge.decode<HistoryResult>("history")
             if (state.value.tab == Tab.History) _state.update { it.copy(history = history.entries) }
         }
+    }
+
+    private fun notify(text: String) {
+        _effects.trySend(AppEffect.Message(text))
     }
 
     fun clearError() { _state.update { it.copy(error = null) } }

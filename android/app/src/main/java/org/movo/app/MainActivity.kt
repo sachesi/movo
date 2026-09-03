@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
@@ -195,18 +196,34 @@ private fun MovoApp(
                     model.openDetails(url)
                 }
             }
-            when (screen) {
-                Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
-                Screen.Login -> LoginRoute(model, isTv)
-                Screen.Player -> PlayerRoute(model, settings, isTv)
-                Screen.Trailer -> TrailerRoute(model, isTv)
-                Screen.Details -> DetailsRoute(
-                    model,
-                    isTv,
-                    windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
-                    settings,
-                )
-                Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
+            val snackbars = remember { SnackbarHostState() }
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
+            // Collected once here rather than per screen: a message can be raised while playback
+            // is on top, and the player is not inside the home Scaffold.
+            LaunchedEffect(model, lifecycle) {
+                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    model.effects.collect { effect ->
+                        when (effect) {
+                            is AppEffect.Message -> snackbars.showSnackbar(effect.text)
+                        }
+                    }
+                }
+            }
+            Box(Modifier.fillMaxSize()) {
+                when (screen) {
+                    Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
+                    Screen.Login -> LoginRoute(model, isTv)
+                    Screen.Player -> PlayerRoute(model, settings, isTv)
+                    Screen.Trailer -> TrailerRoute(model, isTv)
+                    Screen.Details -> DetailsRoute(
+                        model,
+                        isTv,
+                        windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
+                        settings,
+                    )
+                    Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
+                }
+                SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter))
             }
         }
     }
