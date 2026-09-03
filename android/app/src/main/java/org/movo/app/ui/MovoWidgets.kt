@@ -8,6 +8,14 @@
 
 package org.movo.app.ui
 
+import android.content.Context
+import android.provider.Settings
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.tv.material3.ColorScheme as TvColorScheme
+import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
+import androidx.tv.material3.lightColorScheme as tvLightColorScheme
 import org.movo.app.settings.save
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -55,11 +63,48 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 internal val MovoBlue = Color(0xFF9CCAFF)
 
 /**
+ * Whether the user has turned system animations off. Compose has no built-in for this, so it is
+ * read once per activity from the global animator scale and handed down; every animation in the
+ * app checks it and snaps instead of moving.
+ */
+internal val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/** Reads [Settings.Global.ANIMATOR_DURATION_SCALE], which is 0 when animations are off. */
+internal fun reducedMotionEnabled(context: Context) =
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+
+/** [spec] normally, an instant jump when the user has asked for no animation. */
+@Composable
+internal fun <T> motionSpec(spec: FiniteAnimationSpec<T>): FiniteAnimationSpec<T> =
+    if (LocalReducedMotion.current) snap() else spec
+
+/**
  * TV safe area: 5% of each edge, the margin a television may crop. Everything the user has to
  * read or aim at on the TV surface stays inside it.
  */
 internal val TV_OVERSCAN_HORIZONTAL = 48.dp
 internal val TV_OVERSCAN_VERTICAL = 27.dp
+
+/**
+ * Restates the resolved Material 3 scheme in the shape tv-material wants.
+ *
+ * The TV components carry their own theme, so without this the drawer and the content beside it
+ * are coloured by two unrelated schemes — visibly so under dynamic colour, where the content
+ * follows the wallpaper and a hand-written TV palette does not. [isDark] only picks which set of
+ * defaults fills in `border` and `scrim`, which Material 3 has no counterpart for.
+ */
+internal fun ColorScheme.toTvColorScheme(isDark: Boolean): TvColorScheme {
+    val build = if (isDark) ::tvDarkColorScheme else ::tvLightColorScheme
+    return build(
+        primary, onPrimary, primaryContainer, onPrimaryContainer, inversePrimary,
+        secondary, onSecondary, secondaryContainer, onSecondaryContainer,
+        tertiary, onTertiary, tertiaryContainer, onTertiaryContainer,
+        background, onBackground, surface, onSurface, surfaceVariant, onSurfaceVariant,
+        surfaceTint, inverseSurface, inverseOnSurface,
+        error, onError, errorContainer, onErrorContainer,
+        outline, outlineVariant, scrim,
+    )
+}
 
 /**
  * Per-destination record of the last focused element on the TV surface, so returning to a
@@ -186,7 +231,11 @@ internal fun MovoChoiceChip(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val tvFocused = isTv && focused
-    val scale by animateFloatAsState(if (tvFocused) 1.06f else 1f, label = "choice focus")
+    val scale by animateFloatAsState(
+        targetValue = if (tvFocused) 1.06f else 1f,
+        animationSpec = motionSpec(spring()),
+        label = "choice focus",
+    )
     val focusContainer = MaterialTheme.colorScheme.primary
     val focusContent = MaterialTheme.colorScheme.onPrimary
     FilterChip(
@@ -232,7 +281,7 @@ internal fun Modifier.tvFocusScale(isTv: Boolean, focusedScale: Float = 1.08f): 
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isTv && focused) focusedScale else 1f,
-        animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing),
+        animationSpec = motionSpec(tween(durationMillis = 150, easing = LinearOutSlowInEasing)),
         label = "TV focus",
     )
     return this

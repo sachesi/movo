@@ -8,6 +8,11 @@
 
 package org.movo.app.home
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.spring
+import org.movo.app.ui.LocalReducedMotion
+import org.movo.app.ui.motionSpec
 import org.movo.app.Section
 import org.movo.app.account.AccountScreen
 import org.movo.app.account.FavoritesScreen
@@ -19,8 +24,8 @@ import org.movo.app.search.SearchScreen
 import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.LocalTvFocusMemory
-import org.movo.app.ui.MovoBlue
 import org.movo.app.ui.TvFocusMemory
+import org.movo.app.ui.toTvColorScheme
 import org.movo.app.ui.tvFocusScale
 import org.movo.app.settings.settings
 import org.movo.app.R
@@ -95,8 +100,6 @@ import androidx.tv.material3.NavigationDrawer
 import androidx.tv.material3.NavigationDrawerItem
 import androidx.tv.material3.NavigationDrawerItemScale
 import androidx.tv.material3.Text as TvText
-import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
-import androidx.tv.material3.lightColorScheme as tvLightColorScheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,7 +148,14 @@ internal fun HomeFlow(
                     .fillMaxHeight()
                     .focusGroup(),
             ) {
-                AnimatedContent(targetState = section, transitionSpec = { fadeIn() togetherWith fadeOut() }) { s ->
+                val reducedMotion = LocalReducedMotion.current
+                AnimatedContent(
+                    targetState = section,
+                    transitionSpec = {
+                        if (reducedMotion) EnterTransition.None togetherWith ExitTransition.None
+                        else fadeIn() togetherWith fadeOut()
+                    },
+                ) { s ->
                     when (s) {
                         Section.Home -> HomeTabs(state, false, compactHeight, model)
                         Section.Settings -> SettingsDestination(settings, false)
@@ -177,13 +187,8 @@ private fun TvHomeFlow(
     focusMemory.destination = destinationKey
     focusMemory.fallback = state.focusedUrl
 
-    TvMaterialTheme(
-        colorScheme = if (isDark) {
-            tvDarkColorScheme(primary = MovoBlue)
-        } else {
-            tvLightColorScheme(primary = Color(0xFF0061A4))
-        },
-    ) {
+    val tvColorScheme = MaterialTheme.colorScheme.toTvColorScheme(isDark)
+    TvMaterialTheme(colorScheme = tvColorScheme) {
         TvNavigationDrawer(
             selectedTab = state.tab,
             settingsSelected = section == Section.Settings,
@@ -438,7 +443,11 @@ private fun MovoNavigationRailItem(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val tvFocused = isTv && focused
-    val scale by animateFloatAsState(if (tvFocused) 1.06f else 1f, label = "navigation focus")
+    val scale by animateFloatAsState(
+        targetValue = if (tvFocused) 1.06f else 1f,
+        animationSpec = motionSpec(spring()),
+        label = "navigation focus",
+    )
     NavigationRailItem(
         selected = selected,
         onClick = onClick,
@@ -484,9 +493,11 @@ private fun HomeTabs(
     }
     // Directional slide: forward for tabs later in the list, back for earlier ones, so
     // navigation reads spatially instead of a flat cross-fade.
+    val reducedMotion = LocalReducedMotion.current
     AnimatedContent(
         targetState = state.tab,
         transitionSpec = {
+            if (reducedMotion) return@AnimatedContent EnterTransition.None togetherWith ExitTransition.None
             val forward = targetState.ordinal >= initialState.ordinal
             val enter = fadeIn(tween(220)) +
                 slideInHorizontally(tween(260)) { if (forward) it / 8 else -it / 8 }

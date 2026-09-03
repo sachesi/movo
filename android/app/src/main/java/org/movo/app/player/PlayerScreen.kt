@@ -1,5 +1,8 @@
 package org.movo.app.player
 
+import androidx.compose.animation.core.spring
+import org.movo.app.ui.LocalReducedMotion
+import org.movo.app.ui.motionSpec
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -688,8 +691,8 @@ fun PlayerScreen(
         AnimatedVisibility(
             visible = overlay && ui.seekFeedback == null && !ui.isBuffering && content.playbackError == null,
             modifier = Modifier.align(Alignment.Center),
-            enter = fadeIn() + scaleIn(initialScale = 0.88f),
-            exit = fadeOut() + scaleOut(targetScale = 0.88f),
+            enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + scaleIn(initialScale = 0.88f),
+            exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + scaleOut(targetScale = 0.88f),
         ) {
             Box(
                 Modifier.size(104.dp),
@@ -725,8 +728,8 @@ fun PlayerScreen(
         AnimatedVisibility(
             visible = overlay,
             modifier = Modifier.align(Alignment.BottomCenter),
-            enter = fadeIn() + slideInVertically { it / 3 },
-            exit = fadeOut() + slideOutVertically { it / 3 },
+            enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + slideInVertically { it / 3 },
+            exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + slideOutVertically { it / 3 },
         ) {
             Column(
                 Modifier
@@ -940,6 +943,7 @@ private fun PlayerIconButton(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused && isTv) 1.1f else 1f,
+        animationSpec = motionSpec(spring()),
         label = "player control focus",
     )
     val containerColor = when {

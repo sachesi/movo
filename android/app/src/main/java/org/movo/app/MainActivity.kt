@@ -8,6 +8,9 @@
 
 package org.movo.app
 
+import androidx.compose.runtime.CompositionLocalProvider
+import org.movo.app.ui.LocalReducedMotion
+import org.movo.app.ui.reducedMotionEnabled
 import org.movo.app.account.LoginScreen
 import org.movo.app.details.DetailsScreen
 import org.movo.app.home.HomeFlow
@@ -197,58 +200,61 @@ private fun MovoApp(
         systemUi.isAppearanceLightNavigationBars = !isDark
     }
 
-    MaterialTheme(colorScheme = colorScheme) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
-            val deepLink by deepLinks.collectAsStateWithLifecycle()
-            LaunchedEffect(screen, settings.initialTab, isTv) {
-                if (screen == Screen.Login) initialTabApplied = false
-                if (screen == Screen.Home && !initialTabApplied) {
-                    initialTabApplied = true
-                    model.selectTab(settings.initialTab, isTv)
+    val reducedMotion = remember(context) { reducedMotionEnabled(context) }
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+        MaterialTheme(colorScheme = colorScheme) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
+                val deepLink by deepLinks.collectAsStateWithLifecycle()
+                LaunchedEffect(screen, settings.initialTab, isTv) {
+                    if (screen == Screen.Login) initialTabApplied = false
+                    if (screen == Screen.Home && !initialTabApplied) {
+                        initialTabApplied = true
+                        model.selectTab(settings.initialTab, isTv)
+                    }
                 }
-            }
-            LaunchedEffect(screen, deepLink) {
-                val url = deepLink ?: return@LaunchedEffect
-                if (screen == Screen.Home || screen == Screen.Details) {
-                    consumeDeepLink()
-                    model.openDetails(url)
+                LaunchedEffect(screen, deepLink) {
+                    val url = deepLink ?: return@LaunchedEffect
+                    if (screen == Screen.Home || screen == Screen.Details) {
+                        consumeDeepLink()
+                        model.openDetails(url)
+                    }
                 }
-            }
-            val snackbars = remember { SnackbarHostState() }
-            val lifecycle = LocalLifecycleOwner.current.lifecycle
-            // Collected once here rather than per screen: a message can be raised while playback
-            // is on top, and the player is not inside the home Scaffold.
-            LaunchedEffect(model, lifecycle) {
-                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    model.effects.collect { effect ->
-                        when (effect) {
-                            is AppEffect.Message -> snackbars.showSnackbar(effect.text)
+                val snackbars = remember { SnackbarHostState() }
+                val lifecycle = LocalLifecycleOwner.current.lifecycle
+                // Collected once here rather than per screen: a message can be raised while playback
+                // is on top, and the player is not inside the home Scaffold.
+                LaunchedEffect(model, lifecycle) {
+                    lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        model.effects.collect { effect ->
+                            when (effect) {
+                                is AppEffect.Message -> snackbars.showSnackbar(effect.text)
+                            }
                         }
                     }
                 }
-            }
-            Box(Modifier.fillMaxSize()) {
-                when (screen) {
-                    Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
-                    Screen.Login -> LoginRoute(model, isTv)
-                    Screen.Player -> PlayerRoute(model, settings, isTv)
-                    Screen.Trailer -> TrailerRoute(model, isTv)
-                    Screen.Details -> DetailsRoute(
-                        model,
-                        isTv,
-                        windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
-                        settings,
+                Box(Modifier.fillMaxSize()) {
+                    when (screen) {
+                        Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
+                        Screen.Login -> LoginRoute(model, isTv)
+                        Screen.Player -> PlayerRoute(model, settings, isTv)
+                        Screen.Trailer -> TrailerRoute(model, isTv)
+                        Screen.Details -> DetailsRoute(
+                            model,
+                            isTv,
+                            windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
+                            settings,
+                        )
+                        Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
+                    }
+                    SnackbarHost(
+                        snackbars,
+                        // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
                     )
-                    Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
                 }
-                SnackbarHost(
-                    snackbars,
-                    // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-                )
             }
         }
     }
