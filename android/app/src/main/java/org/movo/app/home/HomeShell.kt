@@ -37,7 +37,6 @@ import org.movo.app.core.AppState
 import org.movo.app.core.MovoViewModel
 import org.movo.app.core.Tab
 import org.movo.app.settings.AppSettings
-import org.movo.app.settings.Keys
 import org.movo.app.settings.save
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent

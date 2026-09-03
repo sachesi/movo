@@ -8,6 +8,9 @@
 
 package org.movo.app.details
 
+import androidx.window.layout.FoldingFeature
+import org.movo.app.ui.LocalFold
+import org.movo.app.ui.seamWidth
 import org.movo.app.ui.sectionHeading
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBarDefaults
@@ -251,6 +254,9 @@ internal fun DetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
             item {
+                val seam = LocalFold.current
+                    ?.takeIf { it.orientation == FoldingFeature.Orientation.VERTICAL }
+                    ?.seamWidth()
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Box {
                         AsyncImage(
@@ -282,6 +288,8 @@ internal fun DetailsScreen(
                             }
                         }
                     }
+                    // The seam of a book-posture fold falls between the poster and the text.
+                    if (seam != null) Spacer(Modifier.width(seam))
                     Column(
                         Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -8,6 +8,9 @@
 
 package org.movo.app
 
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
+import org.movo.app.ui.LocalFold
 import androidx.compose.runtime.CompositionLocalProvider
 import org.movo.app.ui.LocalReducedMotion
 import org.movo.app.ui.reducedMotionEnabled
@@ -201,7 +204,15 @@ private fun MovoApp(
     }
 
     val reducedMotion = remember(context) { reducedMotionEnabled(context) }
-    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+    val layout by remember(activity) { WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity) }
+        .collectAsStateWithLifecycle(initialValue = null)
+    val fold = layout?.displayFeatures
+        ?.filterIsInstance<FoldingFeature>()
+        ?.firstOrNull { it.state == FoldingFeature.State.HALF_OPENED }
+    CompositionLocalProvider(
+        LocalReducedMotion provides reducedMotion,
+        LocalFold provides fold,
+    ) {
         MaterialTheme(colorScheme = colorScheme) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)

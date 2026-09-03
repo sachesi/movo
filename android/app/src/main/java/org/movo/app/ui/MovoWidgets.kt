@@ -8,6 +8,9 @@
 
 package org.movo.app.ui
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.window.layout.FoldingFeature
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.focusGroup
@@ -72,6 +75,22 @@ internal val MovoBlue = Color(0xFF9CCAFF)
  * app checks it and snaps instead of moving.
  */
 internal val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/**
+ * The hinge of a foldable held half-open, or null on any device or posture without one.
+ *
+ * Nothing the user reads or touches may straddle it: on a book-posture fold the seam runs down
+ * the middle of the window, and on a tabletop fold it runs across it.
+ */
+internal val LocalFold = staticCompositionLocalOf<FoldingFeature?> { null }
+
+/** Height of the window above a tabletop fold, which is where the video belongs. */
+@Composable
+internal fun FoldingFeature.topHeight(): Dp = with(LocalDensity.current) { bounds.top.toDp() }
+
+/** Width of the seam itself, which a layout has to leave empty. */
+@Composable
+internal fun FoldingFeature.seamWidth(): Dp = with(LocalDensity.current) { bounds.width().toDp() }
 
 /** Marks a section title, so a screen reader can jump between sections instead of reading through. */
 internal fun Modifier.sectionHeading() = semantics { heading() }

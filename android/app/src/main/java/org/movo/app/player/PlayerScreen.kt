@@ -1,5 +1,8 @@
 package org.movo.app.player
 
+import androidx.window.layout.FoldingFeature
+import org.movo.app.ui.LocalFold
+import org.movo.app.ui.topHeight
 import androidx.compose.animation.core.spring
 import org.movo.app.ui.LocalReducedMotion
 import org.movo.app.ui.motionSpec
@@ -492,6 +495,11 @@ fun PlayerScreen(
         Modifier.windowInsetsPadding(WindowInsets.displayCutout)
     }
 
+    // Tabletop: the screen is bent across the middle, so a full-screen video is creased in half.
+    // The picture takes the upper panel and the controls keep the lower one.
+    val fold = LocalFold.current?.takeIf { it.orientation == FoldingFeature.Orientation.HORIZONTAL }
+    val videoHeight = fold?.topHeight()
+
     val overlay = ui.controlsVisible
     Box(
         Modifier
@@ -575,7 +583,13 @@ fun PlayerScreen(
                 }
             },
             modifier = Modifier
-                .fillMaxSize()
+                .then(
+                    if (videoHeight != null) {
+                        Modifier.fillMaxWidth().height(videoHeight).align(Alignment.TopCenter)
+                    } else {
+                        Modifier.fillMaxSize()
+                    },
+                )
                 .onSizeChanged { ui.videoSize = it }
                 .pointerInput(ui.videoSize) {
                     detectTransformGestures(panZoomLock = true) { centroid, pan, zoom, _ ->
