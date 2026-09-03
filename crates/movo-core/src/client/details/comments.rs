@@ -1,6 +1,6 @@
+use super::super::models::{Comment, CommentsPage};
+use super::super::session::RezkaSession;
 use super::DetailsScraper;
-use crate::client::models::{Comment, CommentsPage};
-use crate::client::session::RezkaSession;
 use scraper::{Html, Selector};
 use serde_json::Value;
 

@@ -1,12 +1,11 @@
+use super::cookies::{HostCookies, PersistedCookies, StoredCookie};
+use super::{RezkaSession, OFFICIAL_MIRROR};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use url::Url;
-
-use super::cookies::{HostCookies, PersistedCookies, StoredCookie};
-use super::{RezkaSession, OFFICIAL_MIRROR};
 
 #[cfg(not(target_os = "android"))]
 const KEYRING_SERVICE: &str = "org.gnome.Movo";

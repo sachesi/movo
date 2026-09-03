@@ -165,9 +165,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_solve_pow() {
-        let (nonce, hash) = AnubisSolver::solve_pow("test_random_data_sample", 2);
+    fn solves_the_proof_of_work_challenge() {
+        let (_nonce, hash) = AnubisSolver::solve_pow("test_random_data_sample", 2);
         assert!(hash.starts_with("00"));
-        println!("Solved PoW in nonce: {}, hash: {}", nonce, hash);
     }
 }

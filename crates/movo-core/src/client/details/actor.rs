@@ -1,7 +1,7 @@
+use super::super::catalog::CatalogScraper;
+use super::super::models::{ActorDetails, ActorRole};
+use super::super::session::RezkaSession;
 use super::DetailsScraper;
-use crate::client::catalog::CatalogScraper;
-use crate::client::models::{ActorDetails, ActorRole};
-use crate::client::session::RezkaSession;
 use scraper::{Html, Selector};
 
 impl DetailsScraper {

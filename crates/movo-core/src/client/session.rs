@@ -1,3 +1,4 @@
+use super::anubis::{AnubisSolution, AnubisSolver};
 use reqwest::cookie::CookieStore;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, REFERER, USER_AGENT};
 use std::collections::HashMap;
@@ -5,8 +6,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use url::Url;
-
-use super::anubis::{AnubisSolution, AnubisSolver};
 
 mod cookies;
 mod credentials;
