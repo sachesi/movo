@@ -210,7 +210,7 @@ pub async fn monitor(
                 if duration > 0.0 {
                     position = duration;
                 }
-                match persist(&history, position, duration) {
+                match persist(history.clone(), position, duration).await {
                     Ok(()) => events.emit(PlaybackEvent::Ended),
                     Err(error) => events.emit(PlaybackEvent::TrackingLost(error)),
                 }
@@ -218,7 +218,8 @@ pub async fn monitor(
                 break;
             }
             Some(MpvEvent::Failed(error)) => {
-                let event = persist(&history, position, duration)
+                let event = persist(history.clone(), position, duration)
+                    .await
                     .map_or_else(PlaybackEvent::TrackingLost, |()| {
                         PlaybackEvent::Failed(trf("MPV could not play the stream: {}", &[&error]))
                     });
@@ -229,7 +230,7 @@ pub async fn monitor(
             None => {}
         }
         if last_saved.elapsed() >= SAVE_INTERVAL {
-            if let Err(error) = persist(&history, position, duration) {
+            if let Err(error) = persist(history.clone(), position, duration).await {
                 events.emit(PlaybackEvent::TrackingLost(error));
                 reported = true;
                 break;
@@ -239,7 +240,7 @@ pub async fn monitor(
     }
     if !reported {
         // mpv exited without an end-file event: the window was closed.
-        if let Err(error) = persist(&history, position, duration) {
+        if let Err(error) = persist(history.clone(), position, duration).await {
             events.emit(PlaybackEvent::TrackingLost(error));
         }
     }
@@ -280,7 +281,15 @@ fn parse_event(line: &str) -> Option<MpvEvent> {
     }
 }
 
-fn persist(history: &HistorySeed, position: f64, duration: f64) -> Result<(), String> {
+/// Records progress on a blocking worker: the write loads, serializes and
+/// renames a file, and `monitor` runs on the async runtime.
+async fn persist(history: HistorySeed, position: f64, duration: f64) -> Result<(), String> {
+    relm4::spawn_blocking(move || persist_blocking(&history, position, duration))
+        .await
+        .unwrap_or_else(|_| Err(tr("Saving progress stopped unexpectedly").to_string()))
+}
+
+fn persist_blocking(history: &HistorySeed, position: f64, duration: f64) -> Result<(), String> {
     WatchHistory::update_entry_for(
         &history.user_id,
         WatchHistoryEntry {

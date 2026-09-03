@@ -33,5 +33,9 @@ pub fn save_json<T: Serialize>(path: &Path, data: &T) -> Result<(), String> {
     ));
     fs::write(&temporary, content)
         .and_then(|()| fs::rename(&temporary, path))
-        .map_err(|e| format!("Failed to write to {:?}: {}", path, e))
+        .map_err(|e| {
+            // The rename never happened, so the partial file is nobody's.
+            let _ = fs::remove_file(&temporary);
+            format!("Failed to write to {:?}: {}", path, e)
+        })
 }

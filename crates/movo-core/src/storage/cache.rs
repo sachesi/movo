@@ -2,6 +2,7 @@ use directories::ProjectDirs;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 pub struct ImageCache;
 
@@ -18,11 +19,20 @@ impl ImageCache {
         }
     }
 
+    /// The cache directory, resolved and created once.
+    ///
+    /// [`cache_dir`](Self::cache_dir) creates the directory on every call, and
+    /// every poster shown asks for its path at least once.
+    fn resolved_dir() -> &'static PathBuf {
+        static DIR: OnceLock<PathBuf> = OnceLock::new();
+        DIR.get_or_init(Self::cache_dir)
+    }
+
     pub fn key_path(url: &str) -> PathBuf {
         let mut hasher = Sha256::new();
         hasher.update(url.as_bytes());
         let hash = hex::encode(hasher.finalize());
-        Self::cache_dir().join(format!("{}.img", hash))
+        Self::resolved_dir().join(format!("{}.img", hash))
     }
 
     pub fn get(url: &str) -> Option<Vec<u8>> {

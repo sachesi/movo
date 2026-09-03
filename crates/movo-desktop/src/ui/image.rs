@@ -38,7 +38,12 @@ pub fn load(
     let picture = picture.clone();
     let token = token.clone();
     relm4::spawn_local(async move {
-        let Some((pixels, width, height)) = scaled_rgba(url, width, height).await else {
+        let still_wanted = {
+            let token = token.clone();
+            move || token.get() == id
+        };
+        let Some((pixels, width, height)) = scaled_rgba(url, width, height, still_wanted).await
+        else {
             return;
         };
         if token.get() != id {
@@ -59,7 +64,16 @@ pub fn load(
 ///
 /// The disk cache holds the *scaled* PNG, so a cache hit skips the download
 /// and the resize, and decoding never touches the main thread.
-async fn scaled_rgba(url: String, width: i32, height: i32) -> Option<(Vec<u8>, i32, i32)> {
+///
+/// `still_wanted` is re-checked once the download slot frees up. Scrolling
+/// recycles the widget while its load queues behind the permit, and without
+/// this the poster for a cell that is long gone is still fetched in full.
+async fn scaled_rgba(
+    url: String,
+    width: i32,
+    height: i32,
+    still_wanted: impl Fn() -> bool,
+) -> Option<(Vec<u8>, i32, i32)> {
     let key = format!("{url}|{width}x{height}");
 
     let cache_key = key.clone();
@@ -73,6 +87,9 @@ async fn scaled_rgba(url: String, width: i32, height: i32) -> Option<(Vec<u8>, i
 
     let bytes = {
         let _permit = permits().acquire().await.ok()?;
+        if !still_wanted() {
+            return None;
+        }
         relm4::spawn(async move {
             let response = client()
                 .get(&url)
