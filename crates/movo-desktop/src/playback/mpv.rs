@@ -147,7 +147,7 @@ fn mpv_command(
 }
 
 pub fn socket_path() -> Option<PathBuf> {
-    let root = directories::ProjectDirs::from("org", "gnome", "Movo")?
+    let root = movo_core::storage::project_dirs()?
         .runtime_dir()?
         .join("mpv");
     std::fs::create_dir_all(&root).ok()?;

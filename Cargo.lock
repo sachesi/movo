@@ -2380,7 +2380,6 @@ name = "movo"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "directories",
  "env_logger",
  "gettext-rs",
  "gtk4",

@@ -1,4 +1,3 @@
-use directories::ProjectDirs;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
@@ -8,7 +7,7 @@ pub struct ImageCache;
 
 impl ImageCache {
     pub fn cache_dir() -> PathBuf {
-        if let Some(proj_dirs) = ProjectDirs::from("org", "gnome", "Movo") {
+        if let Some(proj_dirs) = super::project_dirs() {
             let dir = proj_dirs.cache_dir().join("posters");
             let _ = fs::create_dir_all(&dir);
             dir

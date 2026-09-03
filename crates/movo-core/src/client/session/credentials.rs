@@ -1,6 +1,5 @@
 use super::cookies::{HostCookies, PersistedCookies, StoredCookie};
 use super::{RezkaSession, OFFICIAL_MIRROR};
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -54,7 +53,7 @@ impl RezkaSession {
     }
 
     pub fn cookie_file_path() -> PathBuf {
-        if let Some(proj_dirs) = ProjectDirs::from("org", "gnome", "Movo") {
+        if let Some(proj_dirs) = crate::storage::project_dirs() {
             proj_dirs.data_dir().join("session_cookies.json")
         } else {
             PathBuf::from("session_cookies.json")

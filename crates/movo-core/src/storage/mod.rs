@@ -4,10 +4,33 @@ pub mod search_history;
 pub mod seen_notifications;
 pub mod settings;
 
+use directories::ProjectDirs;
 use serde::{de::DeserializeOwned, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+/// The application's directories, or `None` where the platform has no home to
+/// resolve them against. Callers fall back to a relative path.
+pub fn project_dirs() -> Option<ProjectDirs> {
+    ProjectDirs::from("org", "gnome", "Movo")
+}
+
+/// Path to one of an account's data files, with the directory created.
+///
+/// Accounts are keyed by a hash of the user id rather than the id itself, so
+/// that a provider id never becomes a directory name.
+pub fn account_file(user_id: &str, name: &str) -> PathBuf {
+    let account = format!("user-{}", hex::encode(user_id));
+    match project_dirs() {
+        Some(dirs) => {
+            let data_dir = dirs.data_dir().join("accounts").join(account);
+            let _ = fs::create_dir_all(&data_dir);
+            data_dir.join(name)
+        }
+        None => PathBuf::from("accounts").join(account).join(name),
+    }
+}
 
 static SAVE_ID: AtomicU64 = AtomicU64::new(0);
 

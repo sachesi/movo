@@ -19,7 +19,6 @@ tokio = { version = "1.43", features = ["full"] }
 reqwest = "0.12"
 
 # System, logging & misc
-directories = "6.0"
 gettext-rs = { version = "0.8", features = ["gettext-system"] }
 image = "0.25"
 log = "0.4"

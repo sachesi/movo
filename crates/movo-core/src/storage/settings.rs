@@ -1,4 +1,3 @@
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -54,7 +53,7 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub fn config_path() -> PathBuf {
-        if let Some(proj_dirs) = ProjectDirs::from("org", "gnome", "Movo") {
+        if let Some(proj_dirs) = super::project_dirs() {
             let config_dir = proj_dirs.config_dir();
             let _ = fs::create_dir_all(config_dir);
             config_dir.join("settings.json")

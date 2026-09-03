@@ -1,8 +1,6 @@
 use crate::client::models::MediaType;
 use chrono::{DateTime, Utc};
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -35,28 +33,6 @@ impl WatchHistoryEntry {
             0.0
         }
     }
-
-    pub fn formatted_position(&self) -> String {
-        let cur = Self::format_time(self.position_secs);
-        if self.duration_secs > 0.0 {
-            let total = Self::format_time(self.duration_secs);
-            format!("{} / {}", cur, total)
-        } else {
-            cur
-        }
-    }
-
-    fn format_time(secs: f64) -> String {
-        let total_secs = secs as u64;
-        let h = total_secs / 3600;
-        let m = (total_secs % 3600) / 60;
-        let s = total_secs % 60;
-        if h > 0 {
-            format!("{:02}:{:02}:{:02}", h, m, s)
-        } else {
-            format!("{:02}:{:02}", m, s)
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -66,16 +42,7 @@ pub struct WatchHistory {
 
 impl WatchHistory {
     pub fn file_path(user_id: &str) -> PathBuf {
-        let account = format!("user-{}", hex::encode(user_id));
-        if let Some(proj_dirs) = ProjectDirs::from("org", "gnome", "Movo") {
-            let data_dir = proj_dirs.data_dir().join("accounts").join(account);
-            let _ = fs::create_dir_all(&data_dir);
-            data_dir.join("watch_history.json")
-        } else {
-            PathBuf::from("accounts")
-                .join(account)
-                .join("watch_history.json")
-        }
+        super::account_file(user_id, "watch_history.json")
     }
 
     pub fn load(user_id: &str) -> Self {
@@ -83,11 +50,11 @@ impl WatchHistory {
         super::load_json::<WatchHistory>(&path).unwrap_or_default()
     }
 
-    pub fn save(&self, user_id: &str) -> Result<(), String> {
+    fn save(&self, user_id: &str) -> Result<(), String> {
         super::save_json(&Self::file_path(user_id), self)
     }
 
-    pub fn update_entry(&mut self, user_id: &str, entry: WatchHistoryEntry) -> Result<(), String> {
+    fn update_entry(&mut self, user_id: &str, entry: WatchHistoryEntry) -> Result<(), String> {
         // Remove existing entry for same media and season/episode if exists
         self.entries.retain(|e| {
             !(e.media_id == entry.media_id
@@ -141,19 +108,7 @@ impl WatchHistory {
             .find(|e| e.media_id == media_id && e.season == season && e.episode == episode)
     }
 
-    pub fn remove_entry(
-        &mut self,
-        user_id: &str,
-        media_id: i64,
-        season: Option<i64>,
-        episode: Option<i64>,
-    ) -> Result<(), String> {
-        self.entries
-            .retain(|e| !(e.media_id == media_id && e.season == season && e.episode == episode));
-        self.save(user_id)
-    }
-
-    pub fn remove_media(&mut self, user_id: &str, media_id: i64) -> Result<(), String> {
+    fn remove_media(&mut self, user_id: &str, media_id: i64) -> Result<(), String> {
         let previous_len = self.entries.len();
         self.entries.retain(|entry| entry.media_id != media_id);
         if self.entries.len() == previous_len {
@@ -163,7 +118,7 @@ impl WatchHistory {
         }
     }
 
-    pub fn retain_media_since(
+    fn retain_media_since(
         &mut self,
         user_id: &str,
         media_ids: &std::collections::HashSet<i64>,
@@ -179,9 +134,79 @@ impl WatchHistory {
             self.save(user_id)
         }
     }
+}
 
-    pub fn clear(&mut self, user_id: &str) -> Result<(), String> {
-        self.entries.clear();
-        self.save(user_id)
+#[cfg(test)]
+mod tests {
+    use super::{WatchHistory, WatchHistoryEntry};
+    use crate::client::models::MediaType;
+    use std::collections::HashSet;
+
+    fn entry(media_id: i64, age_minutes: i64) -> WatchHistoryEntry {
+        WatchHistoryEntry {
+            media_id,
+            title: media_id.to_string(),
+            orig_title: None,
+            url: format!("https://hdrzk.org/films/{media_id}-test.html"),
+            poster_url: None,
+            media_type: MediaType::Movie,
+            season: None,
+            episode: None,
+            episode_title: None,
+            translator_id: None,
+            translator_name: None,
+            position_secs: 10.0,
+            duration_secs: 100.0,
+            updated_at: chrono::Utc::now() - chrono::Duration::minutes(age_minutes),
+        }
+    }
+
+    #[test]
+    fn reconciling_drops_entries_the_account_no_longer_lists() {
+        let user_id = "storage-sync-test-account";
+        let mut history = WatchHistory {
+            entries: vec![entry(1, 10), entry(2, 10)],
+        };
+
+        history
+            .retain_media_since(user_id, &HashSet::from([2]), chrono::Utc::now())
+            .unwrap();
+
+        assert_eq!(history.entries.len(), 1);
+        assert_eq!(history.entries[0].media_id, 2);
+        let _ = std::fs::remove_file(WatchHistory::file_path(user_id));
+    }
+
+    /// A watch the provider has not published yet is not a deletion.
+    #[test]
+    fn reconciling_keeps_entries_written_since_the_cutoff() {
+        let user_id = "storage-propagation-test-account";
+        let mut history = WatchHistory {
+            entries: vec![entry(3, 0)],
+        };
+
+        history
+            .retain_media_since(
+                user_id,
+                &HashSet::new(),
+                chrono::Utc::now() - chrono::Duration::minutes(5),
+            )
+            .unwrap();
+
+        assert_eq!(history.entries.len(), 1);
+        let _ = std::fs::remove_file(WatchHistory::file_path(user_id));
+    }
+
+    #[test]
+    fn a_rewatched_episode_replaces_its_earlier_entry() {
+        let user_id = "storage-update-test-account";
+        let mut history = WatchHistory::default();
+
+        history.update_entry(user_id, entry(981, 0)).unwrap();
+        history.update_entry(user_id, entry(981, 0)).unwrap();
+
+        assert_eq!(history.entries.len(), 1);
+        assert!(history.get_entry(981, None, None).is_some());
+        let _ = std::fs::remove_file(WatchHistory::file_path(user_id));
     }
 }

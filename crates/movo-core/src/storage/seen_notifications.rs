@@ -1,7 +1,5 @@
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -18,16 +16,7 @@ pub struct SeenNotifications {
 
 impl SeenNotifications {
     pub fn file_path(user_id: &str) -> PathBuf {
-        let account = format!("user-{}", hex::encode(user_id));
-        if let Some(proj_dirs) = ProjectDirs::from("org", "gnome", "Movo") {
-            let data_dir = proj_dirs.data_dir().join("accounts").join(account);
-            let _ = fs::create_dir_all(&data_dir);
-            data_dir.join("seen_notifications.json")
-        } else {
-            PathBuf::from("accounts")
-                .join(account)
-                .join("seen_notifications.json")
-        }
+        super::account_file(user_id, "seen_notifications.json")
     }
 
     pub fn load(user_id: &str) -> Self {
