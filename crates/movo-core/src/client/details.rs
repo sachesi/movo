@@ -311,11 +311,11 @@ impl DetailsScraper {
             related: CatalogScraper::parse_catalog_html(html),
             included_in,
             from_collections,
-            trailer_available: document
+            has_trailer: document
                 .select(&Selector::parse(".b-post__trailer_button, .b-post__trailer").unwrap())
                 .next()
                 .is_some(),
-            rating_posted: document
+            has_posted_rating: document
                 .select(&Selector::parse(".b-rating .current").unwrap())
                 .next()
                 .is_some(),
@@ -750,6 +750,6 @@ mod tests {
             Some("\u{2713}")
         );
         assert_eq!(details.voice_ratings[0].rating, 87.5);
-        assert!(details.trailer_available && details.rating_posted);
+        assert!(details.has_trailer && details.has_posted_rating);
     }
 }

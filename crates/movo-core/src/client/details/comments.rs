@@ -76,7 +76,7 @@ impl DetailsScraper {
                         .and_then(|item| item.value().attr("data-likes_num"))
                         .and_then(|value| value.parse().ok())
                         .unwrap_or(0),
-                    liked: find(".show-likes-comment").is_some_and(|item| {
+                    is_liked: find(".show-likes-comment").is_some_and(|item| {
                         item.value()
                             .attr("class")
                             .unwrap_or_default()

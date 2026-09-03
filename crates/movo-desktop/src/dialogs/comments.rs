@@ -217,7 +217,7 @@ fn comment_card<F: Fn(String) + 'static>(
         .margin_bottom(8)
         .build();
     like.add_css_class("flat");
-    like.set_sensitive(state.user().is_some() && !comment.liked);
+    like.set_sensitive(state.user().is_some() && !comment.is_liked);
 
     let id = comment.id.clone();
     let likes = comment.likes;

@@ -219,7 +219,7 @@ impl RezkaClient {
         let mut settings = crate::storage::settings::AppSettings::load();
         settings.user_id = Some(profile.user_id.clone());
         if settings.save().is_err() {
-            profile.session_persistent = false;
+            profile.is_session_persistent = false;
         }
         self.set_account(Some(profile.clone()));
         Ok(profile)
@@ -259,7 +259,7 @@ impl RezkaClient {
         match AuthManager::check_profile(&self.session).await {
             Ok(Some(mut profile)) => {
                 if legacy {
-                    profile.session_persistent =
+                    profile.is_session_persistent =
                         self.session.persist_session(&profile.user_id).is_ok();
                     RezkaSession::remove_legacy_cookie_file()?;
                 }
@@ -526,7 +526,7 @@ mod tests {
                     email: None,
                     avatar_url: None,
                     premium_days: None,
-                    session_persistent: false,
+                    is_session_persistent: false,
                 }),
                 generation: 0,
             })),

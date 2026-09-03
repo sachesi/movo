@@ -61,7 +61,7 @@ fn test_user_profile_fields() {
         email: None,
         avatar_url: None,
         premium_days: None,
-        session_persistent: true,
+        is_session_persistent: true,
     };
 
     let json = serde_json::to_string(&profile).unwrap();
@@ -70,5 +70,5 @@ fn test_user_profile_fields() {
     assert_eq!(parsed.user_id, "4242");
     assert_eq!(parsed.username, "Alex");
     assert!(parsed.is_vip);
-    assert!(parsed.session_persistent);
+    assert!(parsed.is_session_persistent);
 }

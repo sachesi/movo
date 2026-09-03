@@ -752,7 +752,7 @@ impl DetailsView {
             row.append(&watch);
         }
 
-        if details.trailer_available {
+        if details.has_trailer {
             let trailer = gtk::Button::with_label(tr("Trailer"));
             trailer.add_css_class("pill");
             let sender = sender.clone();
@@ -760,13 +760,13 @@ impl DetailsView {
             row.append(&trailer);
         }
 
-        let rate = gtk::Button::with_label(if details.rating_posted {
+        let rate = gtk::Button::with_label(if details.has_posted_rating {
             tr("Rated")
         } else {
             tr("Rate")
         });
         rate.add_css_class("pill");
-        rate.set_sensitive(!details.rating_posted);
+        rate.set_sensitive(!details.has_posted_rating);
         let rate_sender = sender.clone();
         rate.connect_clicked(move |_| rate_sender.input(DetailsMsg::ShowRating));
         row.append(&rate);

@@ -174,7 +174,8 @@ pub struct Comment {
     pub has_spoiler: bool,
     pub indent: usize,
     pub likes: i64,
-    pub liked: bool,
+    #[serde(rename = "liked")]
+    pub is_liked: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -273,10 +274,10 @@ pub struct MediaDetails {
     pub included_in: Vec<LinkedItem>,
     #[serde(default)]
     pub from_collections: Vec<LinkedItem>,
-    #[serde(default)]
-    pub trailer_available: bool,
-    #[serde(default)]
-    pub rating_posted: bool,
+    #[serde(default, rename = "trailer_available")]
+    pub has_trailer: bool,
+    #[serde(default, rename = "rating_posted")]
+    pub has_posted_rating: bool,
     #[serde(default)]
     pub favorite_category_ids: Vec<i64>,
 }
@@ -377,6 +378,45 @@ pub struct UserProfile {
     pub avatar_url: Option<String>,
     #[serde(default)]
     pub premium_days: Option<u32>,
-    #[serde(default)]
-    pub session_persistent: bool,
+    #[serde(default, rename = "session_persistent")]
+    pub is_session_persistent: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Comment, UserProfile};
+
+    /// The Android client reads these keys, so the wire names have to survive a
+    /// rename of the Rust fields behind them.
+    #[test]
+    fn boolean_fields_keep_the_key_the_client_reads() {
+        let comment = Comment {
+            id: "c1".to_string(),
+            username: "User".to_string(),
+            avatar_url: None,
+            date: "Today".to_string(),
+            text: "Hello".to_string(),
+            has_spoiler: false,
+            indent: 0,
+            likes: 7,
+            is_liked: true,
+        };
+        let comment = serde_json::to_value(&comment).unwrap();
+        assert_eq!(comment["liked"], true);
+        assert!(comment.get("is_liked").is_none());
+
+        let profile = UserProfile {
+            user_id: "42".to_string(),
+            username: "User".to_string(),
+            is_logged_in: true,
+            is_vip: false,
+            email: None,
+            avatar_url: None,
+            premium_days: None,
+            is_session_persistent: true,
+        };
+        let profile = serde_json::to_value(&profile).unwrap();
+        assert_eq!(profile["session_persistent"], true);
+        assert!(profile.get("is_session_persistent").is_none());
+    }
 }

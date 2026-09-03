@@ -76,8 +76,8 @@ mod tests {
             related: Vec::new(),
             included_in: Vec::new(),
             from_collections: Vec::new(),
-            trailer_available: false,
-            rating_posted: false,
+            has_trailer: false,
+            has_posted_rating: false,
             favorite_category_ids: Vec::new(),
         }
     }

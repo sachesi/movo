@@ -48,7 +48,7 @@ impl AuthManager {
                 return Err(error);
             }
         };
-        profile.session_persistent = session.persist_session(&user_id).is_ok();
+        profile.is_session_persistent = session.persist_session(&user_id).is_ok();
         Ok(profile)
     }
 
@@ -125,7 +125,7 @@ impl AuthManager {
             email,
             avatar_url,
             premium_days: None,
-            session_persistent: true,
+            is_session_persistent: true,
         })
     }
 
@@ -521,7 +521,7 @@ mod tests {
             .unwrap();
         assert_eq!(profile.user_id, "42");
         assert_eq!(profile.username, "Tester");
-        assert!(!profile.session_persistent);
+        assert!(!profile.is_session_persistent);
         server.join().unwrap();
     }
 
