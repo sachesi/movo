@@ -441,6 +441,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         syncJob?.cancel()
         _state.update { it.copy(
             details = null,
+            error = null,
             actor = null,
             comments = null,
             trailerUrl = null,
@@ -718,7 +719,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details
         val stream = state.value.stream
         progressJob?.cancel()
-        _state.update { it.copy(stream = null, playbackQuality = null) }
+        // The error slot is shared by every operation, so a playback message left in it would be
+        // banner-ed over whatever screen the user lands on next.
+        _state.update { it.copy(stream = null, playbackQuality = null, error = null) }
         if (details == null || stream == null) return
         run {
             if (completed) {
