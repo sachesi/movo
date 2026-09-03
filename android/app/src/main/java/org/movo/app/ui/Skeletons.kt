@@ -73,7 +73,7 @@ internal fun Loading(label: String) = Box(
 internal fun TvHomeSkeleton() {
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("tv-home-placeholder-list"),
-        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 27.dp),
+        contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         items(5) { rail ->

@@ -8,6 +8,8 @@
 
 package org.movo.app.search
 
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.catalog.MediaGrid
 import org.movo.app.catalog.PathHeader
 import org.movo.app.ui.ChoiceRow
@@ -214,7 +216,7 @@ internal fun TvSearchContent(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 48.dp, end = 48.dp, top = 27.dp)
+                .padding(start = TV_OVERSCAN_HORIZONTAL, end = TV_OVERSCAN_HORIZONTAL, top = TV_OVERSCAN_VERTICAL)
                 .focusRestorer()
                 .focusGroup(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -249,7 +251,7 @@ internal fun TvSearchContent(
         }
         if (state.suggestions.isNotEmpty()) {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 48.dp),
+                contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.focusRestorer().focusGroup(),
             ) {
@@ -267,7 +269,7 @@ internal fun TvSearchContent(
         }
         if (query.isBlank() && state.searchHistory.isNotEmpty()) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 48.dp),
+                Modifier.fillMaxWidth().padding(horizontal = TV_OVERSCAN_HORIZONTAL),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -281,7 +283,7 @@ internal fun TvSearchContent(
                 ) { TvText(stringResource(R.string.clear)) }
             }
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 48.dp),
+                contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.focusRestorer().focusGroup(),
             ) {
@@ -298,7 +300,7 @@ internal fun TvSearchContent(
             }
         }
         if (state.searchFilters.isNotEmpty()) {
-            Box(Modifier.padding(horizontal = 48.dp)) {
+            Box(Modifier.padding(horizontal = TV_OVERSCAN_HORIZONTAL)) {
                 TvButton(
                     onClick = openFilters,
                     modifier = Modifier.tvFocusMemory("search:filters").testTag("tv-search-filter-row"),

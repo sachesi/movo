@@ -8,6 +8,8 @@
 
 package org.movo.app.catalog
 
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.Empty
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MediaGridSkeleton
@@ -194,7 +196,7 @@ internal fun TvHomeScreen(
 ) {
     LazyColumn(
         Modifier.fillMaxSize().testTag("tv-home-list").focusRestorer().focusGroup(),
-        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 27.dp),
+        contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         sections.filter { it.items.isNotEmpty() }.forEach { section ->
@@ -285,7 +287,7 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
     LazyVerticalGrid(
         state = gridState,
         columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(220.dp),
-        contentPadding = if (isTv) PaddingValues(horizontal = 48.dp, vertical = 27.dp) else PaddingValues(12.dp),
+        contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = if (isTv) Modifier.focusRestorer().focusGroup() else Modifier.focusGroup(),
@@ -326,7 +328,7 @@ internal fun PathHeader(title: String, isTv: Boolean, back: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = if (isTv) 48.dp else 12.dp, vertical = if (isTv) 12.dp else 0.dp)
+            .padding(horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 12.dp, vertical = if (isTv) TV_OVERSCAN_VERTICAL else 0.dp)
             .then(if (isTv) Modifier.focusRestorer().focusGroup() else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -389,9 +391,9 @@ internal fun MediaGrid(
     }
     LazyVerticalGrid(
         state = gridState,
-        columns = if (isTv) GridCells.Fixed(7) else GridCells.Adaptive(140.dp),
+        columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(140.dp),
         contentPadding = if (isTv) {
-            PaddingValues(horizontal = 48.dp, vertical = 27.dp)
+            PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
         } else {
             PaddingValues(12.dp)
         },

@@ -233,7 +233,7 @@ internal fun DetailsScreen(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(6.dp)
-                                    .size(32.dp)
+                                    .size(48.dp)
                                     .tvFocusScale(isTv),
                             ) {
                                 Icon(

@@ -1,5 +1,10 @@
 package org.movo.app.player
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.windowInsetsPadding
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.tvFocusScale
 import org.movo.app.settings.settings
 import org.movo.app.core.Season
@@ -475,6 +480,15 @@ fun PlayerScreen(
         }
     }
 
+    // The video fills the screen, but nothing the user reads or aims at may: a television crops
+    // the outer 5% and a landscape phone puts its camera cutout in the same corner as the back
+    // button. Both overlay layers inset by this; the scrims behind them still run edge to edge.
+    val overlayInsets = if (isTv) {
+        Modifier.padding(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
+    } else {
+        Modifier.windowInsetsPadding(WindowInsets.displayCutout)
+    }
+
     val overlay = ui.controlsVisible
     Box(
         Modifier
@@ -596,10 +610,11 @@ fun PlayerScreen(
                             listOf(Color.Black.copy(alpha = 0.62f), Color.Transparent),
                         ),
                     )
+                    .then(overlayInsets)
                     .padding(
-                        start = if (isTv) 28.dp else 12.dp,
-                        end = if (isTv) 28.dp else 12.dp,
-                        top = if (isTv) 16.dp else 8.dp,
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 8.dp,
                         bottom = 36.dp,
                     ),
                 verticalAlignment = Alignment.CenterVertically,
@@ -721,7 +736,8 @@ fun PlayerScreen(
                             listOf(Color.Transparent, Color.Black.copy(alpha = 0.92f)),
                         ),
                     )
-                    .padding(top = 36.dp, bottom = if (isTv) 16.dp else 8.dp),
+                    .then(overlayInsets)
+                    .padding(top = 36.dp, bottom = 8.dp),
             ) {
                 SeekRow(
                     content.positionMs,
@@ -992,7 +1008,7 @@ private fun ControlBar(
                     false
                 }
             }
-            .padding(horizontal = if (isTv) 16.dp else 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

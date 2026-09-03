@@ -8,6 +8,8 @@
 
 package org.movo.app.account
 
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.catalog.MediaGrid
 import org.movo.app.home.ConfirmLogoutDialog
 import org.movo.app.ui.Empty
@@ -187,7 +189,7 @@ internal fun NotificationsScreen(state: AppState, isTv: Boolean, model: MovoView
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = focusedIndex)
     LazyColumn(
         state = listState,
-        contentPadding = if (isTv) PaddingValues(horizontal = 48.dp, vertical = 27.dp) else PaddingValues(12.dp),
+        contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = if (isTv) Modifier.focusRestorer().focusGroup() else Modifier.focusGroup(),
     ) {
@@ -299,7 +301,7 @@ private fun TvAccountScreen(state: AppState, requestLogout: () -> Unit) {
     }
     var aboutExpanded by rememberSaveable { mutableStateOf(false) }
     Box(
-        Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp),
+        Modifier.fillMaxSize().padding(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL),
         contentAlignment = Alignment.TopCenter,
     ) {
         TvSurface(Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
@@ -488,7 +490,7 @@ internal fun TvFavoriteFilters(
     select: (Long?) -> Unit,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .focusProperties { down = gridFocusRequester }
@@ -524,7 +526,7 @@ internal fun HistoryScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
-            contentPadding = if (isTv) PaddingValues(horizontal = 48.dp, vertical = 27.dp) else PaddingValues(12.dp),
+            contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 8.dp),
             modifier = Modifier
                 .widthIn(max = 1100.dp)

@@ -55,6 +55,13 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 internal val MovoBlue = Color(0xFF9CCAFF)
 
 /**
+ * TV safe area: 5% of each edge, the margin a television may crop. Everything the user has to
+ * read or aim at on the TV surface stays inside it.
+ */
+internal val TV_OVERSCAN_HORIZONTAL = 48.dp
+internal val TV_OVERSCAN_VERTICAL = 27.dp
+
+/**
  * Per-destination record of the last focused element on the TV surface, so returning to a
  * destination puts the highlight back where it was.
  *

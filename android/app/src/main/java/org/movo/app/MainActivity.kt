@@ -242,7 +242,13 @@ private fun MovoApp(
                     )
                     Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
                 }
-                SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter))
+                SnackbarHost(
+                    snackbars,
+                    // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                )
             }
         }
     }

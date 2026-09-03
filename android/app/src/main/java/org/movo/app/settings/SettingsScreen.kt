@@ -2,6 +2,9 @@
 
 package org.movo.app.settings
 
+import androidx.compose.foundation.layout.PaddingValues
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.settings.AppSettings
@@ -93,6 +96,7 @@ fun SettingsContent(
                 .align(Alignment.TopCenter)
                 .then(if (isTv) Modifier.testTag("tv-settings-list") else Modifier)
                 .then(if (isTv) Modifier.focusRestorer().focusGroup() else Modifier),
+            contentPadding = if (isTv) PaddingValues(vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(),
         ) {
             item {
                 SettingsGroup(title = stringResource(R.string.settings_group_general), isTv = isTv) {
@@ -199,7 +203,7 @@ fun SettingsContent(
                 }
             }
 
-            item { Spacer(Modifier.height(if (isTv) 27.dp else 24.dp)) }
+            item { Spacer(Modifier.height(if (isTv) TV_OVERSCAN_VERTICAL else 24.dp)) }
         }
     }
 }
@@ -219,7 +223,7 @@ private fun SettingsGroup(
     )
     val modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = if (isTv) 48.dp else 16.dp, vertical = 4.dp)
+        .padding(horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 16.dp, vertical = 4.dp)
     if (isTv) {
         TvSurface(modifier = modifier) {
             Column(Modifier.padding(vertical = 4.dp).focusRestorer().focusGroup(), content = content)
