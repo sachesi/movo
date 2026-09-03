@@ -111,8 +111,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
             _state.value = _state.value.copy(user = user)
             runCatching { refreshAccountData(false) }
-        } catch (error: Exception) {
-            store.saveSecret(null)
+        } catch (error: BridgeException) {
+            // Only forget the session the provider actually turned down. Clearing it on any
+            // failure signed the account out whenever restore happened to hit a dead network.
+            if (error.sessionRejected) store.saveSecret(null)
             throw error
         }
     }

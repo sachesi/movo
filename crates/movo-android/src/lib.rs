@@ -125,7 +125,24 @@ enum Command {
     },
 }
 
-async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, String> {
+/// A failed command, and whether it leaves the stored session worth keeping.
+struct Failure {
+    message: String,
+    /// Set only by `Restore`: the provider turned the stored session down, so
+    /// the app should forget it instead of trying again later.
+    session_rejected: bool,
+}
+
+impl From<String> for Failure {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            session_rejected: false,
+        }
+    }
+}
+
+async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Failure> {
     match command {
         Command::Login { .. } | Command::Restore { .. } | Command::Logout => unreachable!(),
         Command::Catalog {
@@ -231,7 +248,7 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, St
     }
 }
 
-fn invoke(command: Command) -> Result<Value, String> {
+fn invoke(command: Command) -> Result<Value, Failure> {
     RUNTIME.block_on(async move {
         match command {
             Command::Login { login, password } => {
@@ -240,7 +257,18 @@ fn invoke(command: Command) -> Result<Value, String> {
                 Ok(json!({"user": user, "secret": client.export_session()?}))
             }
             Command::Restore { secret } => {
-                Ok(json!(CLIENT.write().await.import_session(&secret).await?))
+                // The reply carries whether the session was turned down, so the
+                // app only throws the stored secret away when it is worthless.
+                CLIENT
+                    .write()
+                    .await
+                    .import_session(&secret)
+                    .await
+                    .map(|user| json!(user))
+                    .map_err(|error| Failure {
+                        message: error.message,
+                        session_rejected: error.is_rejected,
+                    })
             }
             Command::Logout => {
                 CLIENT.write().await.logout().await?;
@@ -266,23 +294,36 @@ fn invoke(command: Command) -> Result<Value, String> {
     })
 }
 
+/// Turns a panic into the same error reply a failed command produces.
+///
+/// A panic left to unwind out of an `extern "system"` function aborts the
+/// process, so one malformed page from the provider would take the app down
+/// instead of failing the request that asked for it.
+fn caught(run: impl FnOnce() -> String) -> String {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run))
+        .unwrap_or_else(|_| json!({"error": "The request stopped unexpectedly"}).to_string())
+}
+
 #[no_mangle]
 pub extern "system" fn Java_org_movo_app_NativeBridge_invoke(
     mut env: JNIEnv,
     _class: JClass,
     request: JString,
 ) -> jstring {
-    let response = env
-        .get_string(&request)
-        .map_err(|error| error.to_string())
-        .and_then(|request| {
-            serde_json::from_str::<Command>(&request.to_string_lossy())
-                .map_err(|error| error.to_string())
-        })
-        .and_then(invoke)
-        .map(|data| json!({"data": data}))
-        .unwrap_or_else(|error| json!({"error": error}))
-        .to_string();
+    let response = caught(|| {
+        env.get_string(&request)
+            .map_err(|error| Failure::from(error.to_string()))
+            .and_then(|request| {
+                serde_json::from_str::<Command>(&request.to_string_lossy())
+                    .map_err(|error| Failure::from(error.to_string()))
+            })
+            .and_then(invoke)
+            .map(|data| json!({"data": data}))
+            .unwrap_or_else(
+                |failure| json!({"error": failure.message, "rejected": failure.session_rejected}),
+            )
+            .to_string()
+    });
     env.new_string(response).expect("JNI response").into_raw()
 }
 
@@ -308,6 +349,14 @@ mod tests {
             drop(held);
             drop(mutation);
         });
+    }
+
+    /// A panic must not unwind past the JNI boundary: there it aborts.
+    #[test]
+    fn a_panicking_command_answers_with_an_error() {
+        let response = caught(|| panic!("parser gave up"));
+
+        assert!(response.contains("error"), "{response}");
     }
 
     #[test]

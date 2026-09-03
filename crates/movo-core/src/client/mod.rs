@@ -38,6 +38,31 @@ struct AccountState {
     generation: u64,
 }
 
+/// Why a stored session could not be restored.
+pub struct RestoreError {
+    pub message: String,
+    /// Whether the stored session is worthless from here on. A session the
+    /// provider turned down is; one whose check never reached the provider is
+    /// not, and discarding it would sign the account out over a lost network.
+    pub is_rejected: bool,
+}
+
+impl RestoreError {
+    fn rejected(message: String) -> Self {
+        Self {
+            message,
+            is_rejected: true,
+        }
+    }
+
+    fn retryable(message: String) -> Self {
+        Self {
+            message,
+            is_rejected: false,
+        }
+    }
+}
+
 impl Default for RezkaClient {
     fn default() -> Self {
         Self::new()
@@ -50,11 +75,14 @@ impl RezkaClient {
         self.session.export_session()
     }
 
-    pub async fn import_session(&self, secret: &str) -> Result<UserProfile, String> {
-        self.session.import_session(secret)?;
+    pub async fn import_session(&self, secret: &str) -> Result<UserProfile, RestoreError> {
+        self.session
+            .import_session(secret)
+            .map_err(RestoreError::rejected)?;
         let profile = auth::check_profile(&self.session)
-            .await?
-            .ok_or_else(|| "Stored session has expired".to_string())?;
+            .await
+            .map_err(RestoreError::retryable)?
+            .ok_or_else(|| RestoreError::rejected("Stored session has expired".to_string()))?;
         self.set_account(Some(profile.clone()));
         Ok(profile)
     }

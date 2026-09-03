@@ -10,14 +10,23 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
+import java.security.GeneralSecurityException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
+
+/**
+ * A command the core refused. [sessionRejected] is set when the provider turned the stored session
+ * down, which is the only case where the app should forget it: a request that never reached the
+ * provider says nothing about whether the session is still good.
+ */
+class BridgeException(message: String, val sessionRejected: Boolean) : IllegalStateException(message)
 
 object NativeBridge {
     init { System.loadLibrary("movo_android") }
@@ -27,7 +36,9 @@ object NativeBridge {
     suspend fun call(type: String, fields: JsonObject = buildJsonObject {}): String = withContext(Dispatchers.IO) {
         val request = buildJsonObject { put("type", type); fields.forEach { (key, value) -> put(key, value) } }
         val response = json.parseToJsonElement(invoke(request.toString())).jsonObject
-        response["error"]?.jsonPrimitive?.content?.let { throw IllegalStateException(it) }
+        response["error"]?.jsonPrimitive?.content?.let {
+            throw BridgeException(it, response["rejected"]?.jsonPrimitive?.booleanOrNull == true)
+        }
         response.getValue("data").toString()
     }
 
@@ -49,17 +60,37 @@ suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.js
 class SessionStore(context: Context) {
     private val preferences by lazy { context.getSharedPreferences("account", Context.MODE_PRIVATE) }
     private val keyStore by lazy { KeyStore.getInstance("AndroidKeyStore").apply { load(null) } }
-    private val key get() = keyStore.getKey("movo-session", null) ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
+
+    // Resolved once: two callers racing here would each generate a key, and the second would
+    // replace the alias the first had already encrypted the session under.
+    private val key by lazy { keyStore.getKey("movo-session", null) ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
         init(KeyGenParameterSpec.Builder("movo-session", KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
         generateKey()
-    }
+    } }
+
+    /**
+     * The stored session, or null when there is none and when the stored one can no longer be
+     * decrypted. A ciphertext the keystore key no longer opens is gone for good, so it is dropped
+     * rather than thrown over: the user signs in again instead of meeting a crash on every start.
+     */
     suspend fun secret(): String? = withContext(Dispatchers.IO) {
         preferences.getString("session", null)?.let { encoded ->
-            val bytes = Base64.decode(encoded, Base64.NO_WRAP)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
-            cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
+            try {
+                val bytes = Base64.decode(encoded, Base64.NO_WRAP)
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
+                cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
+            } catch (_: GeneralSecurityException) {
+                forgetSession()
+            } catch (_: IllegalArgumentException) {
+                forgetSession()
+            }
         }
+    }
+
+    private fun forgetSession(): String? {
+        preferences.edit().remove("session").apply()
+        return null
     }
 
     suspend fun saveSecret(value: String?) = withContext(Dispatchers.IO) {
