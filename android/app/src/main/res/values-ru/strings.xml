@@ -15,6 +15,7 @@
     <string name="nav_history">История</string>
     <string name="nav_notifications">Обновления</string>
     <string name="nav_account">Аккаунт</string>
+    <string name="nav_more">Ещё</string>
     <string name="category">Категория</string>
     <string name="category_all">Все</string>
     <string name="category_films">Фильмы</string>

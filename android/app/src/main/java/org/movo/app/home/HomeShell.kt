@@ -8,6 +8,7 @@
 
 package org.movo.app.home
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.spring
@@ -49,6 +50,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -387,17 +389,52 @@ internal fun ConfirmLogoutDialog(isTv: Boolean, dismiss: () -> Unit, confirm: ()
     )
 }
 
+/**
+ * The four destinations the bottom bar shows outright. The bar holds five items before the
+ * labels stop fitting a compact width, so the rest sit behind the fifth.
+ */
+private val PRIMARY_TABS = listOf(Tab.Catalog, Tab.Search, Tab.Favorites, Tab.Account)
+private val OVERFLOW_TABS = Tab.entries - PRIMARY_TABS.toSet()
+
 @Composable
 private fun HomeBottomBar(state: AppState, model: MovoViewModel) {
-    val tabs = Tab.entries
+    var showOverflow by remember { mutableStateOf(false) }
+    // Only counts while Notifications is out of sight; on the bar it carries its own badge.
+    val hiddenNotifications = if (Tab.Notifications in OVERFLOW_TABS) state.notificationCount else 0
     NavigationBar {
-        tabs.forEach { tab ->
+        PRIMARY_TABS.forEach { tab ->
             NavigationBarItem(
                 selected = state.tab == tab,
                 onClick = { if (state.tab != tab) model.selectTab(tab, false) },
                 icon = { TabIcon(tab, state.notificationCount) },
                 label = { Text(stringResource(tab.label)) },
             )
+        }
+        NavigationBarItem(
+            selected = state.tab in OVERFLOW_TABS,
+            onClick = { showOverflow = true },
+            icon = { BadgedIcon(Icons.Default.MoreHoriz, hiddenNotifications) },
+            label = { Text(stringResource(R.string.nav_more)) },
+        )
+    }
+    if (showOverflow) {
+        ModalBottomSheet(onDismissRequest = { showOverflow = false }) {
+            OVERFLOW_TABS.forEach { tab ->
+                ListItem(
+                    headlineContent = { Text(stringResource(tab.label)) },
+                    leadingContent = {
+                        BadgedIcon(tab.icon, if (tab == Tab.Notifications) state.notificationCount else 0)
+                    },
+                    modifier = Modifier.selectable(
+                        selected = state.tab == tab,
+                        onClick = {
+                            showOverflow = false
+                            if (state.tab != tab) model.selectTab(tab, false)
+                        },
+                    ),
+                )
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -472,12 +509,16 @@ private fun MovoNavigationRailItem(
 }
 
 @Composable
-private fun TabIcon(tab: Tab, notificationCount: Int) {
-    if (tab == Tab.Notifications && notificationCount > 0) {
-        BadgedBox(badge = { Badge { Text(notificationCount.coerceAtMost(99).toString()) } }) {
-            Icon(tab.icon, contentDescription = null)
+private fun TabIcon(tab: Tab, notificationCount: Int) =
+    BadgedIcon(tab.icon, if (tab == Tab.Notifications) notificationCount else 0)
+
+@Composable
+private fun BadgedIcon(icon: ImageVector, count: Int) {
+    if (count > 0) {
+        BadgedBox(badge = { Badge { Text(count.coerceAtMost(99).toString()) } }) {
+            Icon(icon, contentDescription = null)
         }
-    } else Icon(tab.icon, contentDescription = null)
+    } else Icon(icon, contentDescription = null)
 }
 
 @Composable

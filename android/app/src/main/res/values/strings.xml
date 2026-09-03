@@ -19,6 +19,7 @@
     <string name="nav_history">History</string>
     <string name="nav_notifications">Updates</string>
     <string name="nav_account">Account</string>
+    <string name="nav_more">More</string>
 
     <!-- Catalog categories -->
     <string name="category">Category</string>
