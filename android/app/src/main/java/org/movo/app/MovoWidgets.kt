@@ -88,6 +88,11 @@ internal class TvFocusMemory(entries: Map<String, String> = emptyMap()) {
 
 internal val LocalTvFocusMemory = staticCompositionLocalOf<TvFocusMemory?> { null }
 
+/** One-shot latch for a focus restore that must not fire again on a later placement. */
+private class RestoreOnce {
+    var done = false
+}
+
 /** Records focus gains for [key] and, on the destination's first composition, restores it. */
 @Composable
 internal fun Modifier.tvFocusMemory(key: String): Modifier {

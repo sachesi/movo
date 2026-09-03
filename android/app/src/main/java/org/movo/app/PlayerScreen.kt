@@ -326,7 +326,6 @@ fun PlayerScreen(
         ui.isPlaying = true
     }
 
-    LaunchedEffect(content.stream) { content.urlIndex = 0 }
     LaunchedEffect(player, content.stream, content.subtitle, content.urlIndex) { prepare() }
     // Apply playback speed changes immediately (ExoPlayer rescales media clock pitch-aware).
     LaunchedEffect(player, ui.playbackSpeed) { player.playbackParameters = PlaybackParameters(ui.playbackSpeed) }
@@ -536,11 +535,11 @@ fun PlayerScreen(
                 PlayerView(ctx).apply {
                     this.player = player
                     useController = false
-                    keepScreenOn = true
                 }
             },
             update = {
                 it.player = player
+                it.keepScreenOn = ui.isPlaying
                 it.resizeMode = when (videoFit) {
                     VideoFit.Contain -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     VideoFit.Cover -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -797,9 +796,7 @@ private fun SeekRow(
     val duration = durationMs.coerceAtLeast(1L)
     var dragging by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(positionMs.toFloat()) }
-    var timelineDirection by remember { mutableStateOf<Key?>(null) }
-    var timelineStartedAtMs by remember { mutableLongStateOf(0L) }
-    var timelineAppliedSeconds by remember { mutableIntStateOf(0) }
+    val hold = remember { TimelineHoldState() }
     LaunchedEffect(positionMs, duration) {
         if (!dragging) sliderPosition = positionMs.coerceIn(0L, duration).toFloat()
     }
@@ -873,32 +870,10 @@ private fun SeekRow(
                             } else false
                         }
                         Key.DirectionLeft -> {
-                            handleTimelineKey(
-                                event,
-                                -1,
-                                { seconds, commit -> seekBy(seconds, commit) },
-                                commitPendingSeek,
-                                { timelineDirection = it },
-                                { timelineStartedAtMs = it },
-                                { timelineAppliedSeconds = it },
-                                { timelineDirection },
-                                { timelineStartedAtMs },
-                                { timelineAppliedSeconds },
-                            )
+                            handleTimelineKey(event, -1, hold, seekBy, commitPendingSeek)
                         }
                         Key.DirectionRight -> {
-                            handleTimelineKey(
-                                event,
-                                1,
-                                { seconds, commit -> seekBy(seconds, commit) },
-                                commitPendingSeek,
-                                { timelineDirection = it },
-                                { timelineStartedAtMs = it },
-                                { timelineAppliedSeconds = it },
-                                { timelineDirection },
-                                { timelineStartedAtMs },
-                                { timelineAppliedSeconds },
-                            )
+                            handleTimelineKey(event, 1, hold, seekBy, commitPendingSeek)
                         }
                         else -> false
                     }
@@ -1233,40 +1208,35 @@ private fun formatSpeed(speed: Float) = if (speed == 1f) "1×" else "${speed}×"
 private fun handleTimelineKey(
     event: KeyEvent,
     direction: Int,
+    hold: TimelineHoldState,
     seekBy: (Int, Boolean) -> Unit,
     commitPendingSeek: () -> Unit,
-    setDirection: (Key?) -> Unit,
-    setStartedAt: (Long) -> Unit,
-    setAppliedSeconds: (Int) -> Unit,
-    currentDirection: () -> Key?,
-    startedAt: () -> Long,
-    appliedSeconds: () -> Int,
 ): Boolean {
     val key = event.key
     val native = event.nativeKeyEvent
     return when (event.type) {
         KeyEventType.KeyDown -> {
-            if (currentDirection() != key) {
-                setDirection(key)
-                setStartedAt(native.eventTime)
-                setAppliedSeconds(TV_TIMELINE_SEEK_SECONDS)
+            if (hold.direction != key) {
+                hold.direction = key
+                hold.startedAtMs = native.eventTime
+                hold.appliedSeconds = TV_TIMELINE_SEEK_SECONDS
                 seekBy(direction * TV_TIMELINE_SEEK_SECONDS, false)
             } else {
-                val total = timelineSeekSeconds(native.eventTime - startedAt())
-                val delta = total - appliedSeconds()
+                val total = timelineSeekSeconds(native.eventTime - hold.startedAtMs)
+                val delta = total - hold.appliedSeconds
                 if (delta != 0) {
                     seekBy(direction * delta, false)
-                    setAppliedSeconds(total)
+                    hold.appliedSeconds = total
                 }
             }
             true
         }
         KeyEventType.KeyUp -> {
-            if (currentDirection() == key) {
+            if (hold.direction == key) {
                 commitPendingSeek()
-                setDirection(null)
-                setStartedAt(0L)
-                setAppliedSeconds(0)
+                hold.direction = null
+                hold.startedAtMs = 0L
+                hold.appliedSeconds = 0
                 true
             } else {
                 false

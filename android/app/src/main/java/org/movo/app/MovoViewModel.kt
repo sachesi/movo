@@ -640,6 +640,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
         val key = progressKey(details.id, stream)
+        // Kept on the state as well as on disk: the player screen is rebuilt from scratch on a
+        // configuration change while this view model survives it, so a stale value here is what
+        // the rebuilt screen resumes from.
+        _state.update { it.copy(playbackPositionMs = positionMs) }
         progressJob?.cancel()
         progressJob = viewModelScope.launch { store.saveProgress(key, positionMs) }
     }

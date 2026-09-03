@@ -36,6 +36,17 @@ class PlayerContentState(
 }
 
 /**
+ * A D-pad direction held down on the timeline: which key, when it went down, and how far the
+ * seek has been carried so far, so a repeat can extend it instead of restarting it.
+ */
+@Stable
+class TimelineHoldState {
+    var direction by mutableStateOf<Key?>(null)
+    var startedAtMs by mutableLongStateOf(0L)
+    var appliedSeconds by mutableIntStateOf(0)
+}
+
+/**
  * Surface state that outlives a bundle change: the zoom, the playback speed and
  * whether the controls are on screen all survive moving to the next episode.
  */

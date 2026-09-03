@@ -76,10 +76,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 
-internal class RestoreOnce {
-    var done = false
-}
-
 class MainActivity : ComponentActivity() {
     private val deepLinks = MutableStateFlow<String?>(null)
 
@@ -248,10 +244,14 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
     val adjacentEpisodes = remember(state.details, stream) {
         model.hasAdjacentEpisode(-1) to model.hasAdjacentEpisode(1)
     }
+    // Read once per stream rather than passed straight through: the position is written back on
+    // every periodic save, and threading that into the player would recompose all of it every
+    // five seconds for a value only its first composition reads.
+    val resumePositionMs = remember(stream) { model.state.value.playbackPositionMs }
     PlayerScreen(
         bundle = stream,
         title = state.details?.title.orEmpty(),
-        resumePositionMs = state.playbackPositionMs,
+        resumePositionMs = resumePositionMs,
         qualityMode = settings.qualityMode,
         preferredQuality = state.playbackQuality,
         saveProgress = model::saveProgress,
