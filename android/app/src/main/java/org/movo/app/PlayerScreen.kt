@@ -56,6 +56,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -129,6 +130,21 @@ private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
 private const val BUTTON_VIDEO_ZOOM = 1.5f
 private val EPISODE_MENU_MAX_HEIGHT = 320.dp
 
+/** What the player asks of the rest of the app. */
+@Stable
+interface PlayerActions {
+    fun saveProgress(positionMs: Long)
+    fun playbackStarted()
+    fun close(completed: Boolean, positionMs: Long)
+    fun previousEpisode()
+    fun nextEpisode(completed: Boolean)
+    fun playEpisode(season: Long, episode: Long)
+    fun openRating(positionMs: Long)
+
+    /** [persist] is set when the user picked the quality, rather than a fallback choosing it. */
+    fun qualityChanged(quality: String, persist: Boolean)
+}
+
 /**
  * First-class playback screen.
  *
@@ -147,30 +163,14 @@ fun PlayerScreen(
     bundle: StreamBundle,
     title: String,
     resumePositionMs: Long,
-    qualityMode: QualityMode,
     preferredQuality: String?,
-    saveProgress: (Long) -> Unit,
-    playbackStarted: () -> Unit,
     syncError: String?,
-    close: (Boolean, Long) -> Unit,
     isTv: Boolean,
-    seekSeconds: Int,
-    initialSpeed: Float,
-    videoFit: VideoFit,
-    previousEpisode: () -> Unit,
-    nextEpisode: (Boolean) -> Unit,
     hasPreviousEpisode: Boolean,
     hasNextEpisode: Boolean,
-    autoNext: Boolean,
     seasons: List<Season>,
-    playEpisode: (Long, Long) -> Unit,
-    showBuffer: Boolean,
-    showEndTime: Boolean,
-    bufferSeconds: Int,
-    tvCenterPauses: Boolean,
-    tvPauseShowsControls: Boolean,
-    openRating: (Long) -> Unit,
-    qualityChanged: (String, Boolean) -> Unit,
+    settings: AppSettings,
+    actions: PlayerActions,
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -187,34 +187,35 @@ fun PlayerScreen(
 
     val content = remember(bundle) {
         PlayerContentState(
-            initialStream = selectStream(bundle, qualityMode, preferredQuality),
+            initialStream = selectStream(bundle, settings.qualityMode, preferredQuality),
             initialSubtitle = bundle.subtitles.firstOrNull { it.default },
             initialPositionMs = resumePositionMs,
         )
     }
-    val ui = remember { PlayerUiState(initialSpeed = initialSpeed) }
+    val ui = remember { PlayerUiState(initialSpeed = settings.playbackSpeed) }
     // Written on every remote key press, so it is deliberately never read from composition:
     // observing it here would recompose the whole player on each auto-repeat event.
     val lastInteractionMs = remember { mutableLongStateOf(0L) }
-    val latestNextEpisode by rememberUpdatedState(nextEpisode)
-    val latestQualityChanged by rememberUpdatedState(qualityChanged)
-    val latestAutoNext by rememberUpdatedState(autoNext && hasNextEpisode)
+    // The player's listener outlives the composition that built it, so it reaches the actions
+    // through this rather than capturing whichever instance was current when it was created.
+    val latestActions by rememberUpdatedState(actions)
+    val latestAutoNext by rememberUpdatedState(settings.autoNext && hasNextEpisode)
     val latestIsTv by rememberUpdatedState(isTv)
-    val latestPauseShowsControls by rememberUpdatedState(tvPauseShowsControls)
+    val latestPauseShowsControls by rememberUpdatedState(settings.tvPauseShowsControls)
 
     val noStreamsText = stringResource(R.string.no_streams)
     val playbackFailedText = stringResource(R.string.playback_failed)
     val mirrorUnavailableText = stringResource(R.string.mirror_unavailable)
 
-    val player = remember(bundle, bufferSeconds) {
+    val player = remember(bundle, settings.bufferSeconds) {
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent(bundle.userAgent)
             .setDefaultRequestProperties(mapOf("Referer" to bundle.referer))
         val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
         val builder = ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(http))
-        if (bufferSeconds > 0) {
-            val bufferMs = bufferSeconds * 1_000
+        if (settings.bufferSeconds > 0) {
+            val bufferMs = settings.bufferSeconds * 1_000
             builder.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(bufferMs, bufferMs, 2_500, 5_000).build())
         }
         builder.build()
@@ -226,7 +227,7 @@ fun PlayerScreen(
                         if (state == Player.STATE_ENDED) {
                             content.completed = true
                             ui.controlsVisible = true
-                            if (latestAutoNext) latestNextEpisode(true)
+                            if (latestAutoNext) latestActions.nextEpisode(true)
                         }
                     }
 
@@ -236,7 +237,7 @@ fun PlayerScreen(
                         }
                         if (playing && !content.historySynced) {
                             content.historySynced = true
-                            playbackStarted()
+                            latestActions.playbackStarted()
                         }
                     }
 
@@ -256,7 +257,7 @@ fun PlayerScreen(
                             if (fallback != null) {
                                 content.stream = fallback
                                 content.urlIndex = 0
-                                latestQualityChanged(fallback.quality, false)
+                                latestActions.qualityChanged(fallback.quality, false)
                             } else {
                                 content.playbackError = error.message ?: playbackFailedText
                                 ui.controlsVisible = true
@@ -352,7 +353,7 @@ fun PlayerScreen(
     LaunchedEffect(player) {
         while (isActive) {
             delay(PROGRESS_SAVE_INTERVAL_MS)
-            if (player.isPlaying) saveProgress(player.currentPosition)
+            if (player.isPlaying) actions.saveProgress(player.currentPosition)
         }
     }
     LaunchedEffect(ui.controlsVisible, ui.isPlaying, isTv, ui.menuOpen) {
@@ -387,7 +388,7 @@ fun PlayerScreen(
     DisposableEffect(lifecycleOwner, player) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && !content.completed) {
-                saveProgress(player.currentPosition)
+                actions.saveProgress(player.currentPosition)
                 player.pause()
             }
         }
@@ -415,7 +416,7 @@ fun PlayerScreen(
 
     fun exitPlayer() {
         player.pause()
-        close(content.completed, player.currentPosition)
+        actions.close(content.completed, player.currentPosition)
     }
     BackHandler(onBack = ::exitPlayer)
 
@@ -494,7 +495,7 @@ fun PlayerScreen(
                                     true
                                 } else if (event.type == KeyEventType.KeyDown && !ui.controlsVisible) {
                                     content.hiddenSeekDirection = event.key
-                                    seekBy(direction * seekSeconds)
+                                    seekBy(direction * settings.seekSeconds)
                                     true
                                 } else {
                                     false
@@ -512,9 +513,9 @@ fun PlayerScreen(
                                 ) {
                                     if (event.key == Key.DirectionUp) {
                                         ui.controlsVisible = tvControlsVisibleAfterKey(ui.controlsVisible, event.key)
-                                    } else if (tvCenterPauses) {
+                                    } else if (settings.tvCenterPauses) {
                                         togglePlayback()
-                                        if (tvPauseShowsControls && !player.isPlaying) ui.controlsVisible = true
+                                        if (settings.tvPauseShowsControls && !player.isPlaying) ui.controlsVisible = true
                                     } else {
                                         ui.controlsVisible = true
                                     }
@@ -540,7 +541,7 @@ fun PlayerScreen(
             update = {
                 it.player = player
                 it.keepScreenOn = ui.isPlaying
-                it.resizeMode = when (videoFit) {
+                it.resizeMode = when (settings.videoFit) {
                     VideoFit.Contain -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     VideoFit.Cover -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     VideoFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
@@ -717,8 +718,8 @@ fun PlayerScreen(
                     content.durationMs,
                     content.bufferedMs,
                     bundle.storyboard,
-                    showBuffer,
-                    showEndTime,
+                    settings.showBuffer,
+                    settings.showEndTime,
                     ui.playbackSpeed,
                     isTv,
                     { seconds, commit -> seekBy(seconds, commit) },
@@ -736,7 +737,7 @@ fun PlayerScreen(
                     onSelectStream = {
                         content.stream = it
                         content.urlIndex = 0
-                        qualityChanged(it.quality, true)
+                        actions.qualityChanged(it.quality, true)
                     },
                     onSelectSubtitle = { content.subtitle = it },
                     onSelectSpeed = { ui.playbackSpeed = it },
@@ -749,13 +750,13 @@ fun PlayerScreen(
                     playFocusRequester = controlsFocusRequester,
                     previousEpisode = {
                         player.pause()
-                        saveProgress(player.currentPosition)
-                        previousEpisode()
+                        actions.saveProgress(player.currentPosition)
+                        actions.previousEpisode()
                     },
                     nextEpisode = {
                         player.pause()
-                        saveProgress(player.currentPosition)
-                        nextEpisode(false)
+                        actions.saveProgress(player.currentPosition)
+                        actions.nextEpisode(false)
                     },
                     hasPreviousEpisode = hasPreviousEpisode,
                     hasNextEpisode = hasNextEpisode,
@@ -764,10 +765,10 @@ fun PlayerScreen(
                     currentEpisode = bundle.episode,
                     playEpisode = { season, episode ->
                         player.pause()
-                        saveProgress(player.currentPosition)
-                        playEpisode(season, episode)
+                        actions.saveProgress(player.currentPosition)
+                        actions.playEpisode(season, episode)
                     },
-                    openRating = { openRating(player.currentPosition) },
+                    openRating = { actions.openRating(player.currentPosition) },
                     onMenuOpenChange = { ui.menuOpen = it },
                     onHideControls = { ui.controlsVisible = false },
                 )

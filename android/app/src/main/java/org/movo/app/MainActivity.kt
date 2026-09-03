@@ -248,37 +248,47 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
     // every periodic save, and threading that into the player would recompose all of it every
     // five seconds for a value only its first composition reads.
     val resumePositionMs = remember(stream) { model.state.value.playbackPositionMs }
+    val actions = remember(model, settings.saveQuality, scope, context) {
+        object : PlayerActions {
+            override fun saveProgress(positionMs: Long) = model.saveProgress(positionMs)
+            override fun playbackStarted() = model.playbackStarted()
+            override fun close(completed: Boolean, positionMs: Long) {
+                model.closePlayer(completed, positionMs)
+            }
+
+            override fun previousEpisode() {
+                model.previousEpisode()
+            }
+
+            override fun nextEpisode(completed: Boolean) {
+                model.nextEpisode(completed)
+            }
+
+            override fun playEpisode(season: Long, episode: Long) {
+                model.playEpisode(season, episode)
+            }
+
+            override fun openRating(positionMs: Long) =
+                model.openPlayerAction(DetailAction.Rating, positionMs)
+
+            override fun qualityChanged(quality: String, persist: Boolean) {
+                model.selectPlaybackQuality(quality)
+                if (persist && settings.saveQuality) scope.launch { context.save(Keys.LAST_QUALITY, quality) }
+            }
+        }
+    }
     PlayerScreen(
         bundle = stream,
         title = state.details?.title.orEmpty(),
         resumePositionMs = resumePositionMs,
-        qualityMode = settings.qualityMode,
         preferredQuality = state.playbackQuality,
-        saveProgress = model::saveProgress,
-        playbackStarted = model::playbackStarted,
         syncError = state.error,
-        close = model::closePlayer,
         isTv = isTv,
-        seekSeconds = settings.seekSeconds,
-        initialSpeed = settings.playbackSpeed,
-        videoFit = settings.videoFit,
-        previousEpisode = model::previousEpisode,
-        nextEpisode = model::nextEpisode,
         hasPreviousEpisode = adjacentEpisodes.first,
         hasNextEpisode = adjacentEpisodes.second,
-        autoNext = settings.autoNext,
         seasons = state.details?.seasons.orEmpty(),
-        playEpisode = model::playEpisode,
-        showBuffer = settings.showBuffer,
-        showEndTime = settings.showEndTime,
-        bufferSeconds = settings.bufferSeconds,
-        tvCenterPauses = settings.tvCenterPauses,
-        tvPauseShowsControls = settings.tvPauseShowsControls,
-        openRating = { model.openPlayerAction(DetailAction.Rating, it) },
-        qualityChanged = { quality, persist ->
-            model.selectPlaybackQuality(quality)
-            if (persist && settings.saveQuality) scope.launch { context.save(Keys.LAST_QUALITY, quality) }
-        },
+        settings = settings,
+        actions = actions,
     )
 }
 
