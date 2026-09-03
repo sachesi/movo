@@ -12,7 +12,9 @@ import android.annotation.SuppressLint
 import android.app.UiModeManager
 import android.content.Intent
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import android.content.Context
 import android.content.res.Configuration
@@ -64,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -262,6 +265,14 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
     )
 }
 
+/** Keeps a [WebView] on the one host it started on, over https only. */
+private class SameHostWebViewClient(private val host: String?) : WebViewClient() {
+    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+        val url = request.url
+        return !(url.scheme == "https" && url.host == host)
+    }
+}
+
 @Composable
 @SuppressLint("SetJavaScriptEnabled")
 private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
@@ -276,6 +287,10 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
             settings.allowContentAccess = false
             settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             webChromeClient = WebChromeClient()
+            // The embed comes from the provider, so it is scripted content this app does not
+            // control. Pin it to the host it was loaded from: a trailer never needs to navigate
+            // anywhere else, and without this the page picks where the user goes next.
+            webViewClient = SameHostWebViewClient(url.toUri().host)
             loadUrl(url)
         }
     }
