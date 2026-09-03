@@ -101,7 +101,7 @@ impl DetailsScraper {
     pub async fn like_comment(session: &RezkaSession, id: &str) -> Result<(), String> {
         Self::require_success(
             &session
-                .post_ajax("engine/ajax/comments_like.php", &[("id", id)])
+                .post_ajax_once("engine/ajax/comments_like.php", &[("id", id)])
                 .await?,
             "Failed to like comment",
         )

@@ -405,7 +405,20 @@ impl RezkaClient {
         if entry.is_watched == watched {
             return Ok(());
         }
-        AuthManager::toggle_history_watched(&self.session, id).await
+        AuthManager::toggle_history_watched(&self.session, id).await?;
+        // The endpoint flips the flag rather than setting it, so the request is
+        // never retried. Read the state back instead: a toggle whose reply was
+        // lost still landed, and reporting failure for it would be wrong.
+        let confirmed = AuthManager::fetch_history(&self.session)
+            .await?
+            .into_iter()
+            .find(|entry| entry.id == id)
+            .ok_or_else(|| "History item was not found".to_string())?;
+        if confirmed.is_watched == watched {
+            Ok(())
+        } else {
+            Err("The account did not confirm the watched state".to_string())
+        }
     }
 
     pub async fn mark_watched(
@@ -589,29 +602,62 @@ mod tests {
         server.join().unwrap();
     }
 
+    fn history_row(watched: bool) -> String {
+        format!(
+            r#"<div class="b-videosaves__list_item"></div><div class="b-videosaves__list_item{}"><button class="delete" data-id="saved"></button><div class="title"><a href="/films/7-test.html">Test</a></div></div>"#,
+            if watched { " watched-row" } else { "" }
+        )
+    }
+
+    /// The toggle endpoint is posted once and never retried, so success is
+    /// decided by reading the account back rather than by the reply alone.
     #[tokio::test]
-    async fn watched_mutation_accepts_success_without_readback() {
+    async fn watched_mutation_is_confirmed_by_reading_the_account_back() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
-        let history = |watched: bool| {
-            format!(
-                r#"<div class="b-videosaves__list_item"></div><div class="b-videosaves__list_item{}"><button class="delete" data-id="saved"></button><div class="title"><a href="/films/7-test.html">Test</a></div></div>"#,
-                if watched { " watched-row" } else { "" }
-            )
-        };
         let server = std::thread::spawn(move || {
             let (mut before, _) = listener.accept().unwrap();
             read_request(&mut before);
-            respond(&mut before, "text/html", &history(false));
+            respond(&mut before, "text/html", &history_row(false));
             let (mut toggle, _) = listener.accept().unwrap();
             assert!(read_request(&mut toggle).starts_with("POST /engine/ajax/cdn_saves_view.php"));
             respond(&mut toggle, "application/json", r#"{"success":true}"#);
+            let (mut after, _) = listener.accept().unwrap();
+            read_request(&mut after);
+            respond(&mut after, "text/html", &history_row(true));
         });
 
         authenticated_test_client(&base_url)
             .set_history_watched("saved", true)
             .await
             .unwrap();
+        server.join().unwrap();
+    }
+
+    /// A reply claiming success that the account does not actually reflect is
+    /// reported as a failure rather than posted a second time.
+    #[tokio::test]
+    async fn watched_mutation_reports_a_state_the_account_did_not_take() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut before, _) = listener.accept().unwrap();
+            read_request(&mut before);
+            respond(&mut before, "text/html", &history_row(false));
+            let (mut toggle, _) = listener.accept().unwrap();
+            assert!(read_request(&mut toggle).starts_with("POST /engine/ajax/cdn_saves_view.php"));
+            respond(&mut toggle, "application/json", r#"{"success":true}"#);
+            let (mut after, _) = listener.accept().unwrap();
+            read_request(&mut after);
+            respond(&mut after, "text/html", &history_row(false));
+        });
+
+        let error = authenticated_test_client(&base_url)
+            .set_history_watched("saved", true)
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("did not confirm"), "{error}");
         server.join().unwrap();
     }
 

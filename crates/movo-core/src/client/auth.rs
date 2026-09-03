@@ -279,7 +279,9 @@ impl AuthManager {
             ("action", "add_post"),
         ];
 
-        let json_resp = session.post_ajax("ajax/favorites/", &form_data).await?;
+        let json_resp = session
+            .post_ajax_once("ajax/favorites/", &form_data)
+            .await?;
         Self::require_json_success(&json_resp, "Failed to update favorites")
     }
 
@@ -372,21 +374,21 @@ impl AuthManager {
 
     pub async fn remove_history(session: &RezkaSession, id: &str) -> Result<(), String> {
         let response = session
-            .post_ajax("engine/ajax/cdn_saves_remove.php", &[("id", id)])
+            .post_ajax_once("engine/ajax/cdn_saves_remove.php", &[("id", id)])
             .await?;
         Self::require_json_success(&response, "Failed to remove history item")
     }
 
     pub async fn toggle_history_watched(session: &RezkaSession, id: &str) -> Result<(), String> {
         let response = session
-            .post_ajax("engine/ajax/cdn_saves_view.php", &[("id", id)])
+            .post_ajax_once("engine/ajax/cdn_saves_view.php", &[("id", id)])
             .await?;
         Self::require_json_success(&response, "Failed to update watched state")
     }
 
     pub async fn toggle_schedule_watched(session: &RezkaSession, id: &str) -> Result<(), String> {
         let response = session
-            .post_ajax("engine/ajax/schedule_watched.php", &[("id", id)])
+            .post_ajax_once("engine/ajax/schedule_watched.php", &[("id", id)])
             .await?;
         Self::require_json_success(&response, "Failed to update episode watched state")
     }

@@ -16,6 +16,17 @@ const DEFAULT_USER_AGENT: &str =
     "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36";
 pub const OFFICIAL_MIRROR: &str = "https://hdrzk.org";
 
+/// First retry waits this long; each further attempt doubles it.
+const RETRY_BASE_DELAY: Duration = Duration::from_millis(300);
+
+/// Upper bound of the random-ish spread added to every retry delay.
+const RETRY_SPREAD_MS: u64 = 100;
+
+/// Ceiling on a single response body. The largest page the provider serves is
+/// a detail page well under a megabyte; this only stops a broken or hostile
+/// response from being read into memory without limit.
+const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+
 /// Per-host in-flight Anubis solves: one solve at a time per host so
 /// concurrent challenges can't clobber each other's verification cookie in
 /// the shared jar.
@@ -310,9 +321,7 @@ impl RezkaSession {
 
         let mut last_err = String::new();
         for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(Duration::from_millis(300)).await;
-            }
+            Self::back_off(attempt).await;
 
             match self.execute_get(&full_url).await {
                 Ok(html) => return Ok(html),
@@ -359,11 +368,7 @@ impl RezkaSession {
         Self::require_success("GET", status, &content_type, html)
     }
 
-    pub async fn post_ajax(
-        &self,
-        endpoint: &str,
-        form_data: &[(&str, &str)],
-    ) -> Result<String, String> {
+    fn ajax_url(&self, endpoint: &str) -> String {
         let mut full_url = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
             endpoint.to_string()
         } else {
@@ -372,12 +377,24 @@ impl RezkaSession {
         let separator = if full_url.contains('?') { '&' } else { '?' };
         full_url.push(separator);
         full_url.push_str(&format!("t={}", chrono::Utc::now().timestamp_millis()));
+        full_url
+    }
+
+    /// Posts to an endpoint that can be repeated safely, retrying on failure.
+    ///
+    /// Only for requests whose effect does not depend on how many times the
+    /// provider ran them: reads shaped as posts, and upserts. Anything that
+    /// toggles or accumulates must use [`post_ajax_once`](Self::post_ajax_once).
+    pub async fn post_ajax(
+        &self,
+        endpoint: &str,
+        form_data: &[(&str, &str)],
+    ) -> Result<String, String> {
+        let full_url = self.ajax_url(endpoint);
 
         let mut last_err = String::new();
         for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(Duration::from_millis(300)).await;
-            }
+            Self::back_off(attempt).await;
 
             match self.execute_post(&full_url, form_data).await {
                 Ok(resp) => return Ok(resp),
@@ -388,6 +405,21 @@ impl RezkaSession {
         }
 
         Err(last_err)
+    }
+
+    /// Posts once, with no retry.
+    ///
+    /// The provider's toggle endpoints flip a flag rather than set it, and its
+    /// rating endpoint records a vote. A request that reached the server and
+    /// then failed on the way back — a 5xx from a proxy, a dropped connection
+    /// mid-body — has already been applied, so a second attempt would flip the
+    /// flag back or vote twice. Reporting the failure is the lesser harm.
+    pub async fn post_ajax_once(
+        &self,
+        endpoint: &str,
+        form_data: &[(&str, &str)],
+    ) -> Result<String, String> {
+        self.execute_post(&self.ajax_url(endpoint), form_data).await
     }
 
     async fn execute_post(
@@ -432,6 +464,27 @@ impl RezkaSession {
         Self::require_success("POST", status, &content_type, body)
     }
 
+    /// Waits before retry `attempt`, doubling each time and adding a little
+    /// spread so that requests failing together do not retry in lockstep.
+    /// Returns immediately for the first attempt.
+    async fn back_off(attempt: u32) {
+        if attempt == 0 {
+            return;
+        }
+        let base = RETRY_BASE_DELAY * 2u32.pow(attempt - 1);
+        tokio::time::sleep(base + Duration::from_millis(Self::retry_spread_ms())).await;
+    }
+
+    /// A 0..RETRY_SPREAD_MS value taken from the clock. The spread only has to
+    /// break ties between concurrent callers, so the wall clock is enough and
+    /// saves pulling in a random number generator.
+    fn retry_spread_ms() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|since| since.subsec_nanos() as u64 % RETRY_SPREAD_MS)
+            .unwrap_or(0)
+    }
+
     async fn read_response(
         response: reqwest::Response,
     ) -> Result<(reqwest::StatusCode, String, String), String> {
@@ -444,10 +497,24 @@ impl RezkaSession {
             .chars()
             .take(80)
             .collect();
-        let body = response
-            .text()
+        let mut body = Vec::new();
+        let mut response = response;
+        while let Some(chunk) = response
+            .chunk()
             .await
-            .map_err(|error| format!("Failed to read HTTP response: {}", error.without_url()))?;
+            .map_err(|error| format!("Failed to read HTTP response: {}", error.without_url()))?
+        {
+            if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
+                return Err(format!(
+                    "HTTP response exceeded {} bytes",
+                    MAX_RESPONSE_BYTES
+                ));
+            }
+            body.extend_from_slice(&chunk);
+        }
+        // Matches what `Response::text` does: the provider labels pages UTF-8
+        // and a stray byte should not lose the whole page.
+        let body = String::from_utf8_lossy(&body).into_owned();
         Ok((status, content_type, body))
     }
 
@@ -488,6 +555,35 @@ impl RezkaSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+
+    /// Reads one request off `stream` and answers with `status`, so the caller
+    /// sees a server that replied but did not succeed.
+    fn refuse(stream: &mut TcpStream, status: &str) {
+        let mut buffer = [0; 4096];
+        let _ = stream.read(&mut buffer);
+        let _ = write!(
+            stream,
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+        );
+    }
+
+    /// Accepts exactly `count` requests, refusing each, and returns how many
+    /// actually arrived.
+    fn refusing_server(listener: TcpListener, count: usize) -> std::thread::JoinHandle<usize> {
+        std::thread::spawn(move || {
+            let mut seen = 0;
+            for _ in 0..count {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                seen += 1;
+                refuse(&mut stream, "502 Bad Gateway");
+            }
+            seen
+        })
+    }
 
     #[test]
     fn official_provider_and_headers_match_the_site() {
@@ -508,6 +604,48 @@ mod tests {
 
         assert_eq!(session.auth_epoch(), generation + 1);
         assert_eq!(clone.auth_epoch(), generation + 1);
+    }
+
+    /// A toggle the provider already applied must not be sent again just
+    /// because the reply was lost; a second POST would flip it back.
+    #[tokio::test]
+    async fn a_failed_toggle_post_is_not_repeated() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let server = refusing_server(listener, 1);
+
+        let session = RezkaSession::new_for_test(&base_url);
+        let error = session
+            .post_ajax_once("engine/ajax/cdn_saves_view.php", &[("id", "7")])
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("HTTP 502"), "{error}");
+        assert_eq!(server.join().unwrap(), 1);
+    }
+
+    /// Repeatable posts keep their retries: the provider drops requests often
+    /// enough that a single attempt would show avoidable failures.
+    #[tokio::test]
+    async fn a_repeatable_post_is_retried_three_times() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let server = refusing_server(listener, 3);
+
+        let session = RezkaSession::new_for_test(&base_url);
+        let error = session
+            .post_ajax("ajax/get_cdn_series/", &[("id", "7")])
+            .await
+            .unwrap_err();
+
+        assert!(error.contains("HTTP 502"), "{error}");
+        assert_eq!(server.join().unwrap(), 3);
+    }
+
+    #[test]
+    fn retry_delays_grow_and_stay_within_their_spread() {
+        assert!(RezkaSession::retry_spread_ms() < RETRY_SPREAD_MS);
+        assert_eq!(RETRY_BASE_DELAY * 2u32.pow(1), Duration::from_millis(600));
     }
 
     #[test]

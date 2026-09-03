@@ -527,7 +527,7 @@ impl DetailsScraper {
         let rating = rating.to_string();
         Self::require_success(
             &session
-                .post_ajax(
+                .post_ajax_once(
                     "engine/ajax/rating.php",
                     &[("news_id", &id), ("go_rate", &rating), ("skin", "hdrezka")],
                 )
