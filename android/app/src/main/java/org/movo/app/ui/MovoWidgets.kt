@@ -56,7 +56,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onPlaced
@@ -297,12 +296,12 @@ internal fun MovoChoiceChip(
             .zIndex(if (tvFocused) 1f else 0f)
             .graphicsLayer { scaleX = scale; scaleY = scale },
         enabled = enabled,
-        leadingIcon = {
-            Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                modifier = Modifier.alpha(if (selected) 1f else 0f),
-            )
+        // Only once selected. Holding the slot open with a transparent icon kept the chip from
+        // resizing, at the cost of every unselected label sitting an icon's width right of centre.
+        leadingIcon = if (selected) {
+            { Icon(Icons.Default.Check, contentDescription = null) }
+        } else {
+            null
         },
         trailingIcon = trailingIcon,
         colors = FilterChipDefaults.filterChipColors(

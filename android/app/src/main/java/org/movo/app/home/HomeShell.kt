@@ -39,6 +39,20 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.Dp
+import androidx.compose.animation.core.VectorConverter
+import org.movo.app.ui.motionSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -82,15 +96,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
-import androidx.tv.material3.ModalNavigationDrawer
-import androidx.tv.material3.NavigationDrawerItem
-import androidx.tv.material3.NavigationDrawerItemDefaults
-import androidx.tv.material3.NavigationDrawerItemScale
 import androidx.tv.material3.Text as TvText
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -228,21 +236,27 @@ private fun TvHomeFlow(
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
 }
 
-/** What the collapsed drawer covers: its icons, plus the padding the sheet's column adds. */
-private val DRAWER_HORIZONTAL_PADDING = 12.dp
-private val COLLAPSED_DRAWER_WIDTH
-    @Composable get() =
-        NavigationDrawerItemDefaults.CollapsedDrawerItemWidth + DRAWER_HORIZONTAL_PADDING * 2
+private val RAIL_WIDTH = 80.dp
+private val PANEL_WIDTH = 260.dp
+private val DRAWER_ITEM_HEIGHT = 48.dp
 
 /**
- * The TV navigation sheet, laid over the content rather than beside it.
+ * The television navigation sheet: a rail of icons that widens over the content, on focus, into
+ * icons with labels.
  *
- * The side-by-side [NavigationDrawer] sizes its sheet with `animateContentSize`, so expanding it
- * hands the content a new width on every frame of the animation and re-measures the whole
- * destination — the rails, the grid, everything — a dozen-odd times for each move into and out of
- * the drawer, which is the most frequent thing a remote does. The modal sheet is drawn over the
- * content instead, so the content is measured once and the sheet animates alone; the start padding
- * below keeps the collapsed sheet off it, which is where the side-by-side layout put it anyway.
+ * Written out rather than taken from tv-material, whose two drawers each cost more than what they
+ * save here. The side-by-side one sizes its sheet with `animateContentSize`, which hands the
+ * content beside it a new width on every frame of the widen and re-measures the whole destination
+ * — the rails, the grid, all of it — a dozen-odd times for each move into and out of the drawer,
+ * which is the most frequent thing a remote does. The modal one lays the sheet over the content as
+ * this does, but paints nothing behind it, so over a wall of posters the labels have no ground to
+ * sit on.
+ *
+ * What is left measures the content once, at a width that never changes, and animates the sheet
+ * alone. The column inside the sheet is held at [PANEL_WIDTH] whatever the sheet is currently
+ * showing, so the icons never move and the labels never re-wrap while it opens: the widening only
+ * uncovers what was already laid out. The width is read in the layout phase, so the animation
+ * re-measures the sheet without recomposing any of it.
  */
 @Composable
 internal fun TvNavigationDrawer(
@@ -253,59 +267,137 @@ internal fun TvNavigationDrawer(
     openSettings: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val contentStart = COLLAPSED_DRAWER_WIDTH
-    ModalNavigationDrawer(
-        modifier = Modifier.testTag("tv-navigation-drawer"),
-        drawerContent = { drawerValue ->
-            val expanded = drawerValue == DrawerValue.Open
-            Column(
-                Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = DRAWER_HORIZONTAL_PADDING, vertical = 20.dp)
-                    .selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Tab.entries.filter { it != Tab.Account }.forEach { tab ->
-                    NavigationDrawerItem(
-                        selected = !settingsSelected && selectedTab == tab,
-                        onClick = { selectTab(tab) },
-                        leadingContent = { TvIcon(tab.icon, contentDescription = stringResource(tab.label)) },
-                        modifier = Modifier.testTag("tv-drawer-${tab.name.lowercase()}"),
-                        trailingContent = if (
-                            expanded && tab == Tab.Notifications && notificationCount > 0
-                        ) {
-                            { Badge { Text(notificationCount.coerceAtMost(99).toString()) } }
-                        } else {
-                            null
-                        },
-                        scale = NavigationDrawerItemScale.None,
-                    ) {
-                        if (expanded) TvText(stringResource(tab.label))
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                NavigationDrawerItem(
-                    selected = !settingsSelected && selectedTab == Tab.Account,
-                    onClick = { selectTab(Tab.Account) },
-                    leadingContent = { TvIcon(Tab.Account.icon, contentDescription = stringResource(Tab.Account.label)) },
-                    modifier = Modifier.testTag("tv-drawer-account"),
-                    scale = NavigationDrawerItemScale.None,
-                ) {
-                    if (expanded) TvText(stringResource(Tab.Account.label))
-                }
-                NavigationDrawerItem(
-                    selected = settingsSelected,
-                    onClick = openSettings,
-                    leadingContent = { TvIcon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title)) },
-                    modifier = Modifier.testTag("tv-drawer-settings"),
-                    scale = NavigationDrawerItemScale.None,
-                ) {
-                    if (expanded) TvText(stringResource(R.string.settings_title))
-                }
+    Box(Modifier.fillMaxSize().testTag("tv-navigation-drawer")) {
+        Box(Modifier.fillMaxSize().padding(start = RAIL_WIDTH)) { content() }
+        TvDrawerSheet(selectedTab, settingsSelected, notificationCount, selectTab, openSettings)
+    }
+}
+
+@Composable
+private fun TvDrawerSheet(
+    selectedTab: Tab,
+    settingsSelected: Boolean,
+    notificationCount: Int,
+    selectTab: (Tab) -> Unit,
+    openSettings: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val width = remember { Animatable(RAIL_WIDTH, Dp.VectorConverter) }
+    val motion = motionSpec<Dp>(tween(durationMillis = 200, easing = FastOutSlowInEasing))
+    LaunchedEffect(expanded) { width.animateTo(if (expanded) PANEL_WIDTH else RAIL_WIDTH, motion) }
+
+    // Opaque under the icons and fading out at the trailing edge, so the widened sheet reads as
+    // something laid over the posters rather than a rectangle cut out of them.
+    val surface = MaterialTheme.colorScheme.surface
+    val ground = remember(surface) {
+        Brush.horizontalGradient(0f to surface, 0.75f to surface, 1f to surface.copy(alpha = 0f))
+    }
+
+    Box(
+        Modifier
+            .fillMaxHeight()
+            .onFocusChanged { expanded = it.hasFocus }
+            .focusGroup()
+            .background(ground)
+            .clipToBounds()
+            .layout { measurable, constraints ->
+                val sheet = measurable.measure(constraints)
+                val visible = width.value.roundToPx().coerceIn(0, sheet.width)
+                layout(visible, sheet.height) { sheet.place(0, 0) }
+            },
+    ) {
+        Column(
+            Modifier
+                .requiredWidth(PANEL_WIDTH)
+                .fillMaxHeight()
+                .padding(horizontal = 12.dp, vertical = 20.dp)
+                .selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Tab.entries.filter { it != Tab.Account }.forEach { tab ->
+                TvDrawerItem(
+                    tab = tab,
+                    expanded = expanded,
+                    selected = !settingsSelected && selectedTab == tab,
+                    badge = if (tab == Tab.Notifications) notificationCount else 0,
+                    testTag = "tv-drawer-${tab.name.lowercase()}",
+                ) { selectTab(tab) }
             }
-        },
-        content = { Box(Modifier.padding(start = contentStart)) { content() } },
-    )
+            Spacer(Modifier.weight(1f))
+            TvDrawerItem(
+                tab = Tab.Account,
+                expanded = expanded,
+                selected = !settingsSelected && selectedTab == Tab.Account,
+                testTag = "tv-drawer-account",
+            ) { selectTab(Tab.Account) }
+            TvDrawerItem(
+                icon = Icons.Default.Settings,
+                label = stringResource(R.string.settings_title),
+                expanded = expanded,
+                selected = settingsSelected,
+                testTag = "tv-drawer-settings",
+                onClick = openSettings,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvDrawerItem(
+    tab: Tab,
+    expanded: Boolean,
+    selected: Boolean,
+    testTag: String,
+    badge: Int = 0,
+    onClick: () -> Unit,
+) = TvDrawerItem(tab.icon, stringResource(tab.label), expanded, selected, testTag, onClick, badge)
+
+@Composable
+private fun TvDrawerItem(
+    icon: ImageVector,
+    label: String,
+    expanded: Boolean,
+    selected: Boolean,
+    testTag: String,
+    onClick: () -> Unit,
+    badge: Int = 0,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    val container = when {
+        focused -> colors.onSurface
+        selected -> colors.surfaceVariant
+        else -> Color.Transparent
+    }
+    Row(
+        Modifier
+            .height(DRAWER_ITEM_HEIGHT)
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(container)
+            .onFocusChanged { focused = it.isFocused }
+            .selectable(selected = selected, onClick = onClick)
+            .padding(horizontal = 14.dp)
+            .testTag(testTag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides if (focused) colors.surface else colors.onSurface,
+        ) {
+            BadgedIcon(icon, badge)
+            // Composed only once the sheet is open: a label the rail is too narrow to show is
+            // still a label a screen reader would read out and a test would find.
+            if (expanded) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }
 
 @Composable
