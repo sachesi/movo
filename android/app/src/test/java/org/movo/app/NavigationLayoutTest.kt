@@ -13,9 +13,10 @@ import org.junit.Test
 class NavigationLayoutTest {
 
     @Test
-    fun everyTabIsReachableFromTheBottomBar() {
-        assertEquals(Tab.entries.toSet(), (PRIMARY_TABS + OVERFLOW_TABS).toSet())
-        assertEquals(Tab.entries.size, PRIMARY_TABS.size + OVERFLOW_TABS.size)
+    fun everyTabButTheAccountIsReachableFromTheBottomBar() {
+        // The account page opens from the user's name in the top bar.
+        assertEquals(Tab.entries.toSet() - Tab.Account, (PRIMARY_TABS + OVERFLOW_TABS).toSet())
+        assertEquals(Tab.entries.size - 1, PRIMARY_TABS.size + OVERFLOW_TABS.size)
     }
 
     @Test

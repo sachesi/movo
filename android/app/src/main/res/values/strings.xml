@@ -62,7 +62,6 @@
     <string name="menu_sign_out">Sign out</string>
     <string name="sign_out_title">Sign out?</string>
     <string name="sign_out_message">You’ll need to sign in again to access your account.</string>
-    <string name="menu">Menu</string>
 
     <!-- Empty / status -->
     <string name="history_empty">History is empty</string>

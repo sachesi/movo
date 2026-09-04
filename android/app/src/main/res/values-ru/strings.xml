@@ -57,7 +57,6 @@
     <string name="menu_sign_out">Выйти</string>
     <string name="sign_out_title">Выйти?</string>
     <string name="sign_out_message">Для доступа к аккаунту потребуется войти снова.</string>
-    <string name="menu">Меню</string>
     <string name="history_empty">История пуста</string>
     <string name="operation_failed">Операция не выполнена</string>
     <string name="catalog_empty">В этом разделе нет ничего</string>

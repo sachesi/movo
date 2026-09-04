@@ -67,6 +67,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -487,39 +489,31 @@ private fun HomeTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior,
     onOpenSettings: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var confirmLogout by remember { mutableStateOf(false) }
     TopAppBar(
         title = { Text(stringResource(R.string.app_name)) },
         scrollBehavior = scrollBehavior,
         actions = {
+            // The name is the way to the account page, which also holds sign-out.
             state.user?.let {
-                Text(
-                    text = it.username,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(end = 8.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                TextButton(
+                    onClick = { if (state.tab != Tab.Account) model.selectTab(Tab.Account, false) },
+                    modifier = Modifier.widthIn(max = 200.dp),
+                ) {
+                    Icon(Icons.Default.AccountCircle, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = it.username,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
             }
-            IconButton(onClick = { expanded = true }) {
-                Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu))
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(
-                    onClick = { expanded = false; confirmLogout = true },
-                    text = { Text(stringResource(R.string.menu_sign_out)) },
-                )
-            }
         },
     )
-    if (confirmLogout) ConfirmLogoutDialog(isTv = false, dismiss = { confirmLogout = false }) {
-        confirmLogout = false
-        model.logout()
-    }
 }
 
 @Composable
@@ -549,10 +543,11 @@ internal fun ConfirmLogoutDialog(isTv: Boolean, dismiss: () -> Unit, confirm: ()
 
 /**
  * The four destinations the bottom bar shows outright. The bar holds five items before the
- * labels stop fitting a compact width, so the rest sit behind the fifth.
+ * labels stop fitting a compact width, so the rest sit behind the fifth. The account page is
+ * reached from the user's name in the top bar instead.
  */
 internal val PRIMARY_TABS = listOf(Tab.Catalog, Tab.Search, Tab.Favorites, Tab.History)
-internal val OVERFLOW_TABS = Tab.entries - PRIMARY_TABS.toSet()
+internal val OVERFLOW_TABS = Tab.entries - PRIMARY_TABS.toSet() - Tab.Account
 
 @Composable
 private fun HomeBottomBar(state: AppState, model: MovoViewModel) {
