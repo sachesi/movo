@@ -11,6 +11,12 @@ use relm4::gtk::{
 };
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::Mutex;
+
+/// The newest settings not yet on disk. Each save takes whatever is here
+/// under the lock, so two rapid changes cannot finish out of order and leave
+/// the older one persisted; the later save simply finds nothing to do.
+static PENDING_SAVE: Mutex<Option<AppSettings>> = Mutex::new(None);
 
 const QUALITIES: [&str; 5] = ["360p", "480p", "720p", "1080p", "1080p Ultra"];
 const INITIAL_VIEWS: [&str; 7] = [
@@ -47,9 +53,17 @@ pub fn present(
         Rc::new(move |settings: AppSettings| {
             state.set_settings(settings.clone());
             on_changed(settings.clone());
-            relm4::spawn_blocking(move || {
-                if let Err(error) = settings.save() {
-                    log::warn!("Could not save settings: {error}");
+            if let Ok(mut pending) = PENDING_SAVE.lock() {
+                *pending = Some(settings);
+            }
+            relm4::spawn_blocking(|| {
+                let Ok(mut pending) = PENDING_SAVE.lock() else {
+                    return;
+                };
+                if let Some(settings) = pending.take() {
+                    if let Err(error) = settings.save() {
+                        log::warn!("Could not save settings: {error}");
+                    }
                 }
             });
         })
