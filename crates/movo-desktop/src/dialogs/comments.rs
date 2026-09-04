@@ -26,10 +26,10 @@ pub fn present(
     let list = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(12)
-        .margin_start(16)
-        .margin_end(16)
-        .margin_top(16)
-        .margin_bottom(16)
+        .margin_start(18)
+        .margin_end(18)
+        .margin_top(18)
+        .margin_bottom(18)
         .build();
 
     let scrolled = gtk::ScrolledWindow::builder()
@@ -169,18 +169,18 @@ fn comment_card<F: Fn(String) + 'static>(
 ) -> gtk::Widget {
     let card = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
-        .spacing(4)
+        .spacing(6)
         // Replies keep the provider's nesting depth.
         .margin_start((comment.indent.min(5) * 24) as i32)
         .build();
     card.add_css_class("card");
-    card.set_margin_top(4);
+    card.set_margin_top(6);
 
     let header = gtk::Label::builder()
         .label(format!("{} · {}", comment.username, comment.date))
         .xalign(0.0)
         .margin_start(12)
-        .margin_top(8)
+        .margin_top(6)
         .build();
     header.add_css_class("heading");
     card.append(&header);
@@ -214,7 +214,7 @@ fn comment_card<F: Fn(String) + 'static>(
         .label(format!("♥ {}", comment.likes))
         .halign(gtk::Align::Start)
         .margin_start(12)
-        .margin_bottom(8)
+        .margin_bottom(6)
         .build();
     like.add_css_class("flat");
     like.set_sensitive(state.user().is_some() && !comment.is_liked);

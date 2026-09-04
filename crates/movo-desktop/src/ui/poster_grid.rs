@@ -201,10 +201,10 @@ pub fn poster_grid<F: Fn(MediaItem) + 'static>(on_activate: F) -> PosterGrid {
     grid.view.set_single_click_activate(true);
     grid.view.set_max_columns(12);
     grid.view.set_min_columns(1);
-    grid.view.set_margin_start(8);
-    grid.view.set_margin_end(8);
-    grid.view.set_margin_top(8);
-    grid.view.set_margin_bottom(8);
+    grid.view.set_margin_start(6);
+    grid.view.set_margin_end(6);
+    grid.view.set_margin_top(6);
+    grid.view.set_margin_bottom(6);
 
     let model = grid.selection_model.clone();
     grid.view.connect_activate(move |_, position| {

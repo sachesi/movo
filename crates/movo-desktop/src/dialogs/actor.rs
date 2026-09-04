@@ -58,15 +58,15 @@ fn profile(
     let content = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(12)
-        .margin_start(16)
-        .margin_end(16)
-        .margin_top(16)
-        .margin_bottom(16)
+        .margin_start(18)
+        .margin_end(18)
+        .margin_top(18)
+        .margin_bottom(18)
         .build();
 
     let header = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
-        .spacing(16)
+        .spacing(18)
         .build();
 
     let photo = gtk::Picture::builder()
@@ -83,7 +83,7 @@ fn profile(
 
     let facts = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
-        .spacing(4)
+        .spacing(6)
         .build();
     let name = gtk::Label::builder()
         .label(&actor.name)

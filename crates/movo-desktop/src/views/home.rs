@@ -124,8 +124,8 @@ impl HomeView {
             let title = gtk::Label::builder()
                 .label(section_title(&section.id))
                 .halign(gtk::Align::Start)
-                .margin_start(16)
-                .margin_end(16)
+                .margin_start(18)
+                .margin_end(18)
                 .build();
             title.add_css_class("title-2");
 
@@ -135,8 +135,8 @@ impl HomeView {
 
             let scrolled = gtk::ScrolledWindow::builder()
                 .vscrollbar_policy(gtk::PolicyType::Never)
-                .margin_start(16)
-                .margin_end(16)
+                .margin_start(18)
+                .margin_end(18)
                 .child(&row.view)
                 .build();
 

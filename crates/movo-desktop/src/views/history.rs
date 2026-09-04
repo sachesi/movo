@@ -60,8 +60,8 @@ impl Component for HistoryView {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let list = crate::ui::activatable_list();
-        list.set_margin_start(16);
-        list.set_margin_end(16);
+        list.set_margin_start(18);
+        list.set_margin_end(18);
         list.set_margin_top(12);
         list.set_margin_bottom(12);
         list.set_valign(gtk::Align::Start);

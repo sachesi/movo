@@ -68,9 +68,9 @@ pub fn present(
     let content = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(12)
-        .margin_start(16)
-        .margin_end(16)
-        .margin_bottom(16)
+        .margin_start(18)
+        .margin_end(18)
+        .margin_bottom(18)
         .build();
     content.append(&page);
     content.append(&actions);

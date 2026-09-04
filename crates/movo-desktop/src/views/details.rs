@@ -100,11 +100,11 @@ impl relm4::Component for DetailsView {
     ) -> relm4::ComponentParts<Self> {
         let body = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(16)
-            .margin_start(16)
-            .margin_end(16)
-            .margin_top(16)
-            .margin_bottom(16)
+            .spacing(18)
+            .margin_start(18)
+            .margin_end(18)
+            .margin_top(18)
+            .margin_bottom(18)
             .build();
 
         let clamp = adw::Clamp::builder()
@@ -530,7 +530,7 @@ impl DetailsView {
     fn hero(&self, details: &MediaDetails, sender: &relm4::ComponentSender<Self>) -> gtk::Box {
         let hero = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
-            .spacing(16)
+            .spacing(18)
             .valign(gtk::Align::Start)
             .build();
 
@@ -745,7 +745,7 @@ impl DetailsView {
     ) -> gtk::Box {
         let row = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
-            .spacing(8)
+            .spacing(6)
             .halign(gtk::Align::Start)
             .build();
 

@@ -57,8 +57,8 @@ impl Component for NotificationsView {
         let groups = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(12)
-            .margin_start(16)
-            .margin_end(16)
+            .margin_start(18)
+            .margin_end(18)
             .margin_top(12)
             .margin_bottom(12)
             .build();
