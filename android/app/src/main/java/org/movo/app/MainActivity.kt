@@ -20,7 +20,7 @@ import org.movo.app.home.HomeFlow
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoBlue
 import org.movo.app.ui.toTvColorScheme
-import org.movo.app.ui.tvFocusScale
+import org.movo.app.ui.TvIconButton
 import org.movo.app.core.Rating
 import org.movo.app.core.AppEffect
 import org.movo.app.core.DetailAction
@@ -103,6 +103,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 
 class MainActivity : ComponentActivity() {
@@ -439,16 +440,19 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
         if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
-        IconButton(
-            model::clearTrailer,
-            Modifier
-                .align(Alignment.TopStart)
-                // Edge to edge, so without the insets the button sat under the status bar.
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(16.dp)
-                .tvFocusScale(isTv),
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White)
+        val backModifier = Modifier
+            .align(Alignment.TopStart)
+            // Edge to edge, so without the insets the button sat under the status bar.
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(16.dp)
+        if (isTv) {
+            TvIconButton(model::clearTrailer, backModifier) {
+                TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+            }
+        } else {
+            IconButton(model::clearTrailer, backModifier) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White)
+            }
         }
     }
 }

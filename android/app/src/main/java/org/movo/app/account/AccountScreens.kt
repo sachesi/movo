@@ -18,7 +18,6 @@ import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.placeholderTile
 import org.movo.app.ui.tvFocusMemory
-import org.movo.app.ui.tvFocusScale
 import org.movo.app.R
 import org.movo.app.core.AppState
 import org.movo.app.core.FavoriteGroup
@@ -91,6 +90,8 @@ import org.movo.app.ui.TvFilterChip
 import org.movo.app.ui.TvIconButton
 import org.movo.app.ui.TvListItem
 import androidx.tv.material3.ListItemScale
+import androidx.tv.material3.ButtonDefaults as TvButtonDefaults
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.SelectableChipScale
 import androidx.tv.material3.Surface as TvSurface
 import androidx.tv.material3.Icon as TvIcon
@@ -139,13 +140,12 @@ internal fun LoginScreen(
                     singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        IconButton({ passwordVisible = !passwordVisible }, Modifier.tvFocusScale(isTv)) {
-                            Icon(
-                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = stringResource(
-                                    if (passwordVisible) R.string.hide_password else R.string.show_password,
-                                ),
-                            )
+                        val eye = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                        val eyeLabel = stringResource(if (passwordVisible) R.string.hide_password else R.string.show_password)
+                        if (isTv) {
+                            TvIconButton({ passwordVisible = !passwordVisible }) { TvIcon(eye, eyeLabel) }
+                        } else {
+                            IconButton({ passwordVisible = !passwordVisible }) { Icon(eye, eyeLabel) }
                         }
                     },
                     keyboardOptions = KeyboardOptions(
@@ -157,12 +157,24 @@ internal fun LoginScreen(
                     ),
                 )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Button(
-                    onClick = { login(name, password) },
-                    modifier = Modifier.fillMaxWidth().tvFocusScale(isTv),
-                    enabled = !loading && name.isNotBlank() && password.isNotBlank(),
-                ) {
-                    Text(if (loading) stringResource(R.string.signing_in) else stringResource(R.string.sign_in))
+                val submitLabel = stringResource(if (loading) R.string.signing_in else R.string.sign_in)
+                val canSubmit = !loading && name.isNotBlank() && password.isNotBlank()
+                if (isTv) {
+                    TvButton(
+                        onClick = { login(name, password) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = canSubmit,
+                        colors = TvButtonDefaults.colors(
+                            containerColor = TvMaterialTheme.colorScheme.primary,
+                            contentColor = TvMaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ) { TvText(submitLabel) }
+                } else {
+                    Button(
+                        onClick = { login(name, password) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = canSubmit,
+                    ) { Text(submitLabel) }
                 }
                 Text(
                     stringResource(R.string.password_disclaimer),

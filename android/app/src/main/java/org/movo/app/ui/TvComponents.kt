@@ -2,7 +2,9 @@
 
 package org.movo.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
@@ -14,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.ButtonColors
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.CardDefaults
@@ -109,13 +114,30 @@ internal fun TvListItem(
     scale = scale,
 )
 
+/** The corner radius every card in the app is drawn with, so the focus border follows it. */
+internal val TV_CARD_SHAPE = RoundedCornerShape(14.dp)
+
+/**
+ * A card lifts a little and takes a thick border in the accent colour when focused. The library's
+ * own focus border is a thin hairline in the text colour, which from across a room is not there.
+ * The lift stays small because the rows and grids that hold cards clip to their own bounds.
+ */
 @Composable
 internal fun TvCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    scale: CardScale = CardDefaults.scale(),
+    scale: CardScale = CardDefaults.scale(focusedScale = 1.04f),
     content: @Composable ColumnScope.() -> Unit,
-) = TvMaterialCard(onClick, modifier.tapToClick(true, onClick), scale = scale, content = content)
+) = TvMaterialCard(
+    onClick,
+    modifier.tapToClick(true, onClick),
+    shape = CardDefaults.shape(TV_CARD_SHAPE),
+    scale = scale,
+    border = CardDefaults.border(
+        focusedBorder = Border(BorderStroke(3.dp, TvMaterialTheme.colorScheme.primary), shape = TV_CARD_SHAPE),
+    ),
+    content = content,
+)
 
 /**
  * A tap on a tv-material surface takes its focus and runs its click. Focus first, so the

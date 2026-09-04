@@ -82,7 +82,6 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.movo.app.ui.TvCard
-import androidx.tv.material3.CardScale
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import org.movo.app.ui.TvIconButton
 import androidx.tv.material3.Icon as TvIcon
@@ -314,11 +313,7 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
         items(state.collections, key = { it.url }) { collection ->
             val modifier = if (isTv) Modifier.tvFocusMemory(collection.url) else Modifier
             if (isTv) {
-                TvCard(
-                    onClick = { model.openCollection(collection) },
-                    modifier = modifier,
-                    scale = CardScale.None,
-                ) {
+                TvCard(onClick = { model.openCollection(collection) }, modifier = modifier) {
                     CollectionCardContent(collection)
                 }
             } else {
@@ -460,7 +455,7 @@ internal fun MediaCard(
         .fillMaxWidth()
         .then(if (isTv) Modifier.tvFocusMemory(focusKey) else Modifier)
     if (isTv) {
-        TvCard(onClick = open, modifier = modifier, scale = CardScale.None) {
+        TvCard(onClick = open, modifier = modifier) {
             MediaCardContent(item, true, shape)
         }
     } else {

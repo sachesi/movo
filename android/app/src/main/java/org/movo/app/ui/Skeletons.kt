@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Text as TvText
 
 @Composable
 internal fun Loading(label: String) = Box(
@@ -243,17 +244,20 @@ internal fun ErrorBanner(
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         action = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (retry != null) {
-                    TextButton(
-                        onClick = { dismiss(); retry() },
-                        modifier = Modifier.tvFocusScale(isTv).tvInitialFocus(isTv),
-                    ) { Text(stringResource(R.string.retry)) }
+            Row(horizontalArrangement = Arrangement.spacedBy(if (isTv) 8.dp else 4.dp)) {
+                val retryLabel = stringResource(R.string.retry)
+                val dismissLabel = stringResource(R.string.dismiss)
+                if (isTv) {
+                    if (retry != null) {
+                        TvButton({ dismiss(); retry() }, Modifier.tvInitialFocus()) { TvText(retryLabel) }
+                    }
+                    TvButton(dismiss, Modifier.tvInitialFocus(retry == null)) { TvText(dismissLabel) }
+                } else {
+                    if (retry != null) {
+                        TextButton({ dismiss(); retry() }) { Text(retryLabel) }
+                    }
+                    TextButton(dismiss) { Text(dismissLabel) }
                 }
-                TextButton(
-                    onClick = dismiss,
-                    modifier = Modifier.tvFocusScale(isTv).tvInitialFocus(isTv && retry == null),
-                ) { Text(stringResource(R.string.dismiss)) }
             }
         },
     ) { Text(message) }
