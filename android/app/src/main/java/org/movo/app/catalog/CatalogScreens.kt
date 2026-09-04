@@ -250,6 +250,19 @@ private val SORT_OPTIONS = listOf(
     "last" to R.string.sort_last,
 )
 
+/**
+ * A card's category, translated. The core takes it from the provider's CSS class, so it arrives
+ * as the English site slug ("films", "series") whatever language the user reads in.
+ */
+@Composable
+private fun categoryLabel(slug: String): String = when (slug.lowercase()) {
+    "films", "film" -> stringResource(R.string.category_films)
+    "series", "serial" -> stringResource(R.string.category_series)
+    "cartoons", "cartoon" -> stringResource(R.string.category_cartoons)
+    "animation", "anime" -> stringResource(R.string.category_animation)
+    else -> slug
+}
+
 private val CatalogCategory.label: Int get() = when (this) {
     CatalogCategory.All -> R.string.category_all
     CatalogCategory.Films -> R.string.category_films
@@ -481,7 +494,7 @@ private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCorne
         )
         val metadata = listOfNotNull(
             item.year?.toString(),
-            item.category,
+            item.category?.let { categoryLabel(it) },
             item.rating?.takeIf { it > 0f }?.let { "★ " + "%.1f".format(it) },
         ).joinToString(" • ")
         if (metadata.isNotEmpty()) {

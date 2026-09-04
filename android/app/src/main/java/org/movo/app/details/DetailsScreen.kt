@@ -13,6 +13,10 @@ import org.movo.app.ui.LocalFold
 import org.movo.app.ui.seamWidth
 import org.movo.app.ui.sectionHeading
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -245,11 +249,13 @@ internal fun DetailsScreen(
                     }
                 },
                 windowInsets = if (isTv) {
+                    // The overscan margin on top of whatever the device reports: nothing on a
+                    // television, the status bar and cutout on a phone or tablet using this layout.
                     WindowInsets(
                         left = TV_OVERSCAN_HORIZONTAL,
                         top = TV_OVERSCAN_VERTICAL,
                         right = TV_OVERSCAN_HORIZONTAL,
-                    )
+                    ).add(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                 } else {
                     TopAppBarDefaults.windowInsets
                 },

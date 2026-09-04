@@ -179,6 +179,19 @@ including the setting that would switch it back.
   (`smallestScreenWidthDp >= 600`, the platform's own `sw600dp` line) as well as on a
   television. The setting reads "TV / tablet"; `Phone` still forces the phone layout.
 
+## H. From device screenshots
+
+- **H1 fixed** the television layout on a phone drew under the status bar: the clock sat over
+  the rail's selected item. The layout assumed a television, which reports no insets. The
+  rail and content (`home/HomeShell.kt`), the details top bar (`details/DetailsScreen.kt`)
+  and the player overlay (`player/PlayerScreen.kt`) now pad the safe area and the cutout
+  before the overscan margin; on a television that adds nothing.
+- **H2 fixed** cards read "2026 • films" in a Ukrainian interface. The core takes the category
+  from the provider's CSS class, so it is the English site slug. The four slugs map to the
+  category strings the catalog chips already use; anything else shows as sent.
+- **H3 fixed** the Ukrainian "Обліковий запис" wrapped to two lines in the bottom bar; it is
+  "Профіль" now, which also fits the rail and the settings chips.
+
 ## D. Deferred
 
 - **D1** Dependency versions behind the current stable (lint lists activity-compose,

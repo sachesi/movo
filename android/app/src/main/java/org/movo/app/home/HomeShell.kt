@@ -67,6 +67,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -287,7 +290,9 @@ internal fun TvNavigationDrawer(
     openSettings: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().testTag("tv-navigation-drawer")) {
+    // Inside the safe area: a television reports none, but a phone or tablet on this layout has
+    // a status bar and a camera cutout, and without this the clock sat over the rail.
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).testTag("tv-navigation-drawer")) {
         Box(Modifier.fillMaxSize().padding(start = RAIL_WIDTH)) { content() }
         TvDrawerSheet(selectedTab, settingsSelected, notificationCount, selectTab, openSettings)
     }

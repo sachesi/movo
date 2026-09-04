@@ -513,11 +513,9 @@ fun PlayerScreen(
     // The video fills the screen, but nothing the user reads or aims at may: a television crops
     // the outer 5% and a landscape phone puts its camera cutout in the same corner as the back
     // button. Both overlay layers inset by this; the scrims behind them still run edge to edge.
-    val overlayInsets = if (isTv) {
-        Modifier.padding(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
-    } else {
-        Modifier.windowInsetsPadding(WindowInsets.displayCutout)
-    }
+    val overlayInsets = Modifier
+        .windowInsetsPadding(WindowInsets.displayCutout)
+        .then(if (isTv) Modifier.padding(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else Modifier)
 
     // Tabletop: the screen is bent across the middle, so a full-screen video is creased in half.
     // The picture takes the upper panel and the controls keep the lower one.
