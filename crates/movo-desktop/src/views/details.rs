@@ -107,10 +107,16 @@ impl relm4::Component for DetailsView {
             .margin_bottom(16)
             .build();
 
+        let clamp = adw::Clamp::builder()
+            .maximum_size(800)
+            .tightening_threshold(500)
+            .child(&body)
+            .build();
+
         let scrolled = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vexpand(true)
-            .child(&body)
+            .child(&clamp)
             .build();
 
         let content = ContentStack::new(&scrolled, tr("This Title Did Not Load"));
