@@ -25,6 +25,8 @@ maintenance whenever the site changes its markup or its stream encoding.
   through the account rather than a local copy.
 - Play a stream at a chosen quality with subtitles: through mpv or another
   desktop player on Linux, through Media3 on Android.
+- Keep playing in a picture-in-picture window on an Android phone when you
+  leave the app.
 - Resume where playback stopped. Resume positions are stored locally per
   account; everything else is read back from the account.
 - Follow the system language. Russian and Ukrainian translations are included.

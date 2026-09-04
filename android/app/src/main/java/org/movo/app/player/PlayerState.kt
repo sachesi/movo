@@ -35,6 +35,8 @@ class PlayerContentState(
     var hiddenSeekDirection by mutableStateOf<Key?>(null)
     var durationMs by mutableLongStateOf(0L)
     var bufferedMs by mutableLongStateOf(0L)
+    /** The decoded frame's size, which shapes the picture-in-picture window. */
+    var videoFrame by mutableStateOf(IntSize.Zero)
 }
 
 /**

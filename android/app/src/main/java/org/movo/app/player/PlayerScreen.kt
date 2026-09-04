@@ -22,6 +22,18 @@ import org.movo.app.settings.AppSettings
 import org.movo.app.settings.VideoFit
 import org.movo.app.R
 import android.os.SystemClock
+import android.os.Build
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.Rect
+import androidx.activity.ComponentActivity
+import androidx.core.app.PictureInPictureModeChangedInfo
+import androidx.core.content.ContextCompat
+import androidx.core.util.Consumer
+import androidx.media3.common.VideoSize
+import org.movo.app.MainActivity
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -101,12 +113,15 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -287,6 +302,10 @@ fun PlayerScreen(
                         if (shouldShowControlsForPause(false, ready, latestIsTv, latestPauseShowsControls)) {
                             ui.controlsVisible = true
                         }
+                    }
+
+                    override fun onVideoSizeChanged(videoSize: VideoSize) {
+                        content.videoFrame = IntSize(videoSize.width, videoSize.height)
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
@@ -510,6 +529,68 @@ fun PlayerScreen(
         }
     }
 
+    fun previousEpisode() {
+        player.pause()
+        actions.saveProgress(player.currentPosition)
+        actions.previousEpisode()
+    }
+
+    fun nextEpisode() {
+        player.pause()
+        actions.saveProgress(player.currentPosition)
+        actions.nextEpisode(false)
+    }
+
+    // Picture-in-picture, phone layout only: the television layout has nothing to shrink to.
+    val pip = remember(activity, isTv) { activity?.takeUnless { isTv }?.let(::pictureInPicture) }
+    var inPip by remember(pip) { mutableStateOf(pip?.active == true) }
+    val videoBounds = remember { mutableStateOf<Rect?>(null) }
+    val autoEnter = wantsPictureInPicture(content.playWhenReady, content.completed, content.playbackError != null)
+    val latestAutoEnter by rememberUpdatedState(autoEnter)
+    val playPauseTitle = stringResource(if (ui.isPlaying) R.string.pause else R.string.play)
+    val previousTitle = stringResource(R.string.previous_episode)
+    val nextTitle = stringResource(R.string.next_episode)
+    if (pip != null) {
+        LaunchedEffect(pip, autoEnter, content.videoFrame, videoBounds.value, displayTitle, ui.isPlaying, hasPreviousEpisode, hasNextEpisode) {
+            val controls = buildList {
+                if (hasPreviousEpisode) add(PipControl(PIP_PREVIOUS, R.drawable.pip_previous, previousTitle))
+                add(PipControl(PIP_PLAY_PAUSE, if (ui.isPlaying) R.drawable.pip_pause else R.drawable.pip_play, playPauseTitle))
+                if (hasNextEpisode) add(PipControl(PIP_NEXT, R.drawable.pip_next, nextTitle))
+            }
+            val frame = content.videoFrame
+            pip.update(autoEnter, pipAspectRatio(frame.width, frame.height), videoBounds.value, displayTitle, controls)
+        }
+        DisposableEffect(pip, lifecycleOwner) {
+            val host = activity as? ComponentActivity
+            val modeListener = Consumer<PictureInPictureModeChangedInfo> { info ->
+                inPip = info.isInPictureInPictureMode
+                // Left the mode with the activity already stopped: the window was dismissed, not
+                // expanded, so the player goes with it instead of waiting paused behind the launcher.
+                if (!inPip && lifecycleOwner.lifecycle.currentState == Lifecycle.State.CREATED) exitPlayer()
+            }
+            host?.addOnPictureInPictureModeChangedListener(modeListener)
+            val main = activity as? MainActivity
+            val onLeave = { if (latestAutoEnter) pip.enter() }
+            if (Build.VERSION.SDK_INT < 31) main?.onUserLeave = onLeave
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    when (intent.getIntExtra(PIP_CONTROL_EXTRA, 0)) {
+                        PIP_PLAY_PAUSE -> togglePlayback()
+                        PIP_PREVIOUS -> previousEpisode()
+                        PIP_NEXT -> nextEpisode()
+                    }
+                }
+            }
+            ContextCompat.registerReceiver(context, receiver, IntentFilter(PIP_CONTROL_ACTION), ContextCompat.RECEIVER_NOT_EXPORTED)
+            onDispose {
+                context.unregisterReceiver(receiver)
+                host?.removeOnPictureInPictureModeChangedListener(modeListener)
+                if (main != null && main.onUserLeave === onLeave) main.onUserLeave = null
+                pip.disarm()
+            }
+        }
+    }
+
     // The video fills the screen, but nothing the user reads or aims at may: a television crops
     // the outer 5% and a landscape phone puts its camera cutout in the same corner as the back
     // button. Both overlay layers inset by this; the scrims behind them still run edge to edge.
@@ -522,7 +603,8 @@ fun PlayerScreen(
     val fold = LocalFold.current?.takeIf { it.orientation == FoldingFeature.Orientation.HORIZONTAL }
     val videoHeight = fold?.topHeight()
 
-    val overlay = ui.controlsVisible
+    // The floating window shows the video alone; its own menu carries the buttons.
+    val overlay = ui.controlsVisible && !inPip
     Box(
         Modifier
             .fillMaxSize()
@@ -629,6 +711,11 @@ fun PlayerScreen(
                     },
                 )
                 .onSizeChanged { ui.videoSize = it }
+                .onGloballyPositioned { coordinates ->
+                    val bounds = coordinates.boundsInWindow()
+                    val rect = Rect(bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt())
+                    if (rect != videoBounds.value) videoBounds.value = rect
+                }
                 .pointerInput(ui.videoSize) {
                     detectTransformGestures(panZoomLock = true) { centroid, pan, zoom, _ ->
                         val transformed = updateVideoTransform(
@@ -824,16 +911,8 @@ fun PlayerScreen(
                     },
                     isTv = isTv,
                     playFocusRequester = controlsFocusRequester,
-                    previousEpisode = {
-                        player.pause()
-                        actions.saveProgress(player.currentPosition)
-                        actions.previousEpisode()
-                    },
-                    nextEpisode = {
-                        player.pause()
-                        actions.saveProgress(player.currentPosition)
-                        actions.nextEpisode(false)
-                    },
+                    previousEpisode = ::previousEpisode,
+                    nextEpisode = ::nextEpisode,
                     hasPreviousEpisode = hasPreviousEpisode,
                     hasNextEpisode = hasNextEpisode,
                     seasons = seasons,
@@ -847,6 +926,7 @@ fun PlayerScreen(
                     openRating = { actions.openRating(player.currentPosition) },
                     onMenuOpenChange = { ui.menuOpen = it },
                     onHideControls = { ui.controlsVisible = false },
+                    enterPictureInPicture = pip?.let { { it.enter() } },
                 )
             }
         }
@@ -1043,6 +1123,7 @@ private fun ControlBar(
     openRating: () -> Unit,
     onMenuOpenChange: (Boolean) -> Unit,
     onHideControls: () -> Unit,
+    enterPictureInPicture: (() -> Unit)?,
 ) {
     // Two-tier hierarchy: transport + episode controls on the left (primary), settings
     // (quality/subtitles/speed/zoom) tucked to the right at reduced prominence.
@@ -1099,6 +1180,14 @@ private fun ControlBar(
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 6.dp else 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (enterPictureInPicture != null) {
+                PlayerIconButton(
+                    onClick = enterPictureInPicture,
+                    icon = Icons.Default.PictureInPictureAlt,
+                    contentDescription = stringResource(R.string.picture_in_picture),
+                    isTv = isTv,
+                )
+            }
             PlayerIconButton(
                 onClick = onToggleZoom,
                 icon = if (zoomed) Icons.Default.FitScreen else Icons.Default.ZoomIn,

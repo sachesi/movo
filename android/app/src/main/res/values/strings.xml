@@ -152,6 +152,7 @@
     <string name="previous_episode">Previous episode</string>
     <string name="next_episode">Next episode</string>
     <string name="seek_preview">Seek preview</string>
+    <string name="picture_in_picture">Picture in picture</string>
 
     <!-- History actions -->
     <string name="mark_watched">Mark watched</string>

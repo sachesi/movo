@@ -21,6 +21,7 @@ import org.movo.app.player.episodeMenuAnchorIndex
 import org.movo.app.player.formatSeekDelta
 import org.movo.app.player.nextLowerStream
 import org.movo.app.player.nextSeekTarget
+import org.movo.app.player.pipAspectRatio
 import org.movo.app.player.playbackStartPosition
 import org.movo.app.player.remainingPlaybackTimeMs
 import org.movo.app.player.seekTarget
@@ -31,6 +32,7 @@ import org.movo.app.player.storyboardSpriteSizes
 import org.movo.app.player.timelineSeekSeconds
 import org.movo.app.player.tvControlsVisibleAfterKey
 import org.movo.app.player.updateVideoTransform
+import org.movo.app.player.wantsPictureInPicture
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
@@ -189,6 +191,17 @@ class ModelsTest {
         assertEquals(false, resolveDarkTheme(ThemePref.System, false))
         assertEquals(false, resolveDarkTheme(ThemePref.Light, true))
         assertEquals(true, resolveDarkTheme(ThemePref.Dark, false))
+    }
+
+    @Test fun pictureInPictureFollowsLivePlaybackAndKeepsTheVideoShape() {
+        assertEquals(true, wantsPictureInPicture(true, false, false))
+        assertEquals(false, wantsPictureInPicture(false, false, false))
+        assertEquals(false, wantsPictureInPicture(true, true, false))
+        assertEquals(false, wantsPictureInPicture(true, false, true))
+        assertEquals(1920 to 1080, pipAspectRatio(1920, 1080))
+        assertEquals(16 to 9, pipAspectRatio(0, 0))
+        assertEquals(239 to 100, pipAspectRatio(4000, 1000))
+        assertEquals(100 to 239, pipAspectRatio(1000, 4000))
     }
 
     @Test fun mediaGridLoadsOnceNearTheEnd() {

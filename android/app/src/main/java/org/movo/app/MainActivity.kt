@@ -106,6 +106,12 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 class MainActivity : ComponentActivity() {
     private val deepLinks = MutableStateFlow<String?>(null)
 
+    /**
+     * Runs when the user heads for the launcher or recents. Before Android 12 the player enters
+     * picture-in-picture from here; later releases enter on their own from the parameters it sets.
+     */
+    var onUserLeave: (() -> Unit)? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         takeDeepLink(intent)
@@ -116,6 +122,11 @@ class MainActivity : ComponentActivity() {
         // fill rate in the app.
         window.setBackgroundDrawable(null)
         setContent { MovoApp(deepLinks = deepLinks, consumeDeepLink = { deepLinks.value = null }) }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        onUserLeave?.invoke()
     }
 
     override fun onNewIntent(intent: Intent) {

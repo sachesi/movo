@@ -141,6 +141,7 @@
     <string name="previous_episode">Предыдущая серия</string>
     <string name="next_episode">Следующая серия</string>
     <string name="seek_preview">Предпросмотр перемотки</string>
+    <string name="picture_in_picture">Картинка в картинке</string>
     <string name="mark_watched">Отметить просмотренным</string>
     <string name="mark_unwatched">Отметить непросмотренным</string>
     <string name="remove_history">Удалить из истории</string>
