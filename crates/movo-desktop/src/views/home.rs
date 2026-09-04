@@ -20,11 +20,15 @@ pub struct HomeView {
 pub enum HomeMsg {
     Reload,
     Open(MediaItem),
+    /// A section's "View All" was activated, naming its provider path.
+    OpenSection(String),
 }
 
 #[derive(Debug)]
 pub enum HomeOutput {
     Open(MediaItem),
+    /// Title and provider path of the section to open in full.
+    OpenPath(String, String),
     AccountInvalidated,
 }
 
@@ -93,6 +97,9 @@ impl Component for HomeView {
             HomeMsg::Open(item) => {
                 let _ = sender.output(HomeOutput::Open(item));
             }
+            HomeMsg::OpenSection(id) => {
+                let _ = sender.output(HomeOutput::OpenPath(section_title(&id).to_string(), id));
+            }
         }
     }
 
@@ -128,10 +135,30 @@ impl HomeView {
             let title = gtk::Label::builder()
                 .label(section_title(&section.id))
                 .halign(gtk::Align::Start)
+                .hexpand(true)
+                .build();
+            title.add_css_class("title-2");
+
+            let view_all = gtk::Button::builder()
+                .label(tr("View All"))
+                .valign(gtk::Align::Center)
+                .build();
+            view_all.add_css_class("flat");
+            {
+                let sender = sender.clone();
+                let id = section.id.clone();
+                view_all.connect_clicked(move |_| {
+                    sender.input(HomeMsg::OpenSection(id.clone()));
+                });
+            }
+
+            let header = gtk::Box::builder()
+                .orientation(gtk::Orientation::Horizontal)
                 .margin_start(18)
                 .margin_end(18)
                 .build();
-            title.add_css_class("title-2");
+            header.append(&title);
+            header.append(&view_all);
 
             let open_sender = sender.clone();
             let mut row = poster_row(move |item| open_sender.input(HomeMsg::Open(item)));
@@ -144,7 +171,7 @@ impl HomeView {
                 .child(&row.view)
                 .build();
 
-            self.sections.append(&title);
+            self.sections.append(&header);
             self.sections.append(&scrolled);
             self.rows.push(row);
         }

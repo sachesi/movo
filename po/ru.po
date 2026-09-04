@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 10:41+0300\n"
+"POT-Creation-Date: 2026-09-04 10:49+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Russian\n"
@@ -17,62 +17,62 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr "Запрос неожиданно прервался"
 
-#: crates/movo-desktop/src/app.rs:111
+#: crates/movo-desktop/src/app.rs:116
 #: crates/movo-desktop/src/dialogs/settings.rs:38
 msgid "Settings"
 msgstr "Настройки"
 
-#: crates/movo-desktop/src/app.rs:117
+#: crates/movo-desktop/src/app.rs:122
 msgid "About Movo"
 msgstr "О приложении Movo"
 
-#: crates/movo-desktop/src/app.rs:225
+#: crates/movo-desktop/src/app.rs:231
 #: crates/movo-desktop/src/dialogs/settings.rs:103
 msgid "Home"
 msgstr "Главная"
 
-#: crates/movo-desktop/src/app.rs:232
+#: crates/movo-desktop/src/app.rs:238
 #: crates/movo-desktop/src/dialogs/settings.rs:104
-#: crates/movo-desktop/src/views/home.rs:170
+#: crates/movo-desktop/src/views/home.rs:197
 msgid "Catalog"
 msgstr "Каталог"
 
-#: crates/movo-desktop/src/app.rs:239
+#: crates/movo-desktop/src/app.rs:245
 #: crates/movo-desktop/src/dialogs/settings.rs:105
 #: crates/movo-desktop/src/views/search.rs:454
 msgid "Search"
 msgstr "Поиск"
 
-#: crates/movo-desktop/src/app.rs:246
+#: crates/movo-desktop/src/app.rs:252
 #: crates/movo-desktop/src/dialogs/settings.rs:106
 #: crates/movo-desktop/src/views/details.rs:469
 msgid "Collections"
 msgstr "Коллекции"
 
-#: crates/movo-desktop/src/app.rs:253
+#: crates/movo-desktop/src/app.rs:259
 #: crates/movo-desktop/src/dialogs/settings.rs:107
 msgid "Notifications"
 msgstr "Уведомления"
 
-#: crates/movo-desktop/src/app.rs:260
+#: crates/movo-desktop/src/app.rs:266
 #: crates/movo-desktop/src/dialogs/settings.rs:108
 msgid "Favorites"
 msgstr "Избранное"
 
-#: crates/movo-desktop/src/app.rs:267
+#: crates/movo-desktop/src/app.rs:273
 #: crates/movo-desktop/src/dialogs/settings.rs:109
 msgid "History"
 msgstr "История"
 
-#: crates/movo-desktop/src/app.rs:297
+#: crates/movo-desktop/src/app.rs:303
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Восстановление сеанса неожиданно прервалось"
 
-#: crates/movo-desktop/src/app.rs:338
+#: crates/movo-desktop/src/app.rs:348
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершён. Войдите снова, чтобы продолжить."
 
-#: crates/movo-desktop/src/app.rs:360
+#: crates/movo-desktop/src/app.rs:372
 msgid "Signed in as {}"
 msgstr "Вы вошли как {}"
 
@@ -499,17 +499,17 @@ msgid "Anime"
 msgstr "Аниме"
 
 #: crates/movo-desktop/src/views/catalog.rs:99
-#: crates/movo-desktop/src/views/home.rs:168
+#: crates/movo-desktop/src/views/home.rs:195
 msgid "Popular"
 msgstr "Популярные"
 
 #: crates/movo-desktop/src/views/catalog.rs:100
-#: crates/movo-desktop/src/views/home.rs:167
+#: crates/movo-desktop/src/views/home.rs:194
 msgid "Watching Now"
 msgstr "Сейчас смотрят"
 
 #: crates/movo-desktop/src/views/catalog.rs:101
-#: crates/movo-desktop/src/views/home.rs:166
+#: crates/movo-desktop/src/views/home.rs:193
 msgid "New Releases"
 msgstr "Новинки"
 
@@ -683,23 +683,27 @@ msgstr "История пуста"
 msgid "Remove from History"
 msgstr "Удалить из истории"
 
-#: crates/movo-desktop/src/views/home.rs:65
+#: crates/movo-desktop/src/views/home.rs:69
 msgid "Home Did Not Load"
 msgstr "Главная не загрузилась"
 
-#: crates/movo-desktop/src/views/home.rs:87
+#: crates/movo-desktop/src/views/home.rs:91
 msgid "Loading Home"
 msgstr "Загрузка главной"
 
-#: crates/movo-desktop/src/views/home.rs:155
+#: crates/movo-desktop/src/views/home.rs:143
+msgid "View All"
+msgstr "Смотреть все"
+
+#: crates/movo-desktop/src/views/home.rs:182
 msgid "Home Is Empty"
 msgstr "На главной пока пусто"
 
-#: crates/movo-desktop/src/views/home.rs:165
+#: crates/movo-desktop/src/views/home.rs:192
 msgid "Hot Now"
 msgstr "Сейчас в тренде"
 
-#: crates/movo-desktop/src/views/home.rs:169
+#: crates/movo-desktop/src/views/home.rs:196
 msgid "Coming Soon"
 msgstr "Скоро"
 

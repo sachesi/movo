@@ -168,6 +168,7 @@ impl Component for App {
                 .launch(state.clone())
                 .forward(sender.input_sender(), |output| match output {
                     HomeOutput::Open(item) => AppMsg::Open(item),
+                    HomeOutput::OpenPath(title, path) => AppMsg::OpenPath(title, path),
                     HomeOutput::AccountInvalidated => AppMsg::AccountInvalidated,
                 });
         let catalog =

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 10:41+0300\n"
+"POT-Creation-Date: 2026-09-04 10:49+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -17,62 +17,62 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr "Запит несподівано перервався"
 
-#: crates/movo-desktop/src/app.rs:111
+#: crates/movo-desktop/src/app.rs:116
 #: crates/movo-desktop/src/dialogs/settings.rs:38
 msgid "Settings"
 msgstr "Налаштування"
 
-#: crates/movo-desktop/src/app.rs:117
+#: crates/movo-desktop/src/app.rs:122
 msgid "About Movo"
 msgstr "Про застосунок Movo"
 
-#: crates/movo-desktop/src/app.rs:225
+#: crates/movo-desktop/src/app.rs:231
 #: crates/movo-desktop/src/dialogs/settings.rs:103
 msgid "Home"
 msgstr "Головна"
 
-#: crates/movo-desktop/src/app.rs:232
+#: crates/movo-desktop/src/app.rs:238
 #: crates/movo-desktop/src/dialogs/settings.rs:104
-#: crates/movo-desktop/src/views/home.rs:170
+#: crates/movo-desktop/src/views/home.rs:197
 msgid "Catalog"
 msgstr "Каталог"
 
-#: crates/movo-desktop/src/app.rs:239
+#: crates/movo-desktop/src/app.rs:245
 #: crates/movo-desktop/src/dialogs/settings.rs:105
 #: crates/movo-desktop/src/views/search.rs:454
 msgid "Search"
 msgstr "Пошук"
 
-#: crates/movo-desktop/src/app.rs:246
+#: crates/movo-desktop/src/app.rs:252
 #: crates/movo-desktop/src/dialogs/settings.rs:106
 #: crates/movo-desktop/src/views/details.rs:469
 msgid "Collections"
 msgstr "Колекції"
 
-#: crates/movo-desktop/src/app.rs:253
+#: crates/movo-desktop/src/app.rs:259
 #: crates/movo-desktop/src/dialogs/settings.rs:107
 msgid "Notifications"
 msgstr "Сповіщення"
 
-#: crates/movo-desktop/src/app.rs:260
+#: crates/movo-desktop/src/app.rs:266
 #: crates/movo-desktop/src/dialogs/settings.rs:108
 msgid "Favorites"
 msgstr "Обране"
 
-#: crates/movo-desktop/src/app.rs:267
+#: crates/movo-desktop/src/app.rs:273
 #: crates/movo-desktop/src/dialogs/settings.rs:109
 msgid "History"
 msgstr "Історія"
 
-#: crates/movo-desktop/src/app.rs:297
+#: crates/movo-desktop/src/app.rs:303
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Відновлення сеансу несподівано перервалося"
 
-#: crates/movo-desktop/src/app.rs:338
+#: crates/movo-desktop/src/app.rs:348
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
 
-#: crates/movo-desktop/src/app.rs:360
+#: crates/movo-desktop/src/app.rs:372
 msgid "Signed in as {}"
 msgstr "Ви увійшли як {}"
 
@@ -498,17 +498,17 @@ msgid "Anime"
 msgstr "Аніме"
 
 #: crates/movo-desktop/src/views/catalog.rs:99
-#: crates/movo-desktop/src/views/home.rs:168
+#: crates/movo-desktop/src/views/home.rs:195
 msgid "Popular"
 msgstr "Популярні"
 
 #: crates/movo-desktop/src/views/catalog.rs:100
-#: crates/movo-desktop/src/views/home.rs:167
+#: crates/movo-desktop/src/views/home.rs:194
 msgid "Watching Now"
 msgstr "Зараз дивляться"
 
 #: crates/movo-desktop/src/views/catalog.rs:101
-#: crates/movo-desktop/src/views/home.rs:166
+#: crates/movo-desktop/src/views/home.rs:193
 msgid "New Releases"
 msgstr "Новинки"
 
@@ -682,23 +682,27 @@ msgstr "Історія порожня"
 msgid "Remove from History"
 msgstr "Видалити з історії"
 
-#: crates/movo-desktop/src/views/home.rs:65
+#: crates/movo-desktop/src/views/home.rs:69
 msgid "Home Did Not Load"
 msgstr "Головна не завантажилася"
 
-#: crates/movo-desktop/src/views/home.rs:87
+#: crates/movo-desktop/src/views/home.rs:91
 msgid "Loading Home"
 msgstr "Завантаження головної"
 
-#: crates/movo-desktop/src/views/home.rs:155
+#: crates/movo-desktop/src/views/home.rs:143
+msgid "View All"
+msgstr "Дивитися всі"
+
+#: crates/movo-desktop/src/views/home.rs:182
 msgid "Home Is Empty"
 msgstr "На головній поки порожньо"
 
-#: crates/movo-desktop/src/views/home.rs:165
+#: crates/movo-desktop/src/views/home.rs:192
 msgid "Hot Now"
 msgstr "Зараз у тренді"
 
-#: crates/movo-desktop/src/views/home.rs:169
+#: crates/movo-desktop/src/views/home.rs:196
 msgid "Coming Soon"
 msgstr "Незабаром"
 
