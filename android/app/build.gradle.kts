@@ -25,8 +25,8 @@ android {
         applicationId = "org.movo.app"
         minSdk = 23
         targetSdk = 36
-        versionCode = (findProperty("movo.versionCode") as String?)?.toInt() ?: 2
-        versionName = findProperty("movo.versionName") as String? ?: "0.2.0"
+        versionCode = (findProperty("movo.versionCode") as String?)?.toInt() ?: 3
+        versionName = findProperty("movo.versionName") as String? ?: "0.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {

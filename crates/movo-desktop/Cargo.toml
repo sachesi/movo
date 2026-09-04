@@ -1,6 +1,6 @@
 [package]
 name = "movo"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["sachesi <xsachesi@pm.me>"]
 description = "Native GNOME desktop application for movies and series"
