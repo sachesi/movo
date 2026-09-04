@@ -58,6 +58,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
@@ -95,6 +97,17 @@ internal fun FoldingFeature.seamWidth(): Dp = with(LocalDensity.current) { bound
 
 /** Marks a section title, so a screen reader can jump between sections instead of reading through. */
 internal fun Modifier.sectionHeading() = semantics { heading() }
+
+/**
+ * The neutral tile a remote image shows until it loads, and instead of itself when it cannot.
+ * Handed to the image rather than painted behind it: a background keeps being filled under every
+ * loaded poster for as long as it is on screen, and posters cover most of a television at once.
+ */
+@Composable
+internal fun placeholderTile(): Painter {
+    val tile = MaterialTheme.colorScheme.surfaceVariant
+    return remember(tile) { ColorPainter(tile) }
+}
 
 /** Reads [Settings.Global.ANIMATOR_DURATION_SCALE], which is 0 when animations are off. */
 internal fun reducedMotionEnabled(context: Context) =

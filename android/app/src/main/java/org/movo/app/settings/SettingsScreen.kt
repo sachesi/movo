@@ -10,14 +10,9 @@ import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.tvFocusMemory
-import org.movo.app.settings.AppSettings
-import org.movo.app.settings.LayoutMode
-import org.movo.app.settings.QualityMode
-import org.movo.app.settings.ThemePref
-import org.movo.app.settings.VideoFit
-import org.movo.app.settings.settings
 import org.movo.app.R
 import org.movo.app.core.Tab
+import org.movo.app.home.label
 import android.os.Build
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.selection.selectableGroup
@@ -105,7 +100,7 @@ fun SettingsContent(
                     title = stringResource(R.string.initial_screen),
                     values = Tab.entries,
                     selected = settings.initialTab,
-                    label = { stringResource(it.settingsLabel) },
+                    label = { stringResource(it.label) },
                     choose = { actions.save(Keys.INITIAL_TAB, it.name) },
                     isTv = isTv,
                 )
@@ -339,14 +334,4 @@ private val VideoFit.label: Int get() = when (this) {
     VideoFit.Contain -> R.string.video_contain
     VideoFit.Cover -> R.string.video_cover
     VideoFit.Fill -> R.string.video_fill
-}
-
-private val Tab.settingsLabel: Int get() = when (this) {
-    Tab.Catalog -> R.string.nav_catalog
-    Tab.Search -> R.string.nav_search
-    Tab.Collections -> R.string.nav_collections
-    Tab.Favorites -> R.string.nav_favorites
-    Tab.History -> R.string.nav_history
-    Tab.Notifications -> R.string.nav_notifications
-    Tab.Account -> R.string.nav_account
 }

@@ -42,6 +42,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
@@ -526,7 +528,9 @@ private fun HomeNavigationRail(
     model: MovoViewModel,
     openSettings: () -> Unit,
 ) {
-    NavigationRail {
+    // Scrolls: seven tabs and Settings are taller than a landscape phone, which uses the rail
+    // because its width is not compact, and a fixed column clipped the lower items off.
+    NavigationRail(Modifier.fillMaxHeight().verticalScroll(rememberScrollState())) {
         Spacer(Modifier.height(12.dp))
         Tab.entries.forEach { tab ->
             NavigationRailItem(
@@ -615,7 +619,7 @@ private val Tab.icon get() = when (this) {
     Tab.Account -> Icons.Default.AccountCircle
 }
 
-private val Tab.label: Int get() = when (this) {
+internal val Tab.label: Int get() = when (this) {
     Tab.Catalog -> R.string.nav_catalog
     Tab.Search -> R.string.nav_search
     Tab.Collections -> R.string.nav_collections

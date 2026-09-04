@@ -17,7 +17,6 @@ import org.movo.app.ui.ChoiceRow
 import org.movo.app.ui.searchEmptyHint
 import org.movo.app.ui.searchEmptyTitle
 import org.movo.app.ui.tvFocusMemory
-import org.movo.app.ui.tvFocusScale
 import org.movo.app.R
 import org.movo.app.core.AppState
 import org.movo.app.core.MovoViewModel
@@ -62,6 +61,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -85,11 +85,15 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
     }
     val voiceAvailable = remember(context) { voiceIntent.resolveActivity(context.packageManager) != null }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Hides the keyboard on submit: left up, it covered the results it had just produced.
+    fun search(value: String) {
+        query = value
+        keyboard?.hide()
+        model.search(value)
+    }
     val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let {
-            query = it
-            model.search(it)
-        }
+        result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let(::search)
     }
     LaunchedEffect(state.query) { query = state.query }
     LaunchedEffect(Unit) { model.loadSearchFilters() }
@@ -117,8 +121,8 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
             updateQuery = { value -> query = value; model.suggest(value) },
             voiceAvailable = voiceAvailable,
             launchVoice = { voice.launch(voiceIntent) },
-            search = { model.search(query) },
-            chooseHistory = { value -> query = value; model.search(value) },
+            search = { search(query) },
+            chooseHistory = ::search,
             clearHistory = model::clearSearchHistory,
             openFilters = { showFilters = true },
             open = { url -> model.openDetails(url, url) },
@@ -135,53 +139,53 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
             value = query,
             onValueChange = { query = it; model.suggest(it) },
             modifier = Modifier
-                .widthIn(max = if (isTv) 840.dp else 720.dp)
+                .widthIn(max = 720.dp)
                 .fillMaxWidth()
                 .align(Alignment.CenterHorizontally)
                 .padding(horizontal = 12.dp),
             label = { Text(stringResource(R.string.search_hint)) },
             trailingIcon = {
                 Row {
-                    IconButton({ voice.launch(voiceIntent) }, Modifier.tvFocusScale(isTv), enabled = voiceAvailable) {
+                    IconButton({ voice.launch(voiceIntent) }, enabled = voiceAvailable) {
                         Icon(Icons.Default.Mic, stringResource(R.string.voice_search))
                     }
-                    IconButton({ model.search(query) }, Modifier.tvFocusScale(isTv), enabled = query.isNotBlank()) {
+                    IconButton({ search(query) }, enabled = query.isNotBlank()) {
                         Icon(Icons.Default.Search, stringResource(R.string.search))
                     }
                 }
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) model.search(query) }),
+            keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) search(query) }),
         )
         if (state.suggestions.isNotEmpty()) {
             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.suggestions, key = { it }) { suggestion ->
-                    SuggestionChip(onClick = { query = suggestion; model.search(suggestion) }, label = { Text(suggestion) }, modifier = Modifier.tvFocusScale(isTv))
+                    SuggestionChip(onClick = { search(suggestion) }, label = { Text(suggestion) })
                 }
             }
         }
         if (query.isBlank() && state.searchHistory.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.recent_searches), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).sectionHeading())
-                TextButton(model::clearSearchHistory, Modifier.tvFocusScale(isTv)) { Text(stringResource(R.string.clear)) }
+                TextButton(model::clearSearchHistory) { Text(stringResource(R.string.clear)) }
             }
             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.searchHistory, key = { it }) { value ->
-                    AssistChip(onClick = { query = value; model.search(value) }, label = { Text(value) }, modifier = Modifier.tvFocusScale(isTv), leadingIcon = { Icon(Icons.Default.History, null) })
+                    AssistChip(onClick = { search(value) }, label = { Text(value) }, leadingIcon = { Icon(Icons.Default.History, null) })
                 }
             }
         }
         if (state.searchFilters.isNotEmpty()) {
             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { FilledTonalButton({ showFilters = true }, Modifier.tvFocusScale(isTv)) { Icon(Icons.Default.Tune, null); Text(stringResource(R.string.advanced_search)) } }
+                item { FilledTonalButton({ showFilters = true }) { Icon(Icons.Default.Tune, null); Text(stringResource(R.string.advanced_search)) } }
             }
         }
         Spacer(Modifier.height(8.dp))
         key(state.query) {
             MediaGrid(
                 state.items,
-                isTv,
+                false,
                 state.loading,
                 state.focusedUrl,
                 { url -> model.openDetails(url, url) },
@@ -190,7 +194,7 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
             ) { model.search(query, true) }
         }
     }
-    if (showFilters) SearchFiltersDialog(state.searchFilters, isTv, { showFilters = false }) { title, path ->
+    if (showFilters) SearchFiltersDialog(state.searchFilters, false, { showFilters = false }) { title, path ->
         showFilters = false
         model.openPath(title, path)
     }

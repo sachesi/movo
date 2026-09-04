@@ -15,6 +15,7 @@ import org.movo.app.ui.Empty
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MediaGridSkeleton
 import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.placeholderTile
 import org.movo.app.ui.TvHomeSkeleton
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.R
@@ -56,7 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -66,7 +67,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -348,12 +348,21 @@ internal fun PathHeader(title: String, isTv: Boolean, back: () -> Unit) {
 
 @Composable
 private fun CollectionCardContent(collection: CollectionItem) {
-                AsyncImage(collection.imageUrl, null, Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentScale = ContentScale.Crop)
-                ListItem(
-                    headlineContent = { Text(collection.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    supportingContent = { Text(pluralStringResource(R.plurals.collection_items, collection.count, collection.count)) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
+    val tile = placeholderTile()
+    AsyncImage(
+        collection.imageUrl,
+        null,
+        Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        placeholder = tile,
+        error = tile,
+        fallback = tile,
+        contentScale = ContentScale.Crop,
+    )
+    ListItem(
+        headlineContent = { Text(collection.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(pluralStringResource(R.plurals.collection_items, collection.count, collection.count)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 @Composable
@@ -375,7 +384,7 @@ internal fun MediaGrid(
     }
     val initialIndex = remember(items, focusedUrl) { items.indexOfFirst { it.url == focusedUrl }.coerceAtLeast(0) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialIndex)
-    var requestedItemCount by remember(items.first().url) { mutableStateOf(-1) }
+    var requestedItemCount by remember(items.first().url) { mutableIntStateOf(-1) }
     // `loading` is read through rememberUpdatedState so the collector keeps the live value
     // without being torn down and re-armed every time it flips (which previously missed
     // trigger frames and stalled autoload during fast scrolls).
@@ -443,39 +452,35 @@ internal fun MediaCard(
 
 @Composable
 private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCornerShape) {
-        // The placeholder tile is handed to the image rather than painted behind it: as a
-        // background it keeps being filled under every loaded poster for as long as the card is on
-        // screen, and posters cover most of a television's screen at once.
-        val tile = MaterialTheme.colorScheme.surfaceVariant
-        val placeholder = remember(tile) { ColorPainter(tile) }
-        AsyncImage(
-            model = item.posterUrl,
-            contentDescription = null,
-            placeholder = placeholder,
-            error = placeholder,
-            fallback = placeholder,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(2f / 3f)
-                .clip(shape),
-            contentScale = ContentScale.Crop,
+    val tile = placeholderTile()
+    AsyncImage(
+        model = item.posterUrl,
+        contentDescription = null,
+        placeholder = tile,
+        error = tile,
+        fallback = tile,
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(2f / 3f)
+            .clip(shape),
+        contentScale = ContentScale.Crop,
+    )
+    Column(Modifier.padding(if (isTv) 12.dp else 10.dp)) {
+        Text(
+            item.title,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = if (isTv) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
         )
-        Column(Modifier.padding(if (isTv) 12.dp else 10.dp)) {
+        val metadata = listOfNotNull(item.year?.toString(), item.category).joinToString(" • ")
+        if (metadata.isNotEmpty()) {
             Text(
-                item.title,
-                maxLines = 2,
+                metadata,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = if (isTv) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            val metadata = listOfNotNull(item.year?.toString(), item.category).joinToString(" • ")
-            if (metadata.isNotEmpty()) {
-                Text(
-                    metadata,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
+    }
 }

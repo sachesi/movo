@@ -8,6 +8,7 @@
     <string name="hide_password">Сховати пароль</string>
     <string name="sign_in_account">Увійдіть до офіційного облікового запису HDRezka</string>
     <string name="password_disclaimer">Пароль використовується лише для входу й ніколи не зберігається.</string>
+    <string name="enter_credentials">Введіть логін і пароль</string>
     <string name="nav_catalog">Головна</string>
     <string name="nav_search">Пошук</string>
     <string name="nav_collections">Добірки</string>
@@ -59,6 +60,7 @@
     <string name="sign_out_message">Для доступу до облікового запису потрібно буде ввійти знову.</string>
     <string name="menu">Меню</string>
     <string name="history_empty">Історія порожня</string>
+    <string name="operation_failed">Операцію не виконано</string>
     <string name="catalog_empty">У цьому розділі нічого немає</string>
     <string name="catalog_empty_hint">Оберіть інший розділ або порядок сортування</string>
     <string name="home_failed">Головна не завантажилася</string>
@@ -131,6 +133,7 @@
     <string name="pause">Пауза</string>
     <string name="back">Назад</string>
     <string name="no_streams">Для цього відео немає доступних потоків</string>
+    <string name="quality_unavailable">Вибрана якість недоступна</string>
     <string name="playback_failed">Помилка відтворення</string>
     <string name="mirror_unavailable">Вибране джерело недоступне</string>
     <string name="replay">Дивитися знову</string>

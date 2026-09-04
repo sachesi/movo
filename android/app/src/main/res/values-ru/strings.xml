@@ -8,6 +8,7 @@
     <string name="hide_password">Скрыть пароль</string>
     <string name="sign_in_account">Войдите в официальный аккаунт HDRezka</string>
     <string name="password_disclaimer">Пароль используется только для входа и никогда не сохраняется.</string>
+    <string name="enter_credentials">Введите логин и пароль</string>
     <string name="nav_catalog">Главная</string>
     <string name="nav_search">Поиск</string>
     <string name="nav_collections">Подборки</string>
@@ -59,6 +60,7 @@
     <string name="sign_out_message">Для доступа к аккаунту потребуется войти снова.</string>
     <string name="menu">Меню</string>
     <string name="history_empty">История пуста</string>
+    <string name="operation_failed">Операция не выполнена</string>
     <string name="catalog_empty">В этом разделе нет ничего</string>
     <string name="catalog_empty_hint">Выберите другой раздел или порядок сортировки</string>
     <string name="home_failed">Главная не загрузилась</string>
@@ -131,6 +133,7 @@
     <string name="pause">Пауза</string>
     <string name="back">Назад</string>
     <string name="no_streams">Для этого видео нет доступных потоков</string>
+    <string name="quality_unavailable">Выбранное качество недоступно</string>
     <string name="playback_failed">Ошибка воспроизведения</string>
     <string name="mirror_unavailable">Выбранный источник недоступен</string>
     <string name="replay">Смотреть снова</string>

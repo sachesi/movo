@@ -24,8 +24,12 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Movo">
+        <!-- Handled in place: Compose relayouts from the new configuration, and without this the
+             player, which forces landscape, recreated the whole activity on the way in and the
+             way out, building and releasing its ExoPlayer and MediaSession twice each time. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTop">
             <intent-filter>

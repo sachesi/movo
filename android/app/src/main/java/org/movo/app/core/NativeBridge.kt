@@ -165,16 +165,18 @@ class SessionStore(
      * decrypted. A ciphertext the keystore key no longer opens is gone for good, so it is dropped
      * rather than thrown over: the user signs in again instead of meeting a crash on every start.
      */
-    suspend fun secret(): String? = read()[SESSION]?.let { encoded ->
-        try {
-            val bytes = Base64.decode(encoded, Base64.NO_WRAP)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
-            cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
-        } catch (_: GeneralSecurityException) {
-            forgetSession()
-        } catch (_: IllegalArgumentException) {
-            forgetSession()
+    suspend fun secret(): String? = withContext(Dispatchers.IO) {
+        read()[SESSION]?.let { encoded ->
+            try {
+                val bytes = Base64.decode(encoded, Base64.NO_WRAP)
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
+                cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
+            } catch (_: GeneralSecurityException) {
+                forgetSession()
+            } catch (_: IllegalArgumentException) {
+                forgetSession()
+            }
         }
     }
 
@@ -183,10 +185,12 @@ class SessionStore(
         return null
     }
 
-    suspend fun saveSecret(value: String?) {
+    // Off the main thread: resolving the keystore key and running the cipher can take tens of
+    // milliseconds, which is a dropped frame on the sign-in button and on every restore.
+    suspend fun saveSecret(value: String?) = withContext(Dispatchers.IO) {
         if (value == null) {
             forgetSession()
-            return
+            return@withContext
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)

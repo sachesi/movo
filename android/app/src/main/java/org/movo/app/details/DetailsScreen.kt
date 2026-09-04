@@ -27,7 +27,9 @@ import org.movo.app.ui.AdaptiveModal
 import org.movo.app.ui.ChoiceRow
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.placeholderTile
 import org.movo.app.ui.tvFocusScale
+import org.movo.app.ui.tvInitialFocus
 import org.movo.app.core.Comment
 import org.movo.app.core.Person
 import org.movo.app.core.Rating
@@ -53,7 +55,6 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
@@ -116,6 +117,18 @@ internal fun DetailsScreen(
     model: MovoViewModel,
 ) {
     val details = state.details ?: return
+    // The rows below key by these, and a key that repeats is a crash: the provider lists a
+    // director who also acts under both headings, and a collection under both link groups.
+    val people = remember(details.url) {
+        (details.directorDetails + details.actorDetails).distinctBy { "${it.url}:${it.name}" }
+    }
+    val links = remember(details.url) {
+        (details.genreLinks + details.countryLinks).distinctBy { "${it.url}:${it.name}" }
+    }
+    val collectionLinks = remember(details.url) {
+        (details.includedIn + details.fromCollections).distinctBy { "${it.url}:${it.name}" }
+    }
+    val related = remember(details.url) { details.related.distinctBy { it.url } }
     val shareLabel = stringResource(R.string.share)
     val scope = rememberCoroutineScope()
     val translators = remember(details.translators, details.voiceRatings, settings.sortVoices) {
@@ -259,14 +272,17 @@ internal fun DetailsScreen(
                     ?.seamWidth()
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Box {
+                        val tile = placeholderTile()
                         AsyncImage(
                             model = details.posterHqUrl ?: details.posterUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .width(if (isTv) 260.dp else if (wideContent) 200.dp else 120.dp)
                                 .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(if (isTv) 16.dp else 12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                .clip(RoundedCornerShape(if (isTv) 16.dp else 12.dp)),
+                            placeholder = tile,
+                            error = tile,
+                            fallback = tile,
                             contentScale = ContentScale.Crop,
                         )
                         if (details.trailerAvailable) {
@@ -383,10 +399,10 @@ internal fun DetailsScreen(
                     }
                 }
             }
-            if (details.genreLinks.isNotEmpty() || details.countryLinks.isNotEmpty()) {
+            if (links.isNotEmpty()) {
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(details.genreLinks + details.countryLinks, key = { "${it.url}:${it.name}" }) { link ->
+                        items(links, key = { "${it.url}:${it.name}" }) { link ->
                             AssistChip(onClick = { model.openDiscoveryPath(Tab.Search, link.name, link.url) }, label = { Text(link.name) }, modifier = Modifier.tvFocusScale(isTv))
                         }
                     }
@@ -442,12 +458,12 @@ internal fun DetailsScreen(
                     }
                 }
             }
-            if (details.actorDetails.isNotEmpty() || details.directorDetails.isNotEmpty()) {
+            if (people.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.people), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(details.directorDetails + details.actorDetails, key = { "${it.url}:${it.name}" }) { person ->
+                            items(people, key = { "${it.url}:${it.name}" }) { person ->
                                 AssistChip(
                                     onClick = { if (person.url.isNotBlank()) model.openActor(person.url) },
                                     label = { Text(person.name) },
@@ -482,24 +498,24 @@ internal fun DetailsScreen(
                     }
                 }
             }
-            if (details.includedIn.isNotEmpty() || details.fromCollections.isNotEmpty()) {
+            if (collectionLinks.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.from_collections), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(details.includedIn + details.fromCollections, key = { "${it.url}:${it.name}" }) { link ->
+                            items(collectionLinks, key = { "${it.url}:${it.name}" }) { link ->
                                 AssistChip(onClick = { model.openDiscoveryPath(Tab.Collections, link.name, link.url) }, label = { Text(link.name) }, modifier = Modifier.tvFocusScale(isTv))
                             }
                         }
                     }
                 }
             }
-            if (details.related.isNotEmpty()) {
+            if (related.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.related), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(details.related, key = { it.url }) { item ->
+                            items(related, key = { it.url }) { item ->
                                 Box(Modifier.width(if (isTv) 180.dp else 150.dp)) { MediaCard(item, isTv) { model.openDetails(item.url) } }
                             }
                         }
@@ -577,7 +593,11 @@ internal fun DetailsScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton({ showRating = false }, Modifier.tvFocusScale(isTv)) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = {
+                TextButton({ showRating = false }, Modifier.tvFocusScale(isTv).tvInitialFocus(isTv)) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
     state.actor?.let { ActorDialog(it, isTv, model) }
@@ -590,7 +610,16 @@ private fun ActorDialog(actor: ActorDetails, isTv: Boolean, model: MovoViewModel
         LazyColumn(Modifier.fillMaxHeight(.9f), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    AsyncImage(actor.photoUrl, null, Modifier.width(150.dp).aspectRatio(2f / 3f), contentScale = ContentScale.Crop)
+                    val tile = placeholderTile()
+                    AsyncImage(
+                        actor.photoUrl,
+                        null,
+                        Modifier.width(150.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp)),
+                        placeholder = tile,
+                        error = tile,
+                        fallback = tile,
+                        contentScale = ContentScale.Crop,
+                    )
                     Column {
                         Text(actor.name, style = MaterialTheme.typography.headlineSmall)
                         actor.originalName?.let { Text(it) }
@@ -627,6 +656,7 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
         LazyColumn(Modifier.fillMaxHeight(.9f), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(stringResource(R.string.comments), style = MaterialTheme.typography.headlineSmall) }
             items(page.items, key = { it.id }) { comment ->
+                val tile = placeholderTile()
                 ListItem(
                     headlineContent = { Text(comment.username) },
                     supportingContent = { Column {
@@ -635,7 +665,17 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
                         } else Text(comment.text)
                         Text(comment.date, style = MaterialTheme.typography.labelSmall)
                     } },
-                    leadingContent = { AsyncImage(comment.avatarUrl, null, Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)), contentScale = ContentScale.Crop) },
+                    leadingContent = {
+                        AsyncImage(
+                            comment.avatarUrl,
+                            null,
+                            Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)),
+                            placeholder = tile,
+                            error = tile,
+                            fallback = tile,
+                            contentScale = ContentScale.Crop,
+                        )
+                    },
                     trailingContent = { TextButton({ model.likeComment(comment.id) }, Modifier.tvFocusScale(isTv), colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, null); Text(comment.likes.toString()) } },
                     modifier = Modifier.padding(start = (comment.indent.coerceAtMost(4) * 12).dp),
                 )

@@ -154,7 +154,10 @@ private fun MovoApp(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val loadedSettings by context.settings.collectAsStateWithLifecycle(initialValue = null)
+    // The settings flow is built per read, and the collector below is keyed on the flow instance,
+    // so an unremembered read restarted the DataStore collection on every recomposition here.
+    val settingsFlow = remember(context) { context.settings }
+    val loadedSettings by settingsFlow.collectAsStateWithLifecycle(initialValue = null)
 
     val isSystemTv =
         configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==

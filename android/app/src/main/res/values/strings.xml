@@ -10,6 +10,7 @@
     <string name="hide_password">Hide password</string>
     <string name="sign_in_account">Sign in to your official HDRezka account</string>
     <string name="password_disclaimer">Your password is used only for this sign-in request and is never stored.</string>
+    <string name="enter_credentials">Enter login and password</string>
 
     <!-- Navigation tabs -->
     <string name="nav_catalog">Catalog</string>
@@ -66,6 +67,7 @@
 
     <!-- Empty / status -->
     <string name="history_empty">History is empty</string>
+    <string name="operation_failed">Operation failed</string>
     <string name="catalog_empty">No titles in this category</string>
     <string name="catalog_empty_hint">Try another category or a different sort order</string>
     <string name="home_failed">Home did not load</string>
@@ -142,6 +144,7 @@
     <string name="pause">Pause</string>
     <string name="back">Back</string>
     <string name="no_streams">No streams available for this item</string>
+    <string name="quality_unavailable">Selected quality is unavailable</string>
     <string name="playback_failed">Playback failed</string>
     <string name="mirror_unavailable">Selected mirror unavailable</string>
     <string name="replay">Replay</string>

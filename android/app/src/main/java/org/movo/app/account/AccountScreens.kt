@@ -16,6 +16,7 @@ import org.movo.app.home.ConfirmLogoutDialog
 import org.movo.app.ui.Empty
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.placeholderTile
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.ui.tvFocusScale
 import org.movo.app.R
@@ -26,7 +27,6 @@ import org.movo.app.core.MovoViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -116,7 +116,6 @@ internal fun LoginScreen(
                 Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
                 Text(stringResource(R.string.sign_in_account))
                 OutlinedTextField(
                     value = name,
@@ -251,7 +250,16 @@ internal fun AccountScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    AsyncImage(user.avatarUrl, null, Modifier.size(80.dp).clip(RoundedCornerShape(18.dp)), contentScale = ContentScale.Crop)
+                    val tile = placeholderTile()
+                    AsyncImage(
+                        user.avatarUrl,
+                        null,
+                        Modifier.size(80.dp).clip(RoundedCornerShape(18.dp)),
+                        placeholder = tile,
+                        error = tile,
+                        fallback = tile,
+                        contentScale = ContentScale.Crop,
+                    )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(user.username, style = MaterialTheme.typography.headlineSmall)
                         user.email?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -312,10 +320,14 @@ private fun TvAccountScreen(state: AppState, requestLogout: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
+                        val tile = placeholderTile()
                         AsyncImage(
                             user.avatarUrl,
                             null,
                             Modifier.size(112.dp).clip(RoundedCornerShape(18.dp)),
+                            placeholder = tile,
+                            error = tile,
+                            fallback = tile,
                             contentScale = ContentScale.Crop,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -562,13 +574,14 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
                 Text(listOfNotNull(entry.info, entry.additionalInfo, entry.date).joinToString(" • "))
             },
             leadingContent = {
+                val tile = placeholderTile()
                 AsyncImage(
                     model = entry.posterUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(64.dp, 92.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.size(64.dp, 92.dp).clip(RoundedCornerShape(10.dp)),
+                    placeholder = tile,
+                    error = tile,
+                    fallback = tile,
                     contentScale = ContentScale.Crop,
                 )
             },
@@ -630,13 +643,14 @@ internal fun TvHistoryCard(
                 TvText(listOfNotNull(entry.info, entry.additionalInfo, entry.date).joinToString(" • "))
             },
             leadingContent = {
+                val tile = placeholderTile()
                 AsyncImage(
                     model = entry.posterUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(88.dp, 132.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.size(88.dp, 132.dp).clip(RoundedCornerShape(10.dp)),
+                    placeholder = tile,
+                    error = tile,
+                    fallback = tile,
                     contentScale = ContentScale.Crop,
                 )
             },

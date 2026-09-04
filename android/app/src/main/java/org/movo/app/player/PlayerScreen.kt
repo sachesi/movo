@@ -110,6 +110,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -232,8 +233,16 @@ fun PlayerScreen(
             .setUserAgent(bundle.userAgent)
             .setDefaultRequestProperties(mapOf("Referer" to bundle.referer))
         val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+        val audio = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
         val builder = ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+            // Audio focus, so a call or another player pauses this one rather than talking over it,
+            // and a pause when the headphones come out instead of playing on through the speaker.
+            .setAudioAttributes(audio, true)
+            .setHandleAudioBecomingNoisy(true)
         if (settings.bufferSeconds > 0) {
             val bufferMs = settings.bufferSeconds * 1_000
             builder.setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(bufferMs, bufferMs, 2_500, 5_000).build())
