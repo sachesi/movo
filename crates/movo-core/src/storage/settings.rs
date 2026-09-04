@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Bumped whenever a stored value needs rewriting on load.
-const SETTINGS_VERSION: u32 = 1;
+const SETTINGS_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -81,9 +81,16 @@ impl AppSettings {
         if self.version >= SETTINGS_VERSION {
             return false;
         }
-        // Before version 1 the player was a launcher command such as
-        // `xdg-open`, which cannot stream or report progress.
-        self.external_player = Self::default().external_player;
+        if self.version < 1 {
+            // Before version 1 the player was a launcher command such as
+            // `xdg-open`, which cannot stream or report progress.
+            self.external_player = Self::default().external_player;
+        }
+        if self.version < 2 && self.initial_view == "catalog" {
+            // Version 1 wrote its "catalog" default to disk on first run, so
+            // the new Home default would never reach an existing install.
+            self.initial_view = default_initial_view();
+        }
         self.version = SETTINGS_VERSION;
         true
     }
@@ -120,5 +127,25 @@ mod tests {
         assert!(settings.migrate());
         assert_eq!(settings.external_player, "mpv");
         assert!(!settings.migrate());
+    }
+
+    #[test]
+    fn a_version_one_catalog_start_moves_to_home_once() {
+        let mut settings: AppSettings = serde_json::from_str(
+            r#"{"version":1,"default_quality":"1080p","external_player":"mpv","user_id":null,"initial_view":"catalog"}"#,
+        )
+        .unwrap();
+
+        assert!(settings.migrate());
+        assert_eq!(settings.initial_view, "home");
+        assert_eq!(settings.version, 2);
+        assert!(!settings.migrate());
+
+        let mut chosen: AppSettings = serde_json::from_str(
+            r#"{"version":1,"default_quality":"1080p","external_player":"mpv","user_id":null,"initial_view":"search"}"#,
+        )
+        .unwrap();
+        assert!(chosen.migrate());
+        assert_eq!(chosen.initial_view, "search");
     }
 }
