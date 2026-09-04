@@ -98,6 +98,45 @@ lint 0 errors / 13 warnings / 1 hint.
 - **C8 fixed** `app/build.gradle.kts:64` `kotlinOptions` is deprecated on Kotlin 2.x and
   removed in 2.3. Replaced with `kotlin { compilerOptions { jvmTarget } }`.
 
+## E. Second polish pass
+
+- **E1 fixed** `details/DetailsScreen.kt` the error banner was the last item of the page and
+  there was no progress indicator, so a failed favorite toggle or a slow rating went
+  unreported on any page longer than the screen. Both now overlay the page as they do on
+  the home shell; the banner's Retry reloads the title.
+- **E2 fixed** `details/DetailsScreen.kt` the description's "More" button was shown by
+  character count while the text was cut by line count, so a short description of many
+  lines was truncated with no way to open it and a long one of few lines had a button that
+  did nothing. The button now follows the measured overflow.
+- **E3 fixed** `catalog/CatalogScreens.kt` the media card ignored the rating the provider
+  already sends. It joins the year and category line.
+- **E4 fixed** `player/PlayerScreen.kt` on a phone only remote keys counted as interaction,
+  so a seek drag longer than the timeout had the overlay vanish under the finger. Every
+  touch now delays the auto-hide.
+- **E5 fixed** `player/PlayerScreen.kt` on a television Back left the player outright even
+  with the overlay up. It now takes the overlay down first, as the players around it do,
+  and leaves on the next press; a paused player, which keeps its overlay, leaves at once.
+- **E6 fixed** `catalog/CatalogScreens.kt` the collections grid paged with a "Load more"
+  button while every other grid pages on scroll. The scroll trigger is shared and the
+  button is gone.
+- **E7 fixed** `details/DetailsScreen.kt` Share was offered on a television, where the
+  chooser opens on "no apps can perform this action". Hidden there.
+- **E8 fixed** `ui/Skeletons.kt` every empty state showed the same inbox glyph. Each screen
+  now shows its own (search, search-off, favorites, history, updates, collections,
+  catalog, and cloud-off for a home that did not load).
+- **E9 fixed** `MainActivity.kt` the trailer's back button sat under the status bar (edge
+  to edge, no insets), and the embed was a black screen until its page loaded. Insets and
+  a spinner.
+- **E10 fixed** `account/AccountScreens.kt` the sign-in fields carry no autofill content
+  types, so password managers did not offer to fill them. Username and password types set.
+- **E11 fixed** `ui/MovoWidgets.kt` the choice rows in the playback sheet and the search
+  filters were plain chips to a screen reader; they are radio buttons in a group now, as
+  the settings chips already were.
+- **E12 fixed** `home/HomeShell.kt` the "More" sheet on the phone did not mark which of
+  its destinations was the current one; a tick does. The television rail's collapsed
+  items name themselves to a screen reader; before, they were unlabeled icons until the
+  rail opened.
+
 ## D. Deferred
 
 - **D1** Dependency versions behind the current stable (lint lists activity-compose,

@@ -156,6 +156,9 @@ internal fun DetailsScreen(
         }
     }
     var descExpanded by remember(details.url) { mutableStateOf(false) }
+    // Measured rather than guessed from the length: a short description of many lines was cut
+    // off with no way to open it, and a long one of few lines offered a button that did nothing.
+    var descOverflows by remember(details.url) { mutableStateOf(false) }
     var showFavorites by remember(details.url) { mutableStateOf(false) }
     var showPlayback by remember(details.url) { mutableStateOf(false) }
     var automaticPlayback by remember(details.url) { mutableStateOf(false) }
@@ -377,12 +380,16 @@ internal fun DetailsScreen(
                             FilledTonalIconButton(onClick = { model.loadComments() }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:comments")) {
                                 Icon(Icons.AutoMirrored.Filled.Comment, stringResource(R.string.comments))
                             }
-                            FilledTonalIconButton(onClick = {
-                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, details.url)
-                                }, shareLabel))
-                            }, modifier = Modifier.tvFocusScale(isTv)) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
+                            // Not on a television, which has nothing to share to: the chooser
+                            // opens on an empty "no apps can perform this action".
+                            if (!isTv) {
+                                FilledTonalIconButton(onClick = {
+                                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, details.url)
+                                    }, shareLabel))
+                                }) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
+                            }
                         }
                     }
                 }
@@ -392,8 +399,9 @@ internal fun DetailsScreen(
                     text = details.description,
                     maxLines = if (descExpanded) Int.MAX_VALUE else 8,
                     overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { if (!descExpanded) descOverflows = it.hasVisualOverflow },
                 )
-                if (details.description.length > 400) {
+                if (descExpanded || descOverflows) {
                     TextButton(onClick = { descExpanded = !descExpanded }, modifier = Modifier.tvFocusScale(isTv)) {
                         Text(if (descExpanded) stringResource(R.string.collapse) else stringResource(R.string.more))
                     }
@@ -522,11 +530,23 @@ internal fun DetailsScreen(
                     }
                 }
             }
-            state.error?.let { item { ErrorBanner(it, model::clearError) } }
                 }
             }
-      }
+            // Over the page rather than at the end of it, where a long page hid both.
+            if (state.loading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            }
+            state.error?.let {
+                ErrorBanner(
+                    it,
+                    model::clearError,
+                    Modifier.align(Alignment.BottomCenter),
+                    retry = { model.openDetails(details.url) },
+                    isTv = isTv,
+                )
+            }
         }
+      }
     }
 
     if (showFavorites) {

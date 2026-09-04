@@ -91,6 +91,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -447,7 +448,11 @@ fun PlayerScreen(
         player.pause()
         actions.close(content.completed, player.currentPosition)
     }
-    BackHandler(onBack = ::exitPlayer)
+    BackHandler {
+        // On a television Back takes the overlay down first, as the players around it do; the
+        // next press leaves. A paused player keeps its overlay, so there Back leaves at once.
+        if (isTv && ui.controlsVisible && ui.isPlaying) ui.controlsVisible = false else exitPlayer()
+    }
 
     fun togglePlayback() {
         if (content.completed) {
@@ -513,6 +518,17 @@ fun PlayerScreen(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
+            // Any touch counts as interaction, observed on the initial pass so nothing below
+            // has to give it up: without this a seek drag or a tap on a control did not delay
+            // the auto-hide, and the overlay vanished under the finger mid-drag.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        lastInteractionMs.longValue = SystemClock.uptimeMillis()
+                    }
+                }
+            }
             .then(
                 if (isTv) Modifier else Modifier
                     .clickable(onClick = { ui.controlsVisible = !ui.controlsVisible })

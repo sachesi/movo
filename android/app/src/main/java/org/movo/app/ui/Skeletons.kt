@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -182,19 +183,22 @@ internal fun searchEmptyTitle(query: String) =
     if (query.isBlank()) stringResource(R.string.search_start)
     else stringResource(R.string.search_no_results, query)
 
+internal fun searchEmptyIcon(query: String) =
+    if (query.isBlank()) Icons.Default.Search else Icons.Default.SearchOff
+
 @Composable
 internal fun searchEmptyHint(query: String) =
     if (query.isBlank()) stringResource(R.string.search_start_hint)
     else stringResource(R.string.search_no_results_hint)
 
 @Composable
-internal fun Empty(label: String, hint: String? = null) = Box(
+internal fun Empty(label: String, hint: String? = null, icon: ImageVector = Icons.Default.Inbox) = Box(
     Modifier.fillMaxSize(),
     contentAlignment = Alignment.Center,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
         Icon(
-            Icons.Default.Inbox,
+            icon,
             contentDescription = null,
             modifier = Modifier.size(56.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),

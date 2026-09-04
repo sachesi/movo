@@ -94,6 +94,8 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -374,6 +376,9 @@ private fun TvDrawerItem(
             .background(container)
             .onFocusChanged { focused = it.isFocused }
             .selectable(selected = selected, onClick = onClick)
+            // The label is not composed while the rail is narrow, so the row names itself for a
+            // screen reader until it is.
+            .then(if (expanded) Modifier else Modifier.semantics { contentDescription = label })
             .padding(horizontal = 14.dp)
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically,
@@ -507,6 +512,11 @@ private fun HomeBottomBar(state: AppState, model: MovoViewModel) {
                     headlineContent = { Text(stringResource(tab.label)) },
                     leadingContent = {
                         BadgedIcon(tab.icon, if (tab == Tab.Notifications) state.notificationCount else 0)
+                    },
+                    trailingContent = if (state.tab == tab) {
+                        { Icon(Icons.Default.Check, contentDescription = null) }
+                    } else {
+                        null
                     },
                     modifier = Modifier.selectable(
                         selected = state.tab == tab,

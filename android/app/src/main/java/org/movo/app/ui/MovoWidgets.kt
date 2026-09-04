@@ -11,8 +11,11 @@ package org.movo.app.ui
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.window.layout.FoldingFeature
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRestorer
 import android.content.Context
@@ -268,13 +271,14 @@ fun <T> ChoiceRow(
 ) {
     Column(modifier) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(values, key = itemKey) { value ->
                 MovoChoiceChip(
                     selected = value == selected,
                     onClick = { choose(value) },
                     label = { Text(label(value)) },
                     isTv = isTv,
+                    modifier = Modifier.semantics { role = Role.RadioButton },
                 )
             }
         }

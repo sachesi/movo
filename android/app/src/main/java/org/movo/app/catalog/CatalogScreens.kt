@@ -43,7 +43,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
@@ -67,6 +67,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -82,11 +83,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.tv.material3.Card as TvCard
 import androidx.tv.material3.CardScale
-import androidx.tv.material3.Button as TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.IconButton as TvIconButton
 import androidx.tv.material3.Icon as TvIcon
-import androidx.tv.material3.Text as TvText
 
 @Composable
 internal fun CatalogScreen(
@@ -105,7 +104,7 @@ internal fun CatalogScreen(
             // the sections load (the "page loads then swaps to hot news" symptom).
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (state.loading || state.error == null) TvHomeSkeleton()
-                else Empty(stringResource(R.string.home_failed), hint = stringResource(R.string.home_failed_hint))
+                else Empty(stringResource(R.string.home_failed), stringResource(R.string.home_failed_hint), Icons.Default.CloudOff)
             }
         }
         return
@@ -184,6 +183,7 @@ internal fun CatalogScreen(
                 { url -> model.openDetails(url, url) },
                 emptyTitle = stringResource(R.string.catalog_empty),
                 emptyHint = stringResource(R.string.catalog_empty_hint),
+                emptyIcon = Icons.Default.GridView,
             ) { model.loadCatalog(true) }
         }
     }
@@ -271,6 +271,7 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
                     state.focusedUrl,
                     { url -> model.openDetails(url, url) },
                     emptyTitle = stringResource(R.string.collection_empty),
+                    emptyIcon = Icons.Default.CollectionsBookmark,
                 ) { model.loadPath(append = true) }
             }
         }
@@ -279,13 +280,16 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
     }
     if (state.collections.isEmpty()) {
         if (state.loading) Loading(stringResource(R.string.loading_content))
-        else Empty(stringResource(R.string.collections_empty))
+        else Empty(stringResource(R.string.collections_empty), icon = Icons.Default.CollectionsBookmark)
         return
     }
     val initialIndex = remember(state.collections, state.focusedUrl) {
         state.collections.indexOfFirst { it.url == state.focusedUrl }.coerceAtLeast(0)
     }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialIndex)
+    LoadMoreOnScroll(gridState, state.collections.size, state.collections.first().url, state.loading) {
+        model.loadCollections(true)
+    }
     LazyVerticalGrid(
         state = gridState,
         columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(220.dp),
@@ -307,18 +311,6 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
             } else {
                 Card(onClick = { model.openCollection(collection) }, modifier = modifier) {
                     CollectionCardContent(collection)
-                }
-            }
-        }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            if (isTv) {
-                TvButton(
-                    onClick = { model.loadCollections(true) },
-                    modifier = Modifier.fillMaxWidth().tvFocusMemory("collections:more"),
-                ) { TvText(stringResource(R.string.load_more)) }
-            } else {
-                TextButton({ model.loadCollections(true) }, Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.load_more))
                 }
             }
         }
@@ -374,32 +366,18 @@ internal fun MediaGrid(
     open: (String) -> Unit,
     emptyTitle: String,
     emptyHint: String? = null,
+    emptyIcon: ImageVector = Icons.Default.Inbox,
     entryFocusRequester: FocusRequester? = null,
     loadMore: (() -> Unit)? = null,
 ) {
     if (items.isEmpty()) {
         if (loading) MediaGridSkeleton(isTv)
-        else Empty(emptyTitle, hint = emptyHint)
+        else Empty(emptyTitle, emptyHint, emptyIcon)
         return
     }
     val initialIndex = remember(items, focusedUrl) { items.indexOfFirst { it.url == focusedUrl }.coerceAtLeast(0) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialIndex)
-    var requestedItemCount by remember(items.first().url) { mutableIntStateOf(-1) }
-    // `loading` is read through rememberUpdatedState so the collector keeps the live value
-    // without being torn down and re-armed every time it flips (which previously missed
-    // trigger frames and stalled autoload during fast scrolls).
-    val isLoading by rememberUpdatedState(loading)
-    LaunchedEffect(gridState, items.size, loadMore) {
-        val request = loadMore ?: return@LaunchedEffect
-        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
-            .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                if (shouldLoadMore(lastVisibleIndex, items.size, isLoading, requestedItemCount)) {
-                    requestedItemCount = items.size
-                    request()
-                }
-            }
-    }
+    if (loadMore != null) LoadMoreOnScroll(gridState, items.size, items.first().url, loading, loadMore)
     LazyVerticalGrid(
         state = gridState,
         columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(140.dp),
@@ -422,6 +400,35 @@ internal fun MediaGrid(
         items(items, key = { it.url }) { item ->
             MediaCard(item, isTv) { open(item.url) }
         }
+    }
+}
+
+/**
+ * Requests the next page once the grid scrolls near its end, once per page. [firstKey] resets the
+ * bookkeeping when the grid is refilled from the top.
+ */
+@Composable
+internal fun LoadMoreOnScroll(
+    gridState: LazyGridState,
+    itemCount: Int,
+    firstKey: Any,
+    loading: Boolean,
+    loadMore: () -> Unit,
+) {
+    var requestedItemCount by remember(firstKey) { mutableIntStateOf(-1) }
+    // `loading` is read through rememberUpdatedState so the collector keeps the live value
+    // without being torn down and re-armed every time it flips (which previously missed
+    // trigger frames and stalled autoload during fast scrolls).
+    val isLoading by rememberUpdatedState(loading)
+    LaunchedEffect(gridState, itemCount, loadMore) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+            .distinctUntilChanged()
+            .collect { lastVisibleIndex ->
+                if (shouldLoadMore(lastVisibleIndex, itemCount, isLoading, requestedItemCount)) {
+                    requestedItemCount = itemCount
+                    loadMore()
+                }
+            }
     }
 }
 
@@ -472,7 +479,11 @@ private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCorne
             overflow = TextOverflow.Ellipsis,
             style = if (isTv) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
         )
-        val metadata = listOfNotNull(item.year?.toString(), item.category).joinToString(" • ")
+        val metadata = listOfNotNull(
+            item.year?.toString(),
+            item.category,
+            item.rating?.takeIf { it > 0f }?.let { "★ " + "%.1f".format(it) },
+        ).joinToString(" • ")
         if (metadata.isNotEmpty()) {
             Text(
                 metadata,

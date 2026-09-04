@@ -59,7 +59,6 @@
     </plurals>
     <string name="premium_active">Premium account</string>
     <string name="official_account">Official HDRezka account</string>
-    <string name="load_more">Load more</string>
     <string name="menu_sign_out">Sign out</string>
     <string name="sign_out_title">Sign out?</string>
     <string name="sign_out_message">You’ll need to sign in again to access your account.</string>

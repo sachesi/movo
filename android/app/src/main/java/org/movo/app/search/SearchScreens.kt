@@ -15,6 +15,7 @@ import org.movo.app.catalog.MediaGrid
 import org.movo.app.catalog.PathHeader
 import org.movo.app.ui.ChoiceRow
 import org.movo.app.ui.searchEmptyHint
+import org.movo.app.ui.searchEmptyIcon
 import org.movo.app.ui.searchEmptyTitle
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.R
@@ -108,6 +109,7 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
                     state.focusedUrl,
                     { url -> model.openDetails(url, url) },
                     emptyTitle = stringResource(R.string.collection_empty),
+                    emptyIcon = Icons.Default.CollectionsBookmark,
                 ) { model.loadPath(append = true) }
             }
         }
@@ -191,6 +193,7 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
                 { url -> model.openDetails(url, url) },
                 emptyTitle = searchEmptyTitle(state.query),
                 emptyHint = searchEmptyHint(state.query),
+                emptyIcon = searchEmptyIcon(state.query),
             ) { model.search(query, true) }
         }
     }
@@ -324,6 +327,7 @@ internal fun TvSearchContent(
                 open,
                 emptyTitle = searchEmptyTitle(state.query),
                 emptyHint = searchEmptyHint(state.query),
+                emptyIcon = searchEmptyIcon(state.query),
                 loadMore = loadMore,
             )
         }

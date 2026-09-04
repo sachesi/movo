@@ -64,6 +64,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -120,7 +123,7 @@ internal fun LoginScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it; clearError() },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Username },
                     label = { Text(stringResource(R.string.login_hint)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
@@ -131,7 +134,7 @@ internal fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; clearError() },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                     label = { Text(stringResource(R.string.password_hint)) },
                     singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -173,7 +176,8 @@ internal fun LoginScreen(
 @Composable
 internal fun NotificationsScreen(state: AppState, isTv: Boolean, model: MovoViewModel) {
     if (state.notifications.isEmpty()) {
-        if (state.loading) Loading(stringResource(R.string.loading_content)) else Empty(stringResource(R.string.notifications_empty))
+        if (state.loading) Loading(stringResource(R.string.loading_content))
+        else Empty(stringResource(R.string.notifications_empty), icon = Icons.Default.NotificationsNone)
         return
     }
     val focusedIndex = remember(state.notifications, state.focusedUrl) {
@@ -484,6 +488,7 @@ internal fun FavoritesScreen(state: AppState, isTv: Boolean, model: MovoViewMode
                 { url -> model.openDetails(url, url) },
                 emptyTitle = stringResource(R.string.favorites_empty),
                 emptyHint = stringResource(R.string.favorites_empty_hint),
+                emptyIcon = Icons.Default.FavoriteBorder,
                 entryFocusRequester = if (isTv) gridFocusRequester else null,
             ) { model.loadFavorites(append = true) }
         }
@@ -524,7 +529,7 @@ internal fun TvFavoriteFilters(
 internal fun HistoryScreen(state: AppState, isTv: Boolean, model: MovoViewModel) {
     if (state.history.isEmpty()) {
         if (state.loading) Loading(stringResource(R.string.loading_content))
-        else Empty(stringResource(R.string.history_empty))
+        else Empty(stringResource(R.string.history_empty), icon = Icons.Default.History)
         return
     }
     val initialIndex = remember(state.history, state.focusedUrl) {

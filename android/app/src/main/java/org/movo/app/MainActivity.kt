@@ -361,11 +361,13 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
 }
 
 /** Keeps a [WebView] on the one host it started on, over https only. */
-private class SameHostWebViewClient(private val host: String?) : WebViewClient() {
+private class SameHostWebViewClient(private val host: String?, private val onLoaded: () -> Unit) : WebViewClient() {
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val url = request.url
         return !(url.scheme == "https" && url.host == host)
     }
+
+    override fun onPageFinished(view: WebView, url: String?) = onLoaded()
 }
 
 @Composable
@@ -374,6 +376,9 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
     val state by model.state.collectAsStateWithLifecycle()
     val url = state.trailerUrl ?: return
     val context = LocalContext.current
+    // The embed shows nothing until its page has loaded, which on a slow link is seconds of
+    // black; the spinner says the trailer is on its way.
+    var loading by remember(url) { mutableStateOf(true) }
     val webView = remember(url) {
         WebView(context).apply {
             settings.javaScriptEnabled = true
@@ -385,7 +390,7 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
             // The embed comes from the provider, so it is scripted content this app does not
             // control. Pin it to the host it was loaded from: a trailer never needs to navigate
             // anywhere else, and without this the page picks where the user goes next.
-            webViewClient = SameHostWebViewClient(url.toUri().host)
+            webViewClient = SameHostWebViewClient(url.toUri().host) { loading = false }
             loadUrl(url)
         }
     }
@@ -410,7 +415,16 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
     BackHandler { model.clearTrailer() }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
-        IconButton(model::clearTrailer, Modifier.align(Alignment.TopStart).padding(16.dp).tvFocusScale(isTv)) {
+        if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
+        IconButton(
+            model::clearTrailer,
+            Modifier
+                .align(Alignment.TopStart)
+                // Edge to edge, so without the insets the button sat under the status bar.
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(16.dp)
+                .tvFocusScale(isTv),
+        ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White)
         }
     }
