@@ -98,7 +98,12 @@ impl Component for HomeView {
                 let _ = sender.output(HomeOutput::Open(item));
             }
             HomeMsg::OpenSection(id) => {
-                let _ = sender.output(HomeOutput::OpenPath(section_title(&id).to_string(), id));
+                if let Some(path) = section_path(&id) {
+                    let _ = sender.output(HomeOutput::OpenPath(
+                        section_title(&id).to_string(),
+                        path.to_string(),
+                    ));
+                }
             }
         }
     }
@@ -142,6 +147,7 @@ impl HomeView {
             let view_all = gtk::Button::builder()
                 .label(tr("View All"))
                 .valign(gtk::Align::Center)
+                .visible(section_path(&section.id).is_some())
                 .build();
             view_all.add_css_class("flat");
             {
@@ -198,14 +204,33 @@ fn section_title(id: &str) -> &'static str {
     }
 }
 
+/// The listing page behind a section, mirroring the paths `home()` fetches.
+/// "hot" comes from an AJAX slider and has no page of its own.
+fn section_path(id: &str) -> Option<&'static str> {
+    match id {
+        "new" => Some("new"),
+        "watching" => Some("new?filter=watching"),
+        "popular" => Some("new?filter=popular"),
+        "awaiting" => Some("announce"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::section_title;
+    use super::{section_path, section_title};
 
     #[test]
     fn provider_home_sections_have_stable_titles() {
         assert_eq!(section_title("hot"), "Hot Now");
         assert_eq!(section_title("awaiting"), "Coming Soon");
         assert_eq!(section_title("unknown"), "Catalog");
+    }
+
+    #[test]
+    fn only_sections_with_a_listing_page_can_be_opened_in_full() {
+        assert_eq!(section_path("watching"), Some("new?filter=watching"));
+        assert_eq!(section_path("awaiting"), Some("announce"));
+        assert_eq!(section_path("hot"), None);
     }
 }

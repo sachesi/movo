@@ -161,12 +161,28 @@ pub async fn path(
     path: &str,
     page: usize,
 ) -> Result<Vec<MediaItem>, String> {
-    let path = if page > 1 {
-        format!("{}/page/{page}/", path.trim_matches('/'))
-    } else {
-        path.to_string()
+    Ok(catalog::parse_catalog_html(
+        &session.get_html(&paged_path(path, page)).await?,
+    ))
+}
+
+/// The page segment goes before any query string, the way the site's own
+/// listing links are built: `new?filter=watching` pages as
+/// `new/page/2/?filter=watching`.
+fn paged_path(path: &str, page: usize) -> String {
+    if page <= 1 {
+        return path.to_string();
+    }
+    let (base, query) = match path.split_once('?') {
+        Some((base, query)) => (base, Some(query)),
+        None => (path, None),
     };
-    Ok(catalog::parse_catalog_html(&session.get_html(&path).await?))
+    let mut paged = format!("{}/page/{page}/", base.trim_matches('/'));
+    if let Some(query) = query {
+        paged.push('?');
+        paged.push_str(query);
+    }
+    paged
 }
 
 pub async fn search_full(
@@ -197,7 +213,17 @@ fn urlencoding(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_collections, parse_suggestions};
+    use super::{paged_path, parse_collections, parse_suggestions};
+
+    #[test]
+    fn paging_keeps_the_query_string_after_the_page_segment() {
+        assert_eq!(paged_path("new", 1), "new");
+        assert_eq!(paged_path("/announce/", 3), "announce/page/3/");
+        assert_eq!(
+            paged_path("new?filter=watching", 2),
+            "new/page/2/?filter=watching"
+        );
+    }
 
     #[test]
     fn parses_unique_suggestions_and_collections() {
