@@ -664,9 +664,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val stream = state.value.stream ?: return
         syncJob?.cancel()
         syncJob = run {
-            if (stream.season != null && stream.episode != null) {
-                state.value.user?.userId?.let { store.saveLastEpisode(it, details.id, stream.season, stream.episode, stream.translatorId) }
-            }
+            rememberLastPlayed(details.id, stream.season, stream.episode, stream.translatorId)
             NativeBridge.call("save_watch", buildJsonObject {
                 put("post_id", details.id)
                 put("translator_id", stream.translatorId)
@@ -688,12 +686,26 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         progressJob = viewModelScope.launch { store.saveProgress(key, positionMs) }
     }
 
+    /** Keep what the details page reopens on, in the store and on the state it is already showing. */
+    private suspend fun rememberLastPlayed(postId: Long, season: Long?, episode: Long?, translatorId: Long) {
+        val userId = state.value.user?.userId ?: return
+        store.saveLastEpisode(userId, postId, season, episode, translatorId)
+        if (state.value.details?.id == postId) {
+            _state.update { it.copy(resumeSeasonId = season, resumeEpisodeId = episode, resumeTranslatorId = translatorId) }
+        }
+    }
+
+    /** The (season, episode) `offset` steps from the playing one across all seasons, if any. */
+    private fun adjacentEpisode(details: MediaDetails, stream: StreamBundle, offset: Int): Pair<Long, Long>? {
+        val episodes = details.seasons.flatMap { season -> season.episodes.map { season.id to it.id } }
+        val index = episodes.indexOfFirst { (seasonId, episode) -> seasonId == stream.season && episode == stream.episode }
+        return if (index >= 0) episodes.getOrNull(index + offset) else null
+    }
+
     fun hasAdjacentEpisode(offset: Int): Boolean {
         val details = state.value.details ?: return false
         val stream = state.value.stream ?: return false
-        val episodes = details.seasons.flatMap { season -> season.episodes.map { season.id to it } }
-        val index = episodes.indexOfFirst { (seasonId, episode) -> seasonId == stream.season && episode.id == stream.episode }
-        return index >= 0 && index + offset in episodes.indices
+        return adjacentEpisode(details, stream, offset) != null
     }
 
     fun previousEpisode() = playAdjacentEpisode(-1, completed = false)
@@ -723,9 +735,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private fun playAdjacentEpisode(offset: Int, completed: Boolean) {
         val details = state.value.details ?: return
         val current = state.value.stream ?: return
-        val episodes = details.seasons.flatMap { season -> season.episodes.map { season.id to it } }
-        val index = episodes.indexOfFirst { (seasonId, episode) -> seasonId == current.season && episode.id == current.episode }
-        val (season, episode) = episodes.getOrNull(index + offset) ?: return
+        val (season, episode) = adjacentEpisode(details, current, offset) ?: return
         val translator = details.translators.firstOrNull { it.id == current.translatorId } ?: return
         playbackJob?.cancel()
         playbackJob = run {
@@ -738,7 +748,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                     })
                 }
             }
-            val next = fetchStream(details, translator, season, episode.id)
+            val next = fetchStream(details, translator, season, episode)
             if (state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
@@ -747,7 +757,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 _state.update { it.copy(
                     stream = next,
                     playbackQuality = selected.quality,
-                    playbackPositionMs = 0,
+                    playbackPositionMs = store.progress(progressKey(details.id, next)),
                 ) }
             }
         }
@@ -776,6 +786,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                         stream.season?.let { put("season", it) }
                         stream.episode?.let { put("episode", it) }
                     })
+                }
+                // A finished episode is not the one to reopen on; offer the next one instead.
+                adjacentEpisode(details, stream, 1)?.let { (season, episode) ->
+                    rememberLastPlayed(details.id, season, episode, stream.translatorId)
                 }
                 // Reflect the just-synced watched state in an open History list without
                 // flipping the global loading/error state (quiet re-fetch).

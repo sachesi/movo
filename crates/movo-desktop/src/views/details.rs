@@ -7,6 +7,7 @@ use crate::ui::poster_grid::{poster_row, PosterItem, PosterRow};
 use movo_core::client::models::{
     FavoritesCollection, MediaDetails, MediaItem, MediaType, Season, Translator,
 };
+use movo_core::storage::history::{WatchHistory, WatchHistoryEntry};
 use relm4::adw;
 use relm4::adw::prelude::*;
 use relm4::gtk::{
@@ -32,6 +33,11 @@ pub struct DetailsView {
     favorite_categories: Vec<FavoritesCollection>,
     translator: Option<Translator>,
     season: Option<i64>,
+    /// What this account played last of this title, if anything.
+    resume: Option<WatchHistoryEntry>,
+    /// The saved season has not been applied yet: the voice-over it was
+    /// watched in may still be loading its episodes.
+    resume_pending: bool,
     content: ContentStack,
     body: gtk::Box,
     /// Rails keep their models alive for as long as they are shown.
@@ -68,9 +74,16 @@ pub enum DetailsOutput {
     Notify(String),
 }
 
+/// A title with the account's favorites groups and its last local playback.
+type LoadedDetails = (
+    MediaDetails,
+    Vec<FavoritesCollection>,
+    Option<WatchHistoryEntry>,
+);
+
 #[derive(Debug)]
 pub enum DetailsCommand {
-    Loaded(Box<Guarded<(MediaDetails, Vec<FavoritesCollection>)>>),
+    Loaded(Box<Guarded<LoadedDetails>>),
     Episodes(Guarded<Vec<Season>>),
     Trailer(Guarded<Option<String>>),
     /// A mutation that only needs a success or failure report.
@@ -130,6 +143,8 @@ impl relm4::Component for DetailsView {
             favorite_categories: Vec::new(),
             translator: None,
             season: None,
+            resume: None,
+            resume_pending: false,
             content,
             body,
             rails: Vec::new(),
@@ -163,7 +178,7 @@ impl relm4::Component for DetailsView {
                             serde_json::from_str::<MediaDetails>(&json)
                                 .map_err(|error| error.to_string())
                         }) {
-                        Ok(details) => self.render(details, &sender),
+                        Ok(details) => self.render(details, None, &sender),
                         Err(error) => self.content.set(ContentState::Error(&error)),
                     }
                     return;
@@ -171,20 +186,26 @@ impl relm4::Component for DetailsView {
 
                 let client = self.state.client.clone();
                 let url = self.url.clone();
-                let signed_in = self.state.user().is_some();
+                let user_id = self.state.user().map(|user| user.user_id);
                 sender.oneshot_command(async move {
                     DetailsCommand::Loaded(Box::new(
                         guarded(client, move |client| async move {
                             let details = client.fetch_details(&url).await?;
-                            let categories = if signed_in {
-                                client
-                                    .fetch_favorites_categories()
-                                    .await
-                                    .unwrap_or_default()
-                            } else {
-                                Vec::new()
+                            let Some(user_id) = user_id else {
+                                return Ok((details, Vec::new(), None));
                             };
-                            Ok((details, categories))
+                            let categories = client
+                                .fetch_favorites_categories()
+                                .await
+                                .unwrap_or_default();
+                            let media_id = details.id;
+                            let resume = relm4::spawn_blocking(move || {
+                                WatchHistory::load(&user_id).latest_for(media_id).cloned()
+                            })
+                            .await
+                            .ok()
+                            .flatten();
+                            Ok((details, categories, resume))
                         })
                         .await,
                     ))
@@ -358,9 +379,9 @@ impl relm4::Component for DetailsView {
                     return;
                 }
                 match loaded.result {
-                    Ok((details, categories)) => {
+                    Ok((details, categories, resume)) => {
                         self.favorite_categories = categories;
-                        self.render(details, &sender);
+                        self.render(details, resume, &sender);
                     }
                     Err(error) => self.content.set(ContentState::Error(&error)),
                 }
@@ -378,6 +399,12 @@ impl relm4::Component for DetailsView {
                         self.show_seasons(&seasons, &sender);
                     }
                     Err(error) => {
+                        // The page's own episode list is better than none.
+                        if let Some(seasons) = self.details.as_ref().map(|d| d.seasons.clone()) {
+                            if self.episodes.first_child().is_none() {
+                                self.show_seasons(&seasons, &sender);
+                            }
+                        }
                         let _ = sender.output(DetailsOutput::Notify(error));
                     }
                 }
@@ -421,11 +448,25 @@ impl relm4::Component for DetailsView {
 }
 
 impl DetailsView {
-    fn render(&mut self, mut details: MediaDetails, sender: &relm4::ComponentSender<Self>) {
+    fn render(
+        &mut self,
+        mut details: MediaDetails,
+        resume: Option<WatchHistoryEntry>,
+        sender: &relm4::ComponentSender<Self>,
+    ) {
         if self.state.settings().sort_voices {
             sort_by_voice_rating(&mut details);
         }
-        self.translator = details.translators.first().cloned();
+        // Come back to the voice-over this title was last played in.
+        let translator = resume
+            .as_ref()
+            .and_then(|entry| entry.translator_id)
+            .and_then(|id| details.translators.iter().position(|t| t.id == id))
+            .unwrap_or(0);
+        self.translator = details.translators.get(translator).cloned();
+        self.season = None;
+        self.resume = resume;
+        self.resume_pending = self.resume.is_some();
         self.details = Some(details.clone());
         self.rails.clear();
 
@@ -448,7 +489,7 @@ impl DetailsView {
         let is_series = details.media_type == MediaType::TVSeries || !details.seasons.is_empty();
         self.body.append(&self.actions(&details, is_series, sender));
         self.body
-            .append(&self.playback_group(&details, is_series, sender));
+            .append(&self.playback_group(&details, translator, is_series, sender));
         if is_series {
             let title = gtk::Label::builder()
                 .label(tr("Episodes"))
@@ -520,9 +561,10 @@ impl DetailsView {
 
         self.content.set(ContentState::Content);
 
-        if !details.seasons.is_empty() {
+        // The page lists the episodes of its first voice-over; selecting any
+        // other one above fetches its own list, which replaces these.
+        if !details.seasons.is_empty() && translator == 0 {
             let seasons = details.seasons.clone();
-            self.season = seasons.first().map(|season| season.id);
             self.show_seasons(&seasons, sender);
         }
     }
@@ -703,6 +745,7 @@ impl DetailsView {
     fn playback_group(
         &self,
         details: &MediaDetails,
+        translator: usize,
         is_series: bool,
         sender: &relm4::ComponentSender<Self>,
     ) -> adw::PreferencesGroup {
@@ -726,6 +769,9 @@ impl DetailsView {
             row.connect_selected_notify(move |row| {
                 sender.input(DetailsMsg::SelectTranslator(row.selected() as usize));
             });
+            // Fires the handler above for anything but the first entry, which
+            // is what loads that voice-over's episodes.
+            row.set_selected(translator as u32);
             group.add(&row);
         }
 
@@ -871,6 +917,10 @@ impl DetailsView {
 
     fn show_seasons(&mut self, seasons: &[Season], sender: &relm4::ComponentSender<Self>) {
         let titles = seasons.iter().map(season_title).collect::<Vec<_>>();
+        if self.resume_pending {
+            self.resume_pending = false;
+            self.season = self.continue_point(seasons).map(|(season, _)| season);
+        }
         let selected = seasons
             .iter()
             .position(|season| Some(season.id) == self.season)
@@ -908,12 +958,19 @@ impl DetailsView {
             return;
         };
 
+        let continue_at = self.continue_point(seasons);
         for episode in &season.episodes {
             let row = adw::ActionRow::builder()
                 .use_markup(false)
                 .title(&episode.title)
                 .activatable(true)
                 .build();
+            if continue_at == Some((season.id, episode.id)) {
+                let label = gtk::Label::new(Some(tr("Continue")));
+                label.add_css_class("accent");
+                label.add_css_class("caption");
+                row.add_suffix(&label);
+            }
             if episode.is_watched {
                 row.add_suffix(&gtk::Image::from_icon_name("object-select-symbolic"));
             }
@@ -927,5 +984,80 @@ impl DetailsView {
             });
             self.episodes.append(&row);
         }
+    }
+
+    /// The episode to offer next: the one last played, or the one after it
+    /// when that was watched to the end.
+    fn continue_point(&self, seasons: &[Season]) -> Option<(i64, i64)> {
+        continue_point(self.resume.as_ref()?, seasons)
+    }
+}
+
+fn continue_point(entry: &WatchHistoryEntry, seasons: &[Season]) -> Option<(i64, i64)> {
+    let (season, episode) = (entry.season?, entry.episode?);
+    let episodes = seasons
+        .iter()
+        .flat_map(|s| s.episodes.iter().map(move |e| (s.id, e.id)))
+        .collect::<Vec<_>>();
+    let index = episodes.iter().position(|&at| at == (season, episode))?;
+    let offset = usize::from(entry.is_finished() && index + 1 < episodes.len());
+    Some(episodes[index + offset])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::continue_point;
+    use movo_core::client::models::{Episode, MediaType, Season};
+    use movo_core::storage::history::WatchHistoryEntry;
+
+    fn seasons() -> Vec<Season> {
+        (1..=2)
+            .map(|season| Season {
+                id: season,
+                title: season.to_string(),
+                episodes: (1..=2)
+                    .map(|id| Episode {
+                        id,
+                        season_id: season,
+                        title: id.to_string(),
+                        watch_id: None,
+                        is_watched: false,
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
+    fn entry(season: i64, episode: i64, position_secs: f64) -> WatchHistoryEntry {
+        WatchHistoryEntry {
+            media_id: 1,
+            title: String::new(),
+            orig_title: None,
+            url: String::new(),
+            poster_url: None,
+            media_type: MediaType::TVSeries,
+            season: Some(season),
+            episode: Some(episode),
+            episode_title: None,
+            translator_id: None,
+            translator_name: None,
+            position_secs,
+            duration_secs: 100.0,
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn a_finished_episode_offers_the_next_one_across_seasons() {
+        assert_eq!(continue_point(&entry(1, 1, 40.0), &seasons()), Some((1, 1)));
+        assert_eq!(
+            continue_point(&entry(1, 2, 100.0), &seasons()),
+            Some((2, 1))
+        );
+        assert_eq!(
+            continue_point(&entry(2, 2, 100.0), &seasons()),
+            Some((2, 2))
+        );
+        assert_eq!(continue_point(&entry(3, 1, 0.0), &seasons()), None);
     }
 }

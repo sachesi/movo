@@ -208,19 +208,19 @@ class SessionStore(
         store.edit { it.remove(progressKeyOf(key)) }
     }
 
-    /** Last episode played for a show (season, episode, translatorId), for resume-on-reopen. */
-    suspend fun lastWatchedEpisode(userId: String, postId: Long): Triple<Long, Long, Long>? {
+    /**
+     * What a title was last played as (season, episode, translatorId), for resume-on-reopen. A
+     * movie has no season or episode and keeps only its voice-over.
+     */
+    suspend fun lastWatchedEpisode(userId: String, postId: Long): Triple<Long?, Long?, Long>? {
         val parts = read()[lastEpisodeKeyOf(userId, postId)]?.split('|') ?: return null
         if (parts.size != 3) return null
-        return try {
-            Triple(parts[0].toLong(), parts[1].toLong(), parts[2].toLong())
-        } catch (_: NumberFormatException) {
-            null
-        }
+        val translatorId = parts[2].toLongOrNull() ?: return null
+        return Triple(parts[0].toLongOrNull(), parts[1].toLongOrNull(), translatorId)
     }
 
-    suspend fun saveLastEpisode(userId: String, postId: Long, season: Long, episode: Long, translatorId: Long) {
-        store.edit { it[lastEpisodeKeyOf(userId, postId)] = "$season|$episode|$translatorId" }
+    suspend fun saveLastEpisode(userId: String, postId: Long, season: Long?, episode: Long?, translatorId: Long) {
+        store.edit { it[lastEpisodeKeyOf(userId, postId)] = "${season ?: ""}|${episode ?: ""}|$translatorId" }
     }
 
     suspend fun searchHistory(userId: String): List<String> =

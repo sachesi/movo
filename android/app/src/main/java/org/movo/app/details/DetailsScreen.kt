@@ -157,7 +157,7 @@ internal fun DetailsScreen(
             (selectedSeasonId == null || details.seasons.none { it.id == selectedSeasonId })
         ) {
             selectedSeasonId = state.resumeSeasonId
-                ?.takeIf { translator?.id == state.resumeTranslatorId }
+                ?.takeIf { id -> details.seasons.any { it.id == id } }
                 ?: details.seasons.firstOrNull()?.id
         }
     }
@@ -184,10 +184,9 @@ internal fun DetailsScreen(
     }
     val selectedSeason = details.seasons.firstOrNull { it.id == selectedSeasonId }
         ?: details.seasons.firstOrNull()
+    // The episode a show stopped at is the same whichever voice-over it is watched in next.
     val previewEpisode = selectedSeason?.episodes?.firstOrNull {
-        it.id == state.resumeEpisodeId &&
-            translator?.id == state.resumeTranslatorId &&
-            selectedSeason.id == state.resumeSeasonId
+        it.id == state.resumeEpisodeId && selectedSeason.id == state.resumeSeasonId
     } ?: selectedSeason?.episodes?.firstOrNull()
     LaunchedEffect(showPlayback) {
         if (showPlayback && state.episodesTranslatorId != translator?.id) {

@@ -3,7 +3,7 @@ use crate::i18n::{tr, trf};
 use crate::playback::mpv::{self, HistorySeed, LaunchRequest, PlaybackEvent, PlayerKind};
 use crate::state::AppState;
 use movo_core::client::models::{MediaDetails, StreamBundle, SubtitleTrack};
-use movo_core::storage::history::WatchHistory;
+use movo_core::storage::history::{WatchHistory, WatchHistoryEntry};
 use relm4::adw;
 use relm4::adw::prelude::*;
 use relm4::gtk::{self, prelude::WidgetExt};
@@ -32,6 +32,8 @@ pub struct Launcher {
 #[derive(Debug)]
 pub enum LauncherMsg {
     Play(Box<PlayRequest>),
+    /// The player is running, so the title belongs in the account's history.
+    Started,
 }
 
 #[derive(Debug)]
@@ -83,7 +85,10 @@ impl Component for Launcher {
     }
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
-        let LauncherMsg::Play(request) = message;
+        let request = match message {
+            LauncherMsg::Play(request) => request,
+            LauncherMsg::Started => return self.sync(&sender, false),
+        };
 
         // The provider refuses anonymous stream requests, so say so here
         // rather than surfacing its untranslated error.
@@ -151,7 +156,7 @@ impl Component for Launcher {
             LauncherCommand::Event(event) => match event {
                 PlaybackEvent::Ended => {
                     let _ = sender.output(LauncherOutput::HistoryChanged);
-                    self.mark_watched(&sender);
+                    self.sync(&sender, true);
                     self.play_next(&sender);
                 }
                 PlaybackEvent::TrackingLost(message) => {
@@ -162,11 +167,14 @@ impl Component for Launcher {
                     let _ = sender.output(LauncherOutput::Notify(message));
                 }
             },
-            LauncherCommand::Marked(marked) => {
-                if let Err(error) = marked.result {
+            LauncherCommand::Marked(marked) => match marked.result {
+                Ok(()) => {
+                    let _ = sender.output(LauncherOutput::HistoryChanged);
+                }
+                Err(error) => {
                     let _ = sender.output(LauncherOutput::Notify(error));
                 }
-            }
+            },
         }
     }
 }
@@ -215,22 +223,26 @@ impl Launcher {
         }
     }
 
-    fn mark_watched(&self, sender: &ComponentSender<Self>) {
+    /// Tell the provider the current title started, or finished.
+    fn sync(&self, sender: &ComponentSender<Self>, finished: bool) {
         let Some(request) = self.current.clone() else {
             return;
         };
         let client = self.state.client.clone();
+        let (id, translator, season, episode) = (
+            request.details.id,
+            request.translator_id,
+            request.season,
+            request.episode,
+        );
         sender.oneshot_command(async move {
             LauncherCommand::Marked(
                 guarded(client, move |client| async move {
-                    client
-                        .mark_watched(
-                            request.details.id,
-                            request.translator_id,
-                            request.season,
-                            request.episode,
-                        )
-                        .await
+                    if finished {
+                        client.mark_watched(id, translator, season, episode).await
+                    } else {
+                        client.save_watch(id, translator, season, episode).await
+                    }
                 })
                 .await,
             )
@@ -307,7 +319,7 @@ fn launch(
     relm4::spawn_local(async move {
         let launch_request = build_request(&request, &bundle, url, &user_id).await;
         match start_player(command, window, launch_request, events).await {
-            Ok(()) => {}
+            Ok(()) => sender.input(LauncherMsg::Started),
             Err(error) => {
                 let _ = sender.output(LauncherOutput::Notify(error));
             }
@@ -361,7 +373,7 @@ async fn build_request(
         referer: bundle.referer.clone(),
         start_secs: previous
             .as_ref()
-            .map(|entry| entry.position_secs.max(0.0))
+            .map(WatchHistoryEntry::resume_secs)
             .unwrap_or(0.0),
         duration_secs: previous
             .as_ref()

@@ -47,4 +47,13 @@ class SessionStoreTest {
         assertEquals(listOf("dune", "arrival"), store.searchHistory("u1"))
         assertEquals(setOf("/films/dune|new episode"), store.seenNotifications("u1"))
     }
+
+    @Test
+    fun aMovieRemembersItsVoiceOverWithoutAnEpisode() = runTest {
+        val store = SessionStore(context, store("account-movie-test"))
+
+        store.saveLastEpisode("u1", 8, null, null, 56)
+
+        assertEquals(Triple(null, null, 56L), store.lastWatchedEpisode("u1", 8))
+    }
 }
