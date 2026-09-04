@@ -138,6 +138,9 @@ class MainActivity : ComponentActivity() {
 
 private const val PROVIDER_HOST = "hdrzk.org"
 
+/** The smallest width the platform itself files under "tablet" (`sw600dp`). */
+private const val TABLET_MIN_WIDTH_DP = 600
+
 enum class Section { Home, Settings }
 
 /**
@@ -175,8 +178,11 @@ private fun MovoApp(
         return
     }
 
+    // A tablet gets the television layout by default: the rail, the rows and the five-column
+    // grid are the big-screen layout, and every control in it answers a touch.
+    val isBigScreen = configuration.smallestScreenWidthDp >= TABLET_MIN_WIDTH_DP
     val isTv = when (settings.layoutMode) {
-        LayoutMode.Auto -> isSystemTv
+        LayoutMode.Auto -> isSystemTv || isBigScreen
         LayoutMode.Phone -> false
         LayoutMode.Tv -> true
     }

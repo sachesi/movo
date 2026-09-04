@@ -81,10 +81,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
-import androidx.tv.material3.Card as TvCard
+import org.movo.app.ui.TvCard
 import androidx.tv.material3.CardScale
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.IconButton as TvIconButton
+import org.movo.app.ui.TvIconButton
 import androidx.tv.material3.Icon as TvIcon
 
 @Composable

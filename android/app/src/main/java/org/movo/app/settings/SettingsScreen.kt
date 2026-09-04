@@ -49,8 +49,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip as TvFilterChip
-import androidx.tv.material3.ListItem as TvListItem
+import org.movo.app.ui.TvFilterChip
+import org.movo.app.ui.TvListItem
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.SelectableChipScale
 import androidx.tv.material3.Surface as TvSurface

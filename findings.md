@@ -158,6 +158,27 @@ Five items held back from the earlier passes as feature-adjacent, then asked for
   seconds instead of sitting over the film until the player closes; a playback error still
   stays until the player recovers.
 
+## G. Television layout on a touch screen
+
+Reported: switching a phone to the television layout left nothing responding to touch,
+including the setting that would switch it back.
+
+- **G1 fixed** root cause, `ui/TvComponents.kt`. tv-material's clickable surface (the base of
+  its Button, IconButton, FilterChip, ListItem and Card) handles the D-pad centre key and
+  the semantics click action and reads no pointer input at all, confirmed from the 1.1.0
+  bytecode (`tvClickable` = `handleDPadEnter` + `focusable` + `semantics`). Every use in
+  the app now goes through a wrapper of the same name that adds a tap. The tap takes focus
+  first, so the highlight and the focus memory follow the finger as they follow the remote.
+  Pure pointer input, deliberately not `clickable`, which would put a second focus target
+  and a second click action on the same node. A Robolectric test taps all three kinds.
+- **G2 fixed** `home/HomeShell.kt` the television rail opens on focus, which a touch never
+  gave it; a tap on a rail item now takes focus too, so the labels show.
+- **G3 fixed** `player/PlayerScreen.kt` the player's tap-to-toggle and double-tap seek were
+  phone-only; they run on every layout now.
+- **G4 fixed** `MainActivity.kt` in `Auto`, the television layout is the default on a tablet
+  (`smallestScreenWidthDp >= 600`, the platform's own `sw600dp` line) as well as on a
+  television. The setting reads "TV / tablet"; `Phone` still forces the phone layout.
+
 ## D. Deferred
 
 - **D1** Dependency versions behind the current stable (lint lists activity-compose,

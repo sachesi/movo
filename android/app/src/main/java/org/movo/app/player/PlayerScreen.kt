@@ -540,17 +540,16 @@ fun PlayerScreen(
                     }
                 }
             }
-            .then(
-                if (isTv) Modifier else Modifier.pointerInput(settings.seekSeconds) {
-                    // A tap toggles the overlay; a double tap on either half seeks that way.
-                    detectTapGestures(
-                        onTap = { ui.controlsVisible = !ui.controlsVisible },
-                        onDoubleTap = { offset ->
-                            seekBy(if (offset.x < size.width / 2) -settings.seekSeconds else settings.seekSeconds)
-                        },
-                    )
-                },
-            )
+            // A tap toggles the overlay; a double tap on either half seeks that way. On every
+            // layout: a tablet showing the television layout is still touched.
+            .pointerInput(settings.seekSeconds) {
+                detectTapGestures(
+                    onTap = { ui.controlsVisible = !ui.controlsVisible },
+                    onDoubleTap = { offset ->
+                        seekBy(if (offset.x < size.width / 2) -settings.seekSeconds else settings.seekSeconds)
+                    },
+                )
+            }
             .then(
                 if (isTv) {
                     Modifier

@@ -84,7 +84,7 @@
     <string name="layout_mode">Режим интерфейса</string>
     <string name="layout_auto">Авто</string>
     <string name="layout_phone">Телефон</string>
-    <string name="layout_tv">ТВ</string>
+    <string name="layout_tv">ТВ / планшет</string>
     <string name="theme">Тема</string>
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>

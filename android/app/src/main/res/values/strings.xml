@@ -93,7 +93,7 @@
     <string name="layout_mode">Layout mode</string>
     <string name="layout_auto">Auto</string>
     <string name="layout_phone">Phone</string>
-    <string name="layout_tv">TV</string>
+    <string name="layout_tv">TV / tablet</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

@@ -85,11 +85,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil3.compose.AsyncImage
-import androidx.tv.material3.Button as TvButton
+import org.movo.app.ui.TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip as TvFilterChip
-import androidx.tv.material3.IconButton as TvIconButton
-import androidx.tv.material3.ListItem as TvListItem
+import org.movo.app.ui.TvFilterChip
+import org.movo.app.ui.TvIconButton
+import org.movo.app.ui.TvListItem
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.SelectableChipScale
 import androidx.tv.material3.Surface as TvSurface
