@@ -82,6 +82,7 @@ class TvNavigationTest {
                 notificationCount = 3,
                 selectTab = { selected = it },
                 openSettings = {},
+                labelled = false,
             ) {
                 TvText("selected:${selected.name}")
             }
@@ -103,7 +104,7 @@ class TvNavigationTest {
     @Test
     fun rightReturnsFromDrawerToRememberedContent() {
         compose.setTvContent {
-            TvNavigationDrawer(Tab.Catalog, false, 0, {}, {}) {
+            TvNavigationDrawer(Tab.Catalog, false, 0, {}, {}, labelled = false) {
                 LazyRow(
                     Modifier.padding(48.dp).focusRestorer().focusGroup(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

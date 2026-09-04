@@ -98,11 +98,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -260,8 +263,10 @@ private fun TvHomeFlow(
 }
 
 private val RAIL_WIDTH = 80.dp
+private val LABELLED_RAIL_WIDTH = 96.dp
 private val PANEL_WIDTH = 260.dp
 private val DRAWER_ITEM_HEIGHT = 48.dp
+private val LABELLED_ITEM_HEIGHT = 64.dp
 
 /**
  * The television navigation sheet: a rail of icons that widens over the content, on focus, into
@@ -280,6 +285,10 @@ private val DRAWER_ITEM_HEIGHT = 48.dp
  * showing, so the icons never move and the labels never re-wrap while it opens: the widening only
  * uncovers what was already laid out. The width is read in the layout phase, so the animation
  * re-measures the sheet without recomposing any of it.
+ *
+ * [labelled] is the touch-screen form: there is no moment at which focus "enters" the rail, so it
+ * would never widen and the labels would never show. Instead the rail is a little wider, never
+ * widens, and stacks each label under its icon, the way a navigation rail does.
  */
 @Composable
 internal fun TvNavigationDrawer(
@@ -288,13 +297,15 @@ internal fun TvNavigationDrawer(
     notificationCount: Int,
     selectTab: (Tab) -> Unit,
     openSettings: () -> Unit,
+    labelled: Boolean = LocalConfiguration.current.touchscreen != Configuration.TOUCHSCREEN_NOTOUCH,
     content: @Composable () -> Unit,
 ) {
+    val railWidth = if (labelled) LABELLED_RAIL_WIDTH else RAIL_WIDTH
     // Inside the safe area: a television reports none, but a phone or tablet on this layout has
     // a status bar and a camera cutout, and without this the clock sat over the rail.
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).testTag("tv-navigation-drawer")) {
-        Box(Modifier.fillMaxSize().padding(start = RAIL_WIDTH)) { content() }
-        TvDrawerSheet(selectedTab, settingsSelected, notificationCount, selectTab, openSettings)
+        Box(Modifier.fillMaxSize().padding(start = railWidth)) { content() }
+        TvDrawerSheet(selectedTab, settingsSelected, notificationCount, labelled, selectTab, openSettings)
     }
 }
 
@@ -303,19 +314,20 @@ private fun TvDrawerSheet(
     selectedTab: Tab,
     settingsSelected: Boolean,
     notificationCount: Int,
+    labelled: Boolean,
     selectTab: (Tab) -> Unit,
     openSettings: () -> Unit,
 ) {
+    val railWidth = if (labelled) LABELLED_RAIL_WIDTH else RAIL_WIDTH
     var expanded by remember { mutableStateOf(false) }
-    val width = remember { Animatable(RAIL_WIDTH, Dp.VectorConverter) }
+    val width = remember { Animatable(railWidth, Dp.VectorConverter) }
     val motion = motionSpec<Dp>(tween(durationMillis = 200, easing = FastOutSlowInEasing))
-    LaunchedEffect(expanded) { width.animateTo(if (expanded) PANEL_WIDTH else RAIL_WIDTH, motion) }
-
+    LaunchedEffect(expanded) { width.animateTo(if (expanded) PANEL_WIDTH else railWidth, motion) }
 
     Box(
         Modifier
             .fillMaxHeight()
-            .onFocusChanged { expanded = it.hasFocus }
+            .onFocusChanged { if (!labelled) expanded = it.hasFocus }
             .focusGroup()
             // Opaque: the sheet is laid over the content, so whatever it covers has to stop
             // showing through it.
@@ -329,9 +341,11 @@ private fun TvDrawerSheet(
     ) {
         Column(
             Modifier
-                .requiredWidth(PANEL_WIDTH)
+                .requiredWidth(if (labelled) railWidth else PANEL_WIDTH)
                 .fillMaxHeight()
-                .padding(horizontal = 12.dp, vertical = 20.dp)
+                // Taller items than a phone in landscape has room for, so the labelled rail scrolls.
+                .then(if (labelled) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                .padding(horizontal = if (labelled) 8.dp else 12.dp, vertical = 20.dp)
                 .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -339,15 +353,17 @@ private fun TvDrawerSheet(
                 TvDrawerItem(
                     tab = tab,
                     expanded = expanded,
+                    labelled = labelled,
                     selected = !settingsSelected && selectedTab == tab,
                     badge = if (tab == Tab.Notifications) notificationCount else 0,
                     testTag = "tv-drawer-${tab.name.lowercase()}",
                 ) { selectTab(tab) }
             }
-            Spacer(Modifier.weight(1f))
+            if (labelled) Spacer(Modifier.height(12.dp)) else Spacer(Modifier.weight(1f))
             TvDrawerItem(
                 tab = Tab.Account,
                 expanded = expanded,
+                labelled = labelled,
                 selected = !settingsSelected && selectedTab == Tab.Account,
                 testTag = "tv-drawer-account",
             ) { selectTab(Tab.Account) }
@@ -355,6 +371,7 @@ private fun TvDrawerSheet(
                 icon = Icons.Default.Settings,
                 label = stringResource(R.string.settings_title),
                 expanded = expanded,
+                labelled = labelled,
                 selected = settingsSelected,
                 testTag = "tv-drawer-settings",
                 onClick = openSettings,
@@ -367,25 +384,26 @@ private fun TvDrawerSheet(
 private fun TvDrawerItem(
     tab: Tab,
     expanded: Boolean,
+    labelled: Boolean,
     selected: Boolean,
     testTag: String,
     badge: Int = 0,
     onClick: () -> Unit,
-) = TvDrawerItem(tab.icon, stringResource(tab.label), expanded, selected, testTag, onClick, badge)
+) = TvDrawerItem(tab.icon, stringResource(tab.label), expanded, labelled, selected, testTag, onClick, badge)
 
 @Composable
 private fun TvDrawerItem(
     icon: ImageVector,
     label: String,
     expanded: Boolean,
+    labelled: Boolean,
     selected: Boolean,
     testTag: String,
     onClick: () -> Unit,
     badge: Int = 0,
 ) {
     var focused by remember { mutableStateOf(false) }
-    // A tap takes focus as well, so on a touch screen the sheet opens to show its labels the
-    // way it does when the remote moves into it.
+    // A tap takes focus as well, so the highlight follows the finger as it follows the remote.
     val focusRequester = remember { FocusRequester() }
     val colors = MaterialTheme.colorScheme
     val container = when {
@@ -393,39 +411,56 @@ private fun TvDrawerItem(
         selected -> colors.surfaceVariant
         else -> Color.Transparent
     }
-    Row(
-        Modifier
-            .height(DRAWER_ITEM_HEIGHT)
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .background(container)
-            .focusRequester(focusRequester)
-            .onFocusChanged { focused = it.isFocused }
-            .selectable(selected = selected) {
-                runCatching { focusRequester.requestFocus() }
-                onClick()
-            }
-            // The label is not composed while the rail is narrow, so the row names itself for a
-            // screen reader until it is.
-            .then(if (expanded) Modifier else Modifier.semantics { contentDescription = label })
-            .padding(horizontal = 14.dp)
-            .testTag(testTag),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    val item = Modifier
+        .fillMaxWidth()
+        .clip(MaterialTheme.shapes.small)
+        .background(container)
+        .focusRequester(focusRequester)
+        .onFocusChanged { focused = it.isFocused }
+        .selectable(selected = selected) {
+            runCatching { focusRequester.requestFocus() }
+            onClick()
+        }
+        // The label is not composed while the rail is narrow, so the row names itself for a
+        // screen reader until it is.
+        .then(if (expanded || labelled) Modifier else Modifier.semantics { contentDescription = label })
+        .testTag(testTag)
+    CompositionLocalProvider(
+        LocalContentColor provides if (focused) colors.surface else colors.onSurface,
     ) {
-        CompositionLocalProvider(
-            LocalContentColor provides if (focused) colors.surface else colors.onSurface,
-        ) {
-            BadgedIcon(icon, badge)
-            // Composed only once the sheet is open: a label the rail is too narrow to show is
-            // still a label a screen reader would read out and a test would find.
-            if (expanded) {
+        if (labelled) {
+            Column(
+                item.height(LABELLED_ITEM_HEIGHT).padding(horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                BadgedIcon(icon, badge)
+                Spacer(Modifier.height(2.dp))
                 Text(
                     label,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
                 )
+            }
+        } else {
+            Row(
+                item.height(DRAWER_ITEM_HEIGHT).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                BadgedIcon(icon, badge)
+                // Composed only once the sheet is open: a label the rail is too narrow to show is
+                // still a label a screen reader would read out and a test would find.
+                if (expanded) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

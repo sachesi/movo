@@ -192,6 +192,13 @@ including the setting that would switch it back.
 - **H3 fixed** the Ukrainian "Обліковий запис" wrapped to two lines in the bottom bar; it is
   "Профіль" now, which also fits the rail and the settings chips.
 
+- **H4 fixed** `home/HomeShell.kt` on a touch screen the television rail never widened, so
+  its labels were never seen: it widens when focus enters it, and a finger has no such
+  moment. On a device that reports a touch screen the rail takes a labelled form instead: a
+  little wider, never widening, each label under its icon, scrolling where a phone in
+  landscape is too short for it. The remote form is unchanged, and the instrumentation
+  test pins it explicitly.
+
 ## D. Deferred
 
 - **D1** Dependency versions behind the current stable (lint lists activity-compose,
