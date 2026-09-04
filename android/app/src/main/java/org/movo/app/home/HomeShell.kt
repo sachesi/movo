@@ -516,7 +516,7 @@ internal fun ConfirmLogoutDialog(isTv: Boolean, dismiss: () -> Unit, confirm: ()
  * The four destinations the bottom bar shows outright. The bar holds five items before the
  * labels stop fitting a compact width, so the rest sit behind the fifth.
  */
-internal val PRIMARY_TABS = listOf(Tab.Catalog, Tab.Search, Tab.Favorites, Tab.Account)
+internal val PRIMARY_TABS = listOf(Tab.Catalog, Tab.Search, Tab.Favorites, Tab.History)
 internal val OVERFLOW_TABS = Tab.entries - PRIMARY_TABS.toSet()
 
 @Composable
