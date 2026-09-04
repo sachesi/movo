@@ -35,11 +35,6 @@ pub struct App {
     navigation: adw::NavigationView,
     notifications_page: adw::ViewStackPage,
     toasts: adw::ToastOverlay,
-    /// Whether the startup session restore has resolved. Views fire their
-    /// first load before it does, so an account mismatch reported before
-    /// this is that race, not a real sign-out: restoring finishing after a
-    /// view's anonymous load is not the session ending, it is it starting.
-    restore_settled: bool,
 }
 
 #[derive(Debug)]
@@ -319,7 +314,6 @@ impl Component for App {
             navigation: navigation.clone(),
             notifications_page,
             toasts: toasts.clone(),
-            restore_settled: false,
         };
         let widgets = view_output!();
 
@@ -342,11 +336,7 @@ impl Component for App {
             AppMsg::Play(request) => self.launcher.emit(LauncherMsg::Play(request)),
             AppMsg::OpenPath(title, path) => self.push_path(title, path, &sender),
             AppMsg::AccountInvalidated => {
-                // Before startup restore resolves, views load anonymously and
-                // then race it; that mismatch is not a real session ending.
-                if self.restore_settled {
-                    self.notify(tr("Your session has ended. Sign in again to continue."));
-                }
+                self.notify(tr("Your session has ended. Sign in again to continue."))
             }
             AppMsg::Notify(message) => self.notify(&message),
             AppMsg::UnreadCount(count) => {
@@ -366,7 +356,6 @@ impl Component for App {
         _sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        self.restore_settled = true;
         match message {
             AppCommand::SessionRestored(Ok(Some(username))) => {
                 self.notify(&trf("Signed in as {}", &[&username]));
@@ -383,11 +372,8 @@ impl App {
         self.toasts.add_toast(adw::Toast::new(message));
     }
 
-    /// Reload the views whose contents belong to the signed-in account, plus
-    /// Home: it does not need an account, but it may have been invalidated
-    /// by the startup restore race and left stuck on its loading state.
+    /// Reload the views whose contents belong to the signed-in account.
     fn reload_account_views(&self) {
-        self.home.emit(HomeMsg::Reload);
         self.favorites.emit(FavoritesMsg::Reload);
         self.history.emit(HistoryMsg::Reload);
         self.notifications.emit(NotificationsMsg::Reload);

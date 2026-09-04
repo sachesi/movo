@@ -49,10 +49,13 @@ impl AppState {
 
     /// Whether a result produced under `account` still belongs on screen.
     ///
-    /// Signed-out browsing is legitimate, so `None` before and after is
-    /// accepted; any change of account or generation is not.
+    /// A request that started signed out only ever carries public data, so
+    /// it is accepted whatever the account is now: every view fires its
+    /// first load before the startup session restore resolves, and that
+    /// restore finishing is not a sign-out. A request that started under an
+    /// account is rejected after any change of account or generation.
     pub fn accepts(&self, account: &Option<Account>) -> bool {
-        &self.account() == account
+        account.is_none() || &self.account() == account
     }
 }
 

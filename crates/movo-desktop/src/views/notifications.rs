@@ -136,11 +136,11 @@ impl Component for NotificationsView {
         sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        self.seen = seen;
         if !self.state.accepts(&message.account) {
             let _ = sender.output(NotificationsOutput::AccountInvalidated);
             return;
         }
+        self.seen = seen;
         match message.result {
             Ok(data) => {
                 self.render(data.notifications, &sender);
