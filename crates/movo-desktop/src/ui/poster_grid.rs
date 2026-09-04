@@ -222,6 +222,7 @@ pub fn poster_row<F: Fn(MediaItem) + 'static>(on_activate: F) -> PosterRow {
     let row: PosterRow = TypedListView::new();
     row.view.set_orientation(gtk::Orientation::Horizontal);
     row.view.set_single_click_activate(true);
+    row.view.add_css_class("poster-rail");
 
     let model = row.selection_model.clone();
     row.view.connect_activate(move |_, position| {

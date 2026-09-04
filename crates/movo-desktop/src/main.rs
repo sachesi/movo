@@ -10,5 +10,9 @@ fn main() {
     // thread; a single worker would serialize them behind each other.
     relm4::RELM_THREADS.set(4).ok();
 
-    RelmApp::new(APP_ID).run::<App>(());
+    let app = RelmApp::new(APP_ID);
+    // Adwaita rounds `gridview > child` but leaves `listview > row` square;
+    // the home rails are list views, so give their rows the grid's shape.
+    relm4::set_global_css("listview.poster-rail > row { border-radius: 9px; padding: 3px; }");
+    app.run::<App>(());
 }

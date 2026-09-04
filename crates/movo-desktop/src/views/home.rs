@@ -170,8 +170,11 @@ impl HomeView {
             let mut row = poster_row(move |item| open_sender.input(HomeMsg::Open(item)));
             row.extend_from_iter(section.items.into_iter().map(PosterItem::new));
 
+            // A rail scrolls by wheel, touchpad or drag; a bar under each one
+            // is clutter, so keep the scrolling and drop the bar.
             let scrolled = gtk::ScrolledWindow::builder()
                 .vscrollbar_policy(gtk::PolicyType::Never)
+                .hscrollbar_policy(gtk::PolicyType::External)
                 .margin_start(18)
                 .margin_end(18)
                 .child(&row.view)
