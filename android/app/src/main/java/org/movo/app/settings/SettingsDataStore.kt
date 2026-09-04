@@ -50,6 +50,7 @@ internal object Keys {
     val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
     val QUALITY_MODE = stringPreferencesKey("quality_mode")
     val AUTO_NEXT = booleanPreferencesKey("auto_next")
+    val PICTURE_IN_PICTURE = booleanPreferencesKey("picture_in_picture")
     val SEEK_SECONDS = intPreferencesKey("seek_seconds")
     val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
     val VIDEO_FIT = stringPreferencesKey("video_fit")
@@ -71,6 +72,8 @@ data class AppSettings(
     val useDynamicColor: Boolean = true,
     val qualityMode: QualityMode = QualityMode.P1080,
     val autoNext: Boolean = true,
+    /** Phone layout only: playback follows the user out of the app in a floating window. */
+    val pictureInPicture: Boolean = false,
     val seekSeconds: Int = 10,
     val playbackSpeed: Float = 1f,
     val videoFit: VideoFit = VideoFit.Contain,
@@ -102,6 +105,7 @@ val Context.settings: Flow<AppSettings>
                 useDynamicColor = prefs[Keys.USE_DYNAMIC_COLOR] ?: true,
                 qualityMode = safeValueOf(prefs[Keys.QUALITY_MODE], QualityMode.P1080),
                 autoNext = prefs[Keys.AUTO_NEXT] ?: true,
+                pictureInPicture = prefs[Keys.PICTURE_IN_PICTURE] ?: false,
                 seekSeconds = prefs[Keys.SEEK_SECONDS] ?: 10,
                 playbackSpeed = prefs[Keys.PLAYBACK_SPEED] ?: 1f,
                 videoFit = safeValueOf(prefs[Keys.VIDEO_FIT], VideoFit.Contain),

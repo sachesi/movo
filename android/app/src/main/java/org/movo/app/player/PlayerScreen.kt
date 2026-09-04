@@ -541,8 +541,11 @@ fun PlayerScreen(
         actions.nextEpisode(false)
     }
 
-    // Picture-in-picture, phone layout only: the television layout has nothing to shrink to.
-    val pip = remember(activity, isTv) { activity?.takeUnless { isTv }?.let(::pictureInPicture) }
+    // Picture-in-picture, opt-in and phone layout only: the television layout has nothing to
+    // shrink to.
+    val pip = remember(activity, isTv, settings.pictureInPicture) {
+        activity?.takeIf { !isTv && settings.pictureInPicture }?.let(::pictureInPicture)
+    }
     var inPip by remember(pip) { mutableStateOf(pip?.active == true) }
     val videoBounds = remember { mutableStateOf<Rect?>(null) }
     val autoEnter = wantsPictureInPicture(content.playWhenReady, content.completed, content.playbackError != null)

@@ -140,6 +140,7 @@ fun SettingsContent(
                     isTv = isTv,
                 )
                 SwitchItem(stringResource(R.string.auto_next), settings.autoNext, isTv) { actions.save(Keys.AUTO_NEXT, it) }
+                if (!isTv) SwitchItem(stringResource(R.string.picture_in_picture), settings.pictureInPicture, isTv) { actions.save(Keys.PICTURE_IN_PICTURE, it) }
                 ChoiceSection(
                     title = stringResource(R.string.seek_interval),
                     values = listOf(5, 10, 15, 30),
