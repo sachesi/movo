@@ -87,9 +87,23 @@ impl Component for App {
                         adw::ToolbarView {
                             add_top_bar = &adw::HeaderBar {
                                 #[wrap(Some)]
-                                set_title_widget = &adw::ViewSwitcher {
-                                    set_policy: adw::ViewSwitcherPolicy::Wide,
-                                    set_stack: Some(&stack),
+                                set_title_widget = &gtk::Box {
+                                    set_halign: gtk::Align::Center,
+
+                                    #[name = "header_switcher"]
+                                    adw::ViewSwitcher {
+                                        set_policy: adw::ViewSwitcherPolicy::Wide,
+                                        set_stack: Some(&stack),
+                                    },
+
+                                    // Below the breakpoint the seven destinations move to
+                                    // the bottom bar; the header falls back to a plain
+                                    // title instead of a switcher with nowhere to shrink.
+                                    #[name = "header_title"]
+                                    adw::WindowTitle {
+                                        set_title: "Movo",
+                                        set_visible: false,
+                                    },
                                 },
 
                                 pack_end = &gtk::Button {
@@ -306,6 +320,8 @@ impl Component for App {
         // so hand them to the bottom bar below the breakpoint.
         if let Ok(condition) = adw::BreakpointCondition::parse("max-width: 720sp") {
             let breakpoint = adw::Breakpoint::new(condition);
+            breakpoint.add_setter(&widgets.header_switcher, "visible", Some(&false.into()));
+            breakpoint.add_setter(&widgets.header_title, "visible", Some(&true.into()));
             breakpoint.add_setter(&widgets.switcher_bar, "reveal", Some(&true.into()));
             root.add_breakpoint(breakpoint);
         }
