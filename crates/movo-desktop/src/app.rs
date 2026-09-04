@@ -459,7 +459,7 @@ fn notification_media(title: String, url: String) -> MediaItem {
 fn show_about(root: &adw::ApplicationWindow) {
     adw::AboutDialog::builder()
         .application_name("Movo")
-        .application_icon("io.github.sachesi.Movo")
+        .application_icon(crate::APP_ID)
         .developer_name("sachesi")
         .website("https://github.com/sachesi/movo")
         .license_type(gtk::License::Gpl30)

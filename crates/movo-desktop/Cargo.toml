@@ -10,9 +10,9 @@ license = "GPL-3.0-only"
 movo-core = { path = "../movo-core" }
 
 # GTK 4, Libadwaita & Relm4
-gtk4 = { version = "0.11", features = ["v4_16"] }
-libadwaita = { version = "0.9", features = ["v1_6"] }
-relm4 = { version = "0.11", features = ["libadwaita", "gnome_47"] }
+gtk4 = { version = "0.11", features = ["v4_22"] }
+libadwaita = { version = "0.9", features = ["v1_9"] }
+relm4 = { version = "0.11", features = ["libadwaita", "gnome_50"] }
 
 # Async runtime & Networking
 tokio = { version = "1.43", features = ["full"] }
