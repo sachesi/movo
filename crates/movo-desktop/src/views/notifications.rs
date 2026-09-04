@@ -38,7 +38,7 @@ impl Component for NotificationsView {
     type Init = Rc<AppState>;
     type Input = NotificationsMsg;
     type Output = NotificationsOutput;
-    type CommandOutput = Guarded<AccountData>;
+    type CommandOutput = (SeenNotifications, Guarded<AccountData>);
 
     view! {
         gtk::Box {
@@ -94,23 +94,36 @@ impl Component for NotificationsView {
                     let _ = sender.output(NotificationsOutput::UnreadCount(0));
                     return;
                 };
-                self.seen = SeenNotifications::load(&user.user_id);
                 self.content
                     .set(ContentState::Loading(tr("Loading Notifications")));
                 let client = self.state.client.clone();
+                let user_id = user.user_id.clone();
                 sender.oneshot_command(async move {
-                    guarded(client, |client| async move { client.account_data().await }).await
+                    let seen = relm4::spawn_blocking(move || SeenNotifications::load(&user_id))
+                        .await
+                        .unwrap_or_default();
+                    let data =
+                        guarded(client, |client| async move { client.account_data().await })
+                            .await;
+                    (seen, data)
                 });
             }
             NotificationsMsg::Open(title, url) => {
                 if let Some(user) = self.state.user() {
-                    match SeenNotifications::mark_seen_for(&user.user_id, &url, &self.listed) {
-                        Ok(seen) => self.seen = seen,
-                        Err(error) => {
-                            log::warn!("Could not record the opened notification: {error}")
-                        }
-                    }
+                    let listed = self.listed.clone();
+                    self.seen.urls.insert(url.clone());
+                    self.seen.urls.retain(|seen_url| listed.contains(seen_url));
                     let _ = sender.output(NotificationsOutput::UnreadCount(self.unread()));
+
+                    let user_id = user.user_id.clone();
+                    let seen_url = url.clone();
+                    relm4::spawn_blocking(move || {
+                        if let Err(error) =
+                            SeenNotifications::mark_seen_for(&user_id, &seen_url, &listed)
+                        {
+                            log::warn!("Could not record the opened notification: {error}");
+                        }
+                    });
                 }
                 let _ = sender.output(NotificationsOutput::Open(title, url));
             }
@@ -119,10 +132,11 @@ impl Component for NotificationsView {
 
     fn update_cmd(
         &mut self,
-        message: Self::CommandOutput,
+        (seen, message): Self::CommandOutput,
         sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
+        self.seen = seen;
         if !self.state.accepts(&message.account) {
             let _ = sender.output(NotificationsOutput::AccountInvalidated);
             return;

@@ -45,11 +45,13 @@ pub fn present(
         let state = state.clone();
         let on_changed = on_changed.clone();
         Rc::new(move |settings: AppSettings| {
-            if let Err(error) = settings.save() {
-                log::warn!("Could not save settings: {error}");
-            }
             state.set_settings(settings.clone());
-            on_changed(settings);
+            on_changed(settings.clone());
+            relm4::spawn_blocking(move || {
+                if let Err(error) = settings.save() {
+                    log::warn!("Could not save settings: {error}");
+                }
+            });
         })
     };
 

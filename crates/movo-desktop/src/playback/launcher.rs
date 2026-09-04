@@ -297,17 +297,19 @@ fn launch(
         return;
     };
 
-    let launch_request = build_request(request, bundle, url.to_string(), user_id);
+    let request = request.clone();
+    let bundle = bundle.clone();
+    let url = url.to_string();
+    let user_id = user_id.to_string();
     let events = sender.command_sender().clone();
     let window = window.clone();
 
-    relm4::spawn_local({
-        async move {
-            match start_player(command, window, launch_request, events).await {
-                Ok(()) => {}
-                Err(error) => {
-                    let _ = sender.output(LauncherOutput::Notify(error));
-                }
+    relm4::spawn_local(async move {
+        let launch_request = build_request(&request, &bundle, url, &user_id).await;
+        match start_player(command, window, launch_request, events).await {
+            Ok(()) => {}
+            Err(error) => {
+                let _ = sender.output(LauncherOutput::Notify(error));
             }
         }
     });
@@ -327,15 +329,24 @@ fn quality_labels(bundle: &StreamBundle) -> Vec<String> {
         .collect()
 }
 
-fn build_request(
+async fn build_request(
     request: &PlayRequest,
     bundle: &StreamBundle,
     url: String,
     user_id: &str,
 ) -> LaunchRequest {
-    let previous = WatchHistory::load(user_id)
-        .get_entry(request.details.id, request.season, request.episode)
-        .cloned();
+    let lookup_user_id = user_id.to_string();
+    let media_id = request.details.id;
+    let season = request.season;
+    let episode = request.episode;
+    let previous = relm4::spawn_blocking(move || {
+        WatchHistory::load(&lookup_user_id)
+            .get_entry(media_id, season, episode)
+            .cloned()
+    })
+    .await
+    .ok()
+    .flatten();
 
     LaunchRequest {
         url,
