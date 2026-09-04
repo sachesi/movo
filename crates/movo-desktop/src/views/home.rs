@@ -63,6 +63,10 @@ impl Component for HomeView {
             .build();
 
         let content = ContentStack::new(&scrolled, tr("Home Did Not Load"));
+        content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(HomeMsg::Reload)
+        });
 
         let model = HomeView {
             state,

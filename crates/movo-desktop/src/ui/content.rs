@@ -1,6 +1,7 @@
 use crate::i18n::tr;
 use relm4::adw;
 use relm4::gtk::{self, prelude::*};
+use std::cell::Cell;
 
 /// What a view is currently showing.
 pub enum ContentState<'a> {
@@ -20,6 +21,9 @@ pub struct ContentStack {
     status: adw::StatusPage,
     spinner: adw::StatusPage,
     sign_in: gtk::Button,
+    retry: gtk::Button,
+    /// Whether a caller wired up `on_retry`; the button stays hidden without one.
+    has_retry: Cell<bool>,
     /// Names what failed, so the error page says more than that something did.
     error_title: &'static str,
 }
@@ -39,7 +43,22 @@ impl ContentStack {
             .build();
         sign_in.add_css_class("suggested-action");
         sign_in.add_css_class("pill");
-        status.set_child(Some(&sign_in));
+
+        let retry = gtk::Button::builder()
+            .label(tr("Try Again"))
+            .halign(gtk::Align::Center)
+            .visible(false)
+            .build();
+        retry.add_css_class("pill");
+
+        let actions = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .halign(gtk::Align::Center)
+            .spacing(12)
+            .build();
+        actions.append(&sign_in);
+        actions.append(&retry);
+        status.set_child(Some(&actions));
 
         let widget = gtk::Stack::builder()
             .vexpand(true)
@@ -54,8 +73,17 @@ impl ContentStack {
             status,
             spinner,
             sign_in,
+            retry,
+            has_retry: Cell::new(false),
             error_title,
         }
+    }
+
+    /// Show a "Try Again" button on the error page that runs `callback`.
+    /// Without this the error page has no action, just the message.
+    pub fn on_retry(&self, callback: impl Fn() + 'static) {
+        self.has_retry.set(true);
+        self.retry.connect_clicked(move |_| callback());
     }
 
     pub fn set(&self, state: ContentState<'_>) {
@@ -66,6 +94,7 @@ impl ContentStack {
             }
             ContentState::Empty(icon, title) => {
                 self.sign_in.set_visible(false);
+                self.retry.set_visible(false);
                 self.status.set_icon_name(Some(icon));
                 self.status.set_title(title);
                 self.status.set_description(None);
@@ -73,6 +102,7 @@ impl ContentStack {
             }
             ContentState::SignedOut(title) => {
                 self.sign_in.set_visible(true);
+                self.retry.set_visible(false);
                 self.status
                     .set_icon_name(Some("system-lock-screen-symbolic"));
                 self.status.set_title(title);
@@ -81,6 +111,7 @@ impl ContentStack {
             }
             ContentState::Error(message) => {
                 self.sign_in.set_visible(false);
+                self.retry.set_visible(self.has_retry.get());
                 self.status.set_icon_name(Some("dialog-error-symbolic"));
                 self.status.set_title(self.error_title);
                 self.status.set_description(Some(message));

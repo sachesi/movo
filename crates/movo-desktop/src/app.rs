@@ -6,7 +6,7 @@ use crate::views::collections::{CollectionsOutput, CollectionsView};
 use crate::views::details::{DetailsOutput, DetailsView};
 use crate::views::favorites::{FavoritesMsg, FavoritesOutput, FavoritesView};
 use crate::views::history::{HistoryMsg, HistoryOutput, HistoryView};
-use crate::views::home::{HomeOutput, HomeView};
+use crate::views::home::{HomeMsg, HomeOutput, HomeView};
 use crate::views::notifications::{NotificationsMsg, NotificationsOutput, NotificationsView};
 use crate::views::path::{PathOutput, PathView};
 use crate::views::search::{SearchOutput, SearchView};
@@ -19,9 +19,9 @@ use std::rc::Rc;
 
 pub struct App {
     state: Rc<AppState>,
-    // Views that do not depend on the account are only held so their
+    home: Controller<HomeView>,
+    // These views do not depend on the account; they are only held so their
     // components stay alive for as long as the window does.
-    _home: Controller<HomeView>,
     _catalog: Controller<CatalogView>,
     _search: Controller<SearchView>,
     _collections: Controller<CollectionsView>,
@@ -300,7 +300,7 @@ impl Component for App {
 
         let model = App {
             state,
-            _home: home,
+            home,
             _catalog: catalog,
             _search: search,
             _collections: collections,
@@ -382,6 +382,7 @@ impl App {
     /// only when they are actually shown.
     fn reload_tab(&self, name: &str) {
         match name {
+            "home" => self.home.emit(HomeMsg::Reload),
             "favorites" => self.favorites.emit(FavoritesMsg::Reload),
             "history" => self.history.emit(HistoryMsg::Reload),
             "notifications" => self.notifications.emit(NotificationsMsg::Reload),
