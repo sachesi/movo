@@ -71,6 +71,10 @@ impl Component for App {
             // window, the switcher or the dock.
             set_icon_name: Some(crate::APP_ID),
             set_default_size: (1280, 820),
+            // Matches the bottom-bar breakpoint below: the switcher bar and
+            // its rows are the narrowest content the shell is laid out for.
+            set_width_request: 360,
+            set_height_request: 294,
 
             #[local_ref]
             toasts -> adw::ToastOverlay {
