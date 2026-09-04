@@ -276,7 +276,7 @@ impl Component for App {
                     .map(|user| user.map(|user| user.username))
             })
             .await
-            .unwrap_or_else(|_| Err("Restoring the session stopped unexpectedly".to_string()));
+            .unwrap_or_else(|_| Err(tr("Restoring the session stopped unexpectedly").to_string()));
             AppCommand::SessionRestored(restored)
         });
 

@@ -1,3 +1,4 @@
+use crate::i18n::tr;
 use crate::state::{account_of, Account};
 use movo_core::client::RezkaClient;
 use std::future::Future;
@@ -24,6 +25,6 @@ where
     let result = relm4::spawn(async move { request(client).await }).await;
     Guarded {
         account,
-        result: result.unwrap_or_else(|_| Err("The request stopped unexpectedly".to_string())),
+        result: result.unwrap_or_else(|_| Err(tr("The request stopped unexpectedly").to_string())),
     }
 }
