@@ -32,7 +32,7 @@ fn default_theme() -> String {
 }
 
 fn default_initial_view() -> String {
-    "catalog".to_string()
+    "home".to_string()
 }
 
 impl Default for AppSettings {
@@ -106,7 +106,7 @@ mod tests {
 
         assert!(!settings.sort_voices);
         assert_eq!(settings.theme, "system");
-        assert_eq!(settings.initial_view, "catalog");
+        assert_eq!(settings.initial_view, "home");
         assert_eq!(settings.external_player, "mpv");
     }
 
