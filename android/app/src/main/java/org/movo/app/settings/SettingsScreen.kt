@@ -57,7 +57,9 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import org.movo.app.ui.TvFilterChip
 import org.movo.app.ui.TvListItem
 import androidx.tv.material3.ListItemScale
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.SelectableChipScale
+import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import androidx.tv.material3.Switch as TvSwitch
 import androidx.tv.material3.Text as TvText
@@ -214,17 +216,22 @@ private fun SettingsGroup(
     isTv: Boolean,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val inset = if (isTv) TV_OVERSCAN_HORIZONTAL else 16.dp
     Text(
         text = title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 4.dp).sectionHeading(),
+        modifier = Modifier.padding(start = inset + 4.dp, top = 20.dp, bottom = 4.dp).sectionHeading(),
     )
     val modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 16.dp, vertical = 4.dp)
+        .padding(horizontal = inset, vertical = 4.dp)
     if (isTv) {
-        TvSurface(modifier = modifier) {
+        TvSurface(
+            modifier = modifier,
+            shape = RoundedCornerShape(16.dp),
+            colors = SurfaceDefaults.colors(containerColor = TvMaterialTheme.colorScheme.surfaceVariant),
+        ) {
             Column(Modifier.padding(vertical = 4.dp).focusRestorer().focusGroup(), content = content)
         }
     } else {
@@ -298,8 +305,9 @@ private fun SwitchItem(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     if (isTv) {
+        // Not `selected = checked`: that paints a switched-on row as a chosen list entry.
         TvListItem(
-            selected = checked,
+            selected = false,
             onClick = { onCheckedChange(!checked) },
             headlineContent = { TvText(label) },
             trailingContent = {
