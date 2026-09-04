@@ -198,6 +198,13 @@ including the setting that would switch it back.
   little wider, never widening, each label under its icon, scrolling where a phone in
   landscape is too short for it. The remote form is unchanged, and the instrumentation
   test pins it explicitly.
+- **H5 fixed** `crates/movo-core/src/client/search.rs`, `core/MovoViewModel.kt` the home
+  page was five provider requests joined so that one failure failed them all, and a home
+  that came back with nothing in it left the skeleton up with no error to retry from. The
+  sections that arrive are now shown, a failed or empty one is dropped, and only a home with
+  nothing left is reported as an error.
+- **H6 fixed** `home/HomeShell.kt` the labelled rail lost 12 dp of ground either side of
+  its buttons; the buttons and their labels keep the width they had.
 
 ## D. Deferred
 

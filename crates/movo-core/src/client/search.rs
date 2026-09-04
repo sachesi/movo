@@ -10,8 +10,11 @@ pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
     let popular = session.get_html("new?filter=popular");
     let awaiting = session.get_html("announce");
     let (hot, new, watching, popular, awaiting) =
-        tokio::try_join!(hot, new, watching, popular, awaiting)?;
-    Ok([
+        tokio::join!(hot, new, watching, popular, awaiting);
+    // One slow or refused page must not take the whole home page down with it: the
+    // sections that did arrive are shown, and only a home with nothing in it is an error.
+    let mut failure = None;
+    let sections: Vec<HomeSection> = [
         ("hot", hot),
         ("new", new),
         ("watching", watching),
@@ -19,11 +22,23 @@ pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
         ("awaiting", awaiting),
     ]
     .into_iter()
-    .map(|(id, html)| HomeSection {
-        id: id.to_string(),
-        items: catalog::parse_catalog_html(&html),
+    .filter_map(|(id, html)| match html {
+        Ok(html) => Some(HomeSection {
+            id: id.to_string(),
+            items: catalog::parse_catalog_html(&html),
+        }),
+        Err(error) => {
+            log::warn!("Home section {id} failed: {error}");
+            failure.get_or_insert(error);
+            None
+        }
     })
-    .collect())
+    .filter(|section| !section.items.is_empty())
+    .collect();
+    if sections.is_empty() {
+        return Err(failure.unwrap_or_else(|| "The home page came back empty".to_string()));
+    }
+    Ok(sections)
 }
 
 pub async fn suggestions(session: &RezkaSession, query: &str) -> Result<Vec<String>, String> {

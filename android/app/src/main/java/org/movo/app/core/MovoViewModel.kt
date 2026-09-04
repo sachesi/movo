@@ -199,6 +199,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob = run {
             val sections = NativeBridge.decode<List<HomeSection>>("home")
                 .map { section -> section.copy(items = section.items.distinctBy { it.url }) }
+                .filter { it.items.isNotEmpty() }
+            // An empty home would otherwise leave the skeleton up for good: no rows, no error,
+            // and nothing to retry from.
+            if (sections.isEmpty()) error(text(R.string.home_failed))
             if (state.value.tab == Tab.Catalog) _state.update { it.copy(homeSections = sections) }
         }
     }

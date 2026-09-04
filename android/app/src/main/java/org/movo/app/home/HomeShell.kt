@@ -263,7 +263,7 @@ private fun TvHomeFlow(
 }
 
 private val RAIL_WIDTH = 80.dp
-private val LABELLED_RAIL_WIDTH = 96.dp
+private val LABELLED_RAIL_WIDTH = 84.dp
 private val PANEL_WIDTH = 260.dp
 private val DRAWER_ITEM_HEIGHT = 48.dp
 private val LABELLED_ITEM_HEIGHT = 64.dp
@@ -345,7 +345,7 @@ private fun TvDrawerSheet(
                 .fillMaxHeight()
                 // Taller items than a phone in landscape has room for, so the labelled rail scrolls.
                 .then(if (labelled) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .padding(horizontal = if (labelled) 8.dp else 12.dp, vertical = 20.dp)
+                .padding(horizontal = if (labelled) 6.dp else 12.dp, vertical = 20.dp)
                 .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -430,7 +430,7 @@ private fun TvDrawerItem(
     ) {
         if (labelled) {
             Column(
-                item.height(LABELLED_ITEM_HEIGHT).padding(horizontal = 4.dp),
+                item.height(LABELLED_ITEM_HEIGHT),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
