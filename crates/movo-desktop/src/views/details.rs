@@ -837,9 +837,14 @@ impl DetailsView {
         details: &MediaDetails,
         sender: &relm4::ComponentSender<Self>,
     ) -> adw::PreferencesGroup {
-        let group = adw::PreferencesGroup::builder()
+        // Folded by default: the list runs long, and the play controls sit
+        // above it.
+        let expander = adw::ExpanderRow::builder()
             .title(tr("Episode Schedule"))
+            .expanded(false)
             .build();
+        let group = adw::PreferencesGroup::new();
+        group.add(&expander);
 
         for schedule in &details.schedules {
             for item in &schedule.items {
@@ -878,7 +883,7 @@ impl DetailsView {
                     });
                     row.add_suffix(&watched);
                 }
-                group.add(&row);
+                expander.add_row(&row);
             }
         }
         group

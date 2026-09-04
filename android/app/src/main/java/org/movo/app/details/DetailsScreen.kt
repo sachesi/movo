@@ -162,6 +162,7 @@ internal fun DetailsScreen(
         }
     }
     var descExpanded by remember(details.url) { mutableStateOf(false) }
+    var scheduleExpanded by remember(details.url) { mutableStateOf(false) }
     // Measured rather than guessed from the length: a short description of many lines was cut
     // off with no way to open it, and a long one of few lines offered a button that did nothing.
     var descOverflows by remember(details.url) { mutableStateOf(false) }
@@ -499,8 +500,15 @@ internal fun DetailsScreen(
             if (details.schedules.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
-                        details.schedules.forEach { group ->
+                        // Folded away by default: the list runs long, and what most visits want
+                        // is the play button above it.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).sectionHeading())
+                            IconButton({ scheduleExpanded = !scheduleExpanded }, Modifier.tvFocusScale(isTv)) {
+                                Icon(if (scheduleExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, stringResource(if (scheduleExpanded) R.string.collapse else R.string.more))
+                            }
+                        }
+                        if (scheduleExpanded) details.schedules.forEach { group ->
                             if (group.name.isNotBlank()) Text(group.name, style = MaterialTheme.typography.titleMedium)
                             group.items.forEach { episode ->
                                 ListItem(
