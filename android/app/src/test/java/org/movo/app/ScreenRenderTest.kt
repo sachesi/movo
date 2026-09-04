@@ -49,7 +49,7 @@ class ScreenRenderTest {
         val m = model()
         compose.setContent {
             MaterialTheme {
-                HomeFlow(state, isTv = false, useRail = false, compactHeight = false, model = m, settings = AppSettings(), isDark = true)
+                HomeFlow(state, isTv = false, useRail = false, compactHeight = false, model = m, settings = AppSettings())
             }
         }
         compose.waitForIdle()
@@ -60,7 +60,7 @@ class ScreenRenderTest {
         val m = model()
         compose.setContent {
             MaterialTheme {
-                HomeFlow(state, isTv = true, useRail = true, compactHeight = false, model = m, settings = AppSettings(), isDark = true)
+                HomeFlow(state, isTv = true, useRail = true, compactHeight = false, model = m, settings = AppSettings())
             }
         }
         compose.waitForIdle()

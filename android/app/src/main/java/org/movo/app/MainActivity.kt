@@ -19,6 +19,7 @@ import org.movo.app.details.DetailsScreen
 import org.movo.app.home.HomeFlow
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoBlue
+import org.movo.app.ui.toTvColorScheme
 import org.movo.app.ui.tvFocusScale
 import org.movo.app.core.Rating
 import org.movo.app.core.AppEffect
@@ -102,6 +103,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 
 class MainActivity : ComponentActivity() {
     private val deepLinks = MutableStateFlow<String?>(null)
@@ -238,58 +240,62 @@ private fun MovoApp(
         LocalReducedMotion provides reducedMotion,
         LocalFold provides fold,
     ) {
+        // The tv-material controls carry their own theme; restated once here from the resolved
+        // scheme so every surface, the details page and its dialogs included, uses one palette.
         MaterialTheme(colorScheme = colorScheme) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
-                val deepLink by deepLinks.collectAsStateWithLifecycle()
-                LaunchedEffect(screen, settings.initialTab, isTv) {
-                    if (screen == Screen.Login) initialTabApplied = false
-                    if (screen == Screen.Home && !initialTabApplied) {
-                        initialTabApplied = true
-                        model.selectTab(settings.initialTab, isTv)
+            TvMaterialTheme(colorScheme = colorScheme.toTvColorScheme(isDark)) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
+                    val deepLink by deepLinks.collectAsStateWithLifecycle()
+                    LaunchedEffect(screen, settings.initialTab, isTv) {
+                        if (screen == Screen.Login) initialTabApplied = false
+                        if (screen == Screen.Home && !initialTabApplied) {
+                            initialTabApplied = true
+                            model.selectTab(settings.initialTab, isTv)
+                        }
                     }
-                }
-                LaunchedEffect(screen, deepLink) {
-                    val url = deepLink ?: return@LaunchedEffect
-                    if (screen == Screen.Home || screen == Screen.Details) {
-                        consumeDeepLink()
-                        model.openDetails(url)
+                    LaunchedEffect(screen, deepLink) {
+                        val url = deepLink ?: return@LaunchedEffect
+                        if (screen == Screen.Home || screen == Screen.Details) {
+                            consumeDeepLink()
+                            model.openDetails(url)
+                        }
                     }
-                }
-                val snackbars = remember { SnackbarHostState() }
-                val lifecycle = LocalLifecycleOwner.current.lifecycle
-                // Collected once here rather than per screen: a message can be raised while playback
-                // is on top, and the player is not inside the home Scaffold.
-                LaunchedEffect(model, lifecycle) {
-                    lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                        model.effects.collect { effect ->
-                            when (effect) {
-                                is AppEffect.Message -> snackbars.showSnackbar(effect.text)
+                    val snackbars = remember { SnackbarHostState() }
+                    val lifecycle = LocalLifecycleOwner.current.lifecycle
+                    // Collected once here rather than per screen: a message can be raised while playback
+                    // is on top, and the player is not inside the home Scaffold.
+                    LaunchedEffect(model, lifecycle) {
+                        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                            model.effects.collect { effect ->
+                                when (effect) {
+                                    is AppEffect.Message -> snackbars.showSnackbar(effect.text)
+                                }
                             }
                         }
                     }
-                }
-                Box(Modifier.fillMaxSize()) {
-                    when (screen) {
-                        Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
-                        Screen.Login -> LoginRoute(model, isTv)
-                        Screen.Player -> PlayerRoute(model, settings, isTv)
-                        Screen.Trailer -> TrailerRoute(model, isTv)
-                        Screen.Details -> DetailsRoute(
-                            model,
-                            isTv,
-                            windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
-                            settings,
+                    Box(Modifier.fillMaxSize()) {
+                        when (screen) {
+                            Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
+                            Screen.Login -> LoginRoute(model, isTv)
+                            Screen.Player -> PlayerRoute(model, settings, isTv)
+                            Screen.Trailer -> TrailerRoute(model, isTv)
+                            Screen.Details -> DetailsRoute(
+                                model,
+                                isTv,
+                                windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
+                                settings,
+                            )
+                            Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings)
+                        }
+                        SnackbarHost(
+                            snackbars,
+                            // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
                         )
-                        Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings, isDark)
                     }
-                    SnackbarHost(
-                        snackbars,
-                        // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-                    )
                 }
             }
         }
@@ -465,10 +471,9 @@ private fun HomeRoute(
     useRail: Boolean,
     compactHeight: Boolean,
     settings: AppSettings,
-    isDark: Boolean,
 ) {
     val state by model.state.collectAsStateWithLifecycle()
-    HomeFlow(state, isTv, useRail, compactHeight, model, settings, isDark)
+    HomeFlow(state, isTv, useRail, compactHeight, model, settings)
 }
 
 @Composable

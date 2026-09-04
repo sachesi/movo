@@ -32,7 +32,6 @@ import org.movo.app.ui.ChoiceRow
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.placeholderTile
-import org.movo.app.ui.tvFocusScale
 import org.movo.app.ui.tvInitialFocus
 import org.movo.app.core.Comment
 import org.movo.app.core.Person
@@ -112,7 +111,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+import org.movo.app.ui.TvAssistChip
+import org.movo.app.ui.TvButton
+import org.movo.app.ui.TvIconButton
+import org.movo.app.ui.TvListItem
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.ListItemScale
+import androidx.tv.material3.ButtonDefaults as TvButtonDefaults
+import androidx.tv.material3.Icon as TvIcon
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.Text as TvText
 
 @Composable
 internal fun DetailsScreen(
@@ -238,14 +246,14 @@ internal fun DetailsScreen(
                 title = { Text(details.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
-                    IconButton(
-                        model::closeDetails,
-                        Modifier.tvFocusScale(isTv).then(if (isTv) Modifier.tvFocusMemory("details:back") else Modifier),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
+                    if (isTv) {
+                        TvIconButton(model::closeDetails, Modifier.tvFocusMemory("details:back")) {
+                            TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                        }
+                    } else {
+                        IconButton(model::closeDetails) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                        }
                     }
                 },
                 windowInsets = if (isTv) {
@@ -293,7 +301,7 @@ internal fun DetailsScreen(
                             model = details.posterHqUrl ?: details.posterUrl,
                             contentDescription = null,
                             modifier = Modifier
-                                .width(if (isTv) 260.dp else if (wideContent) 200.dp else 120.dp)
+                                .width(if (isTv) 220.dp else if (wideContent) 200.dp else 120.dp)
                                 .aspectRatio(2f / 3f)
                                 .clip(RoundedCornerShape(if (isTv) 16.dp else 12.dp)),
                             placeholder = tile,
@@ -301,16 +309,16 @@ internal fun DetailsScreen(
                             fallback = tile,
                             contentScale = ContentScale.Crop,
                         )
-                        if (details.trailerAvailable) {
-                            // Small affordance: trailer is also reachable from the action row,
-                            // the badge just makes it discoverable on the poster.
+                        // Only where the action row has no room for a trailer button: on a
+                        // wide screen it had one already, and on a television the badge was a
+                        // second focus stop for the same thing.
+                        if (details.trailerAvailable && !(wideContent || isTv)) {
                             FilledTonalIconButton(
                                 onClick = model::loadTrailer,
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(6.dp)
-                                    .size(48.dp)
-                                    .tvFocusScale(isTv),
+                                    .size(48.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Movie,
@@ -358,21 +366,55 @@ internal fun DetailsScreen(
                             )
                         }
                         RatingRow(details)
-                        FlowRow(
+                        val favoriteIcon = if (details.favoriteCategoryIds.isEmpty()) Icons.Default.FavoriteBorder else Icons.Default.Favorite
+                        val play = { automaticPlayback = !settings.askQuality; showPlayback = true }
+                        val canPlay = translators.isNotEmpty() && !state.loading
+                        if (isTv) {
+                            // tv-material controls: a Material 3 button marks focus with a faint
+                            // state layer, which from across a room reads as no highlight at all.
+                            Row(
+                                Modifier.padding(top = 8.dp).focusRestorer().focusGroup(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TvButton(
+                                    onClick = play,
+                                    enabled = canPlay,
+                                    modifier = Modifier.tvFocusMemory("details:play"),
+                                    colors = TvButtonDefaults.colors(
+                                        containerColor = TvMaterialTheme.colorScheme.primary,
+                                        contentColor = TvMaterialTheme.colorScheme.onPrimary,
+                                    ),
+                                ) {
+                                    if (state.loading) {
+                                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = androidx.tv.material3.LocalContentColor.current)
+                                    } else {
+                                        TvIcon(Icons.Default.PlayArrow, contentDescription = null)
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    TvText(stringResource(R.string.play))
+                                }
+                                TvIconButton({ showFavorites = true }, Modifier.tvFocusMemory("details:favorite")) {
+                                    TvIcon(favoriteIcon, stringResource(R.string.favorite))
+                                }
+                                if (details.trailerAvailable) {
+                                    TvIconButton(model::loadTrailer) { TvIcon(Icons.Default.Movie, stringResource(R.string.trailer)) }
+                                }
+                                TvIconButton({ showRating = true }, Modifier.tvFocusMemory("details:rate"), enabled = !details.ratingPosted) {
+                                    TvIcon(Icons.Default.StarRate, stringResource(R.string.rate_title))
+                                }
+                                TvIconButton({ model.loadComments() }, Modifier.tvFocusMemory("details:comments")) {
+                                    TvIcon(Icons.AutoMirrored.Filled.Comment, stringResource(R.string.comments))
+                                }
+                            }
+                        } else FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            FilledTonalIconButton(onClick = { showFavorites = true }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:favorite")) {
-                                Icon(
-                                    if (details.favoriteCategoryIds.isEmpty()) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
-                                    contentDescription = stringResource(R.string.favorite),
-                                )
+                            FilledTonalIconButton(onClick = { showFavorites = true }) {
+                                Icon(favoriteIcon, contentDescription = stringResource(R.string.favorite))
                             }
-                            Button(
-                                onClick = { automaticPlayback = !settings.askQuality; showPlayback = true },
-                                enabled = translators.isNotEmpty() && !state.loading,
-                                modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:play"),
-                            ) {
+                            Button(onClick = play, enabled = canPlay) {
                                 if (state.loading) {
                                     CircularProgressIndicator(
                                         Modifier.size(18.dp),
@@ -384,25 +426,23 @@ internal fun DetailsScreen(
                                 }
                                 Text(stringResource(R.string.play))
                             }
-                            if (details.trailerAvailable && (wideContent || isTv)) {
-                                FilledTonalIconButton(model::loadTrailer, Modifier.tvFocusScale(isTv)) { Icon(Icons.Default.Movie, stringResource(R.string.trailer)) }
+                            if (details.trailerAvailable && wideContent) {
+                                FilledTonalIconButton(model::loadTrailer) { Icon(Icons.Default.Movie, stringResource(R.string.trailer)) }
                             }
-                            FilledTonalIconButton(onClick = { showRating = true }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:rate"), enabled = !details.ratingPosted) {
+                            FilledTonalIconButton(onClick = { showRating = true }, enabled = !details.ratingPosted) {
                                 Icon(Icons.Default.StarRate, stringResource(R.string.rate_title))
                             }
-                            FilledTonalIconButton(onClick = { model.loadComments() }, modifier = Modifier.tvFocusScale(isTv).tvFocusMemory("details:comments")) {
+                            FilledTonalIconButton(onClick = { model.loadComments() }) {
                                 Icon(Icons.AutoMirrored.Filled.Comment, stringResource(R.string.comments))
                             }
-                            // Not on a television, which has nothing to share to: the chooser
+                            // Only here: a television has nothing to share to, and the chooser
                             // opens on an empty "no apps can perform this action".
-                            if (!isTv) {
-                                FilledTonalIconButton(onClick = {
-                                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, details.url)
-                                    }, shareLabel))
-                                }) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
-                            }
+                            FilledTonalIconButton(onClick = {
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, details.url)
+                                }, shareLabel))
+                            }) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
                         }
                     }
                 }
@@ -415,8 +455,11 @@ internal fun DetailsScreen(
                     onTextLayout = { if (!descExpanded) descOverflows = it.hasVisualOverflow },
                 )
                 if (descExpanded || descOverflows) {
-                    TextButton(onClick = { descExpanded = !descExpanded }, modifier = Modifier.tvFocusScale(isTv)) {
-                        Text(if (descExpanded) stringResource(R.string.collapse) else stringResource(R.string.more))
+                    val label = stringResource(if (descExpanded) R.string.collapse else R.string.more)
+                    if (isTv) {
+                        TvButton({ descExpanded = !descExpanded }, Modifier.padding(top = 8.dp)) { TvText(label) }
+                    } else {
+                        TextButton({ descExpanded = !descExpanded }) { Text(label) }
                     }
                 }
             }
@@ -424,7 +467,7 @@ internal fun DetailsScreen(
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(links, key = { "${it.url}:${it.name}" }) { link ->
-                            AssistChip(onClick = { model.openDiscoveryPath(Tab.Search, link.name, link.url) }, label = { Text(link.name) }, modifier = Modifier.tvFocusScale(isTv))
+                            LinkChip(link.name, isTv) { model.openDiscoveryPath(Tab.Search, link.name, link.url) }
                         }
                     }
                 }
@@ -485,13 +528,9 @@ internal fun DetailsScreen(
                         Text(stringResource(R.string.people), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(people, key = { "${it.url}:${it.name}" }) { person ->
-                                AssistChip(
-                                    onClick = { if (person.url.isNotBlank()) model.openActor(person.url) },
-                                    label = { Text(person.name) },
-                                    modifier = Modifier.tvFocusScale(isTv),
-                                    leadingIcon = { Icon(Icons.Default.Person, null) },
-                                    enabled = person.url.isNotBlank(),
-                                )
+                                LinkChip(person.name, isTv, enabled = person.url.isNotBlank(), icon = Icons.Default.Person) {
+                                    model.openActor(person.url)
+                                }
                             }
                         }
                     }
@@ -501,26 +540,59 @@ internal fun DetailsScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         // Folded away by default: the list runs long, and what most visits want
-                        // is the play button above it.
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).sectionHeading())
-                            IconButton({ scheduleExpanded = !scheduleExpanded }, Modifier.tvFocusScale(isTv)) {
-                                Icon(if (scheduleExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, stringResource(if (scheduleExpanded) R.string.collapse else R.string.more))
+                        // is the play button above it. The whole heading is the toggle: a lone
+                        // icon at the far right of the page sat outside the D-pad's path down
+                        // from the chips above, which went straight past it.
+                        val toggleIcon = if (scheduleExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore
+                        val toggleLabel = stringResource(if (scheduleExpanded) R.string.collapse else R.string.more)
+                        if (isTv) {
+                            TvListItem(
+                                selected = false,
+                                onClick = { scheduleExpanded = !scheduleExpanded },
+                                headlineContent = { TvText(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge) },
+                                trailingContent = { TvIcon(toggleIcon, toggleLabel) },
+                                modifier = Modifier.fillMaxWidth().sectionHeading(),
+                                scale = ListItemScale.None,
+                            )
+                        } else {
+                            Row(
+                                Modifier.fillMaxWidth().clickable(onClickLabel = toggleLabel) { scheduleExpanded = !scheduleExpanded },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(stringResource(R.string.schedule), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).sectionHeading())
+                                Icon(toggleIcon, null, Modifier.padding(12.dp))
                             }
                         }
                         if (scheduleExpanded) details.schedules.forEach { group ->
                             if (group.name.isNotBlank()) Text(group.name, style = MaterialTheme.typography.titleMedium)
                             group.items.forEach { episode ->
-                                ListItem(
-                                    headlineContent = { Text("${episode.episode}  ${episode.title}") },
-                                    supportingContent = { Text(listOfNotNull(episode.originalTitle, episode.date).joinToString(" • ")) },
-                                    trailingContent = {
-                                        IconButton({ model.toggleSchedule(episode) }, Modifier.tvFocusScale(isTv), enabled = episode.id.isNotBlank()) {
-                                            Icon(if (episode.watched) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, stringResource(if (episode.watched) R.string.mark_unwatched else R.string.mark_watched))
-                                        }
-                                    },
-                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                )
+                                val watchedIcon = if (episode.watched) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked
+                                val watchedLabel = stringResource(if (episode.watched) R.string.mark_unwatched else R.string.mark_watched)
+                                val subtitle = listOfNotNull(episode.originalTitle, episode.date).joinToString(" • ")
+                                if (isTv) {
+                                    // The row is the target, as in the episode list.
+                                    TvListItem(
+                                        selected = false,
+                                        onClick = { model.toggleSchedule(episode) },
+                                        enabled = episode.id.isNotBlank(),
+                                        headlineContent = { TvText("${episode.episode}  ${episode.title}") },
+                                        supportingContent = { TvText(subtitle) },
+                                        trailingContent = { TvIcon(watchedIcon, watchedLabel) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        scale = ListItemScale.None,
+                                    )
+                                } else {
+                                    ListItem(
+                                        headlineContent = { Text("${episode.episode}  ${episode.title}") },
+                                        supportingContent = { Text(subtitle) },
+                                        trailingContent = {
+                                            IconButton({ model.toggleSchedule(episode) }, enabled = episode.id.isNotBlank()) {
+                                                Icon(watchedIcon, watchedLabel)
+                                            }
+                                        },
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                    )
+                                }
                             }
                         }
                     }
@@ -532,7 +604,7 @@ internal fun DetailsScreen(
                         Text(stringResource(R.string.from_collections), style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading())
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(collectionLinks, key = { "${it.url}:${it.name}" }) { link ->
-                                AssistChip(onClick = { model.openDiscoveryPath(Tab.Collections, link.name, link.url) }, label = { Text(link.name) }, modifier = Modifier.tvFocusScale(isTv))
+                                LinkChip(link.name, isTv) { model.openDiscoveryPath(Tab.Collections, link.name, link.url) }
                             }
                         }
                     }
@@ -624,18 +696,21 @@ internal fun DetailsScreen(
             text = {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     items((1..10).toList()) { rating ->
-                        FilledTonalButton(
-                            onClick = { showRating = false; model.rate(rating) },
-                            modifier = Modifier.tvFocusScale(isTv),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                        ) { Text(rating.toString()) }
+                        val rate = { showRating = false; model.rate(rating) }
+                        if (isTv) {
+                            TvButton(rate) { TvText(rating.toString()) }
+                        } else {
+                            FilledTonalButton(rate, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(rating.toString()) }
+                        }
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton({ showRating = false }, Modifier.tvFocusScale(isTv).tvInitialFocus(isTv)) {
-                    Text(stringResource(R.string.cancel))
+                if (isTv) {
+                    TvButton({ showRating = false }, Modifier.tvInitialFocus()) { TvText(stringResource(R.string.cancel)) }
+                } else {
+                    TextButton({ showRating = false }) { Text(stringResource(R.string.cancel)) }
                 }
             },
         )
@@ -682,11 +757,24 @@ private fun ActorDialog(actor: ActorDetails, isTv: Boolean, model: MovoViewModel
 
 @Composable
 private fun ActorFilmRow(film: MediaItem, isTv: Boolean, model: MovoViewModel) {
-    ListItem(
-        headlineContent = { Text(film.title) },
-        supportingContent = { Text(listOfNotNull(film.year?.toString(), film.info).joinToString(" • ")) },
-        modifier = Modifier.tvFocusScale(isTv, 1.03f).clickable { model.closeActor(); model.openDetails(film.url) },
-    )
+    val subtitle = listOfNotNull(film.year?.toString(), film.info).joinToString(" • ")
+    val open = { model.closeActor(); model.openDetails(film.url) }
+    if (isTv) {
+        TvListItem(
+            selected = false,
+            onClick = open,
+            headlineContent = { TvText(film.title) },
+            supportingContent = { TvText(subtitle) },
+            modifier = Modifier.fillMaxWidth(),
+            scale = ListItemScale.None,
+        )
+    } else {
+        ListItem(
+            headlineContent = { Text(film.title) },
+            supportingContent = { Text(subtitle) },
+            modifier = Modifier.clickable(onClick = open),
+        )
+    }
 }
 
 @Composable
@@ -701,7 +789,9 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
                     headlineContent = { Text(comment.username) },
                     supportingContent = { Column {
                         if (comment.hasSpoiler && comment.id !in revealedSpoilers) {
-                            TextButton({ revealedSpoilers = revealedSpoilers + comment.id }, Modifier.tvFocusScale(isTv)) { Icon(Icons.Default.Visibility, null); Text(stringResource(R.string.show_spoiler)) }
+                            val reveal = { revealedSpoilers = revealedSpoilers + comment.id }
+                            if (isTv) TvButton(reveal) { TvIcon(Icons.Default.Visibility, null); Spacer(Modifier.width(8.dp)); TvText(stringResource(R.string.show_spoiler)) }
+                            else TextButton(reveal) { Icon(Icons.Default.Visibility, null); Text(stringResource(R.string.show_spoiler)) }
                         } else Text(comment.text)
                         Text(comment.date, style = MaterialTheme.typography.labelSmall)
                     } },
@@ -716,19 +806,58 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
                             contentScale = ContentScale.Crop,
                         )
                     },
-                    trailingContent = { TextButton({ model.likeComment(comment.id) }, Modifier.tvFocusScale(isTv), colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, null); Text(comment.likes.toString()) } },
+                    trailingContent = {
+                        val like = { model.likeComment(comment.id) }
+                        if (isTv) {
+                            TvButton(like) { TvIcon(Icons.Default.ThumbUp, null); Spacer(Modifier.width(8.dp)); TvText(comment.likes.toString()) }
+                        } else {
+                            TextButton(like, colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, null); Text(comment.likes.toString()) }
+                        }
+                    },
                     modifier = Modifier.padding(start = (comment.indent.coerceAtMost(4) * 12).dp),
                 )
             }
             if (page.totalPages > 1) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton({ model.loadComments(page.page - 1) }, Modifier.tvFocusScale(isTv), enabled = page.page > 1) { Text(stringResource(R.string.previous)) }
-                        OutlinedButton({ model.loadComments(page.page + 1) }, Modifier.tvFocusScale(isTv), enabled = page.page < page.totalPages) { Text(stringResource(R.string.next)) }
+                        val previous = { model.loadComments(page.page - 1) }
+                        val next = { model.loadComments(page.page + 1) }
+                        if (isTv) {
+                            TvButton(previous, enabled = page.page > 1) { TvText(stringResource(R.string.previous)) }
+                            TvButton(next, enabled = page.page < page.totalPages) { TvText(stringResource(R.string.next)) }
+                        } else {
+                            OutlinedButton(previous, enabled = page.page > 1) { Text(stringResource(R.string.previous)) }
+                            OutlinedButton(next, enabled = page.page < page.totalPages) { Text(stringResource(R.string.next)) }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** A chip that opens a listing or a person: tv-material on a television, Material 3 elsewhere. */
+@Composable
+private fun LinkChip(
+    label: String,
+    isTv: Boolean,
+    enabled: Boolean = true,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onClick: () -> Unit,
+) {
+    if (isTv) {
+        TvAssistChip(
+            onClick = onClick,
+            enabled = enabled,
+            leadingIcon = icon?.let { { TvIcon(it, null) } },
+        ) { TvText(label) }
+    } else {
+        AssistChip(
+            onClick = onClick,
+            label = { Text(label) },
+            enabled = enabled,
+            leadingIcon = icon?.let { { Icon(it, null) } },
+        )
     }
 }
 
@@ -782,17 +911,26 @@ private fun FavoriteFoldersSheet(
             items(groups, key = { it.id ?: it.name }) { group ->
                 group.id?.let { id ->
                     val selected = id in selectedIds
-                    ListItem(
-                        headlineContent = { Text(group.name) },
-                        trailingContent = { Checkbox(selected, null) },
-                        modifier = Modifier
-                            .tvFocusScale(isTv, 1.02f)
-                            .toggleable(
+                    if (isTv) {
+                        TvListItem(
+                            selected = false,
+                            onClick = { toggle(id, !selected) },
+                            headlineContent = { TvText(group.name) },
+                            trailingContent = { Checkbox(selected, null) },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            scale = ListItemScale.None,
+                        )
+                    } else {
+                        ListItem(
+                            headlineContent = { Text(group.name) },
+                            trailingContent = { Checkbox(selected, null) },
+                            modifier = Modifier.toggleable(
                                 value = selected,
                                 role = Role.Checkbox,
                                 onValueChange = { toggle(id, it) },
                             ),
-                    )
+                        )
+                    }
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
@@ -873,10 +1011,29 @@ private fun PlaybackSheet(
                 }
             }
             if (!series) {
-                Button(
+                val ready = translator != null && selectedQuality != null && !loading
+                if (isTv) {
+                    TvButton(
+                        onClick = { play(null, null) },
+                        enabled = ready,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        colors = TvButtonDefaults.colors(
+                            containerColor = TvMaterialTheme.colorScheme.primary,
+                            contentColor = TvMaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ) {
+                        if (loading) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = androidx.tv.material3.LocalContentColor.current)
+                        } else {
+                            TvIcon(Icons.Default.PlayArrow, contentDescription = null)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        TvText(stringResource(R.string.start_watching))
+                    }
+                } else Button(
                     onClick = { play(null, null) },
-                    enabled = translator != null && selectedQuality != null && !loading,
-                    modifier = Modifier.padding(horizontal = 24.dp).tvFocusScale(isTv),
+                    enabled = ready,
+                    modifier = Modifier.padding(horizontal = 24.dp),
                 ) {
                     if (loading) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -921,11 +1078,27 @@ private fun PlaybackSheet(
                             // The whole row is the target. Aiming a remote at the icon on the far
                             // side of a 760dp sheet, with the title the user is reading on the
                             // other, is the wrong shape for a ten-foot interface.
-                            ListItem(
+                            if (isTv) {
+                                TvListItem(
+                                    selected = false,
+                                    onClick = start,
+                                    enabled = playable,
+                                    headlineContent = { TvText(episode.title, modifier = Modifier.alpha(contentAlpha)) },
+                                    supportingContent = episode.watchId?.let { id -> { TvText(id, Modifier.alpha(contentAlpha), maxLines = 1) } },
+                                    trailingContent = {
+                                        if (loading && startingEpisodeId == episode.id) {
+                                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            TvIcon(Icons.Default.PlayArrow, contentDescription = null)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                    scale = ListItemScale.None,
+                                )
+                            } else ListItem(
                                 headlineContent = { Text(episode.title, modifier = Modifier.alpha(contentAlpha)) },
                                 supportingContent = episode.watchId?.let { id -> { Text(id, Modifier.alpha(contentAlpha), maxLines = 1) } },
                                 modifier = Modifier
-                                    .tvFocusScale(isTv, 1.02f)
                                     .clickable(enabled = playable, onClickLabel = stringResource(R.string.play_episode, episode.title), onClick = start),
                                 trailingContent = {
                                     if (loading && startingEpisodeId == episode.id) {

@@ -14,13 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.tv.material3.ButtonColors
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.CardScale
+import androidx.tv.material3.ClickableChipScale
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.FilterChipDefaults
 import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.SelectableChipScale
+import androidx.tv.material3.AssistChip as TvMaterialAssistChip
 import androidx.tv.material3.Button as TvMaterialButton
 import androidx.tv.material3.Card as TvMaterialCard
 import androidx.tv.material3.FilterChip as TvMaterialFilterChip
@@ -42,8 +46,9 @@ internal fun TvButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.colors(),
     content: @Composable RowScope.() -> Unit,
-) = TvMaterialButton(onClick, modifier.tapToClick(enabled, onClick), enabled = enabled, content = content)
+) = TvMaterialButton(onClick, modifier.tapToClick(enabled, onClick), enabled = enabled, colors = colors, content = content)
 
 @Composable
 internal fun TvIconButton(
@@ -63,11 +68,31 @@ internal fun TvFilterChip(
 ) = TvMaterialFilterChip(selected, onClick, modifier.tapToClick(true, onClick), scale = scale, content = content)
 
 @Composable
+internal fun TvAssistChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
+) = TvMaterialAssistChip(
+    onClick,
+    modifier.tapToClick(enabled, onClick),
+    enabled = enabled,
+    leadingIcon = leadingIcon,
+    trailingIcon = trailingIcon,
+    // No scale: these sit in rows that clip to their own height, which cut the focused chip off.
+    scale = ClickableChipScale.None,
+    content = content,
+)
+
+@Composable
 internal fun TvListItem(
     selected: Boolean,
     onClick: () -> Unit,
     headlineContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     supportingContent: (@Composable () -> Unit)? = null,
     leadingContent: (@Composable BoxScope.() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
@@ -76,7 +101,8 @@ internal fun TvListItem(
     selected = selected,
     onClick = onClick,
     headlineContent = headlineContent,
-    modifier = modifier.tapToClick(true, onClick),
+    modifier = modifier.tapToClick(enabled, onClick),
+    enabled = enabled,
     supportingContent = supportingContent,
     leadingContent = leadingContent,
     trailingContent = trailingContent,

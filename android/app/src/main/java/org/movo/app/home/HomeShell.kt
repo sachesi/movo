@@ -26,7 +26,6 @@ import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TvFocusMemory
-import org.movo.app.ui.toTvColorScheme
 import org.movo.app.settings.settings
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.R
@@ -113,7 +112,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.movo.app.ui.TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Text as TvText
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,10 +123,9 @@ internal fun HomeFlow(
     compactHeight: Boolean,
     model: MovoViewModel,
     settings: AppSettings,
-    isDark: Boolean,
 ) {
     if (isTv) {
-        TvHomeFlow(state, compactHeight, model, settings, isDark)
+        TvHomeFlow(state, compactHeight, model, settings)
         return
     }
     var section by rememberSaveable { mutableStateOf(Section.Home) }
@@ -208,7 +205,6 @@ private fun TvHomeFlow(
     compactHeight: Boolean,
     model: MovoViewModel,
     settings: AppSettings,
-    isDark: Boolean,
 ) {
     var section by rememberSaveable { mutableStateOf(Section.Home) }
     val focusMemory = rememberSaveable(saver = TvFocusMemory.Saver) { TvFocusMemory() }
@@ -217,52 +213,52 @@ private fun TvHomeFlow(
     focusMemory.destination = destinationKey
     focusMemory.fallback = state.focusedUrl
 
-    val tvColorScheme = MaterialTheme.colorScheme.toTvColorScheme(isDark)
-    TvMaterialTheme(colorScheme = tvColorScheme) {
-        TvNavigationDrawer(
-            selectedTab = state.tab,
-            settingsSelected = section == Section.Settings,
-            notificationCount = state.notificationCount,
-            selectTab = { tab ->
-                section = Section.Home
-                if (state.tab != tab) model.selectTab(tab, true)
-            },
-            openSettings = {
-                section = Section.Settings
-            },
+    TvNavigationDrawer(
+        selectedTab = state.tab,
+        settingsSelected = section == Section.Settings,
+        notificationCount = state.notificationCount,
+        selectTab = { tab ->
+            section = Section.Home
+            if (state.tab != tab) model.selectTab(tab, true)
+        },
+        openSettings = {
+            section = Section.Settings
+        },
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .focusRestorer()
+                .focusGroup(),
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .focusRestorer()
-                    .focusGroup(),
-            ) {
-                stateHolder.SaveableStateProvider(destinationKey) {
-                    CompositionLocalProvider(LocalTvFocusMemory provides focusMemory) {
-                        when (section) {
-                            Section.Home -> HomeTabContent(state.tab, state, true, compactHeight, model)
-                            Section.Settings -> SettingsDestination(settings, true)
-                        }
+            stateHolder.SaveableStateProvider(destinationKey) {
+                CompositionLocalProvider(LocalTvFocusMemory provides focusMemory) {
+                    when (section) {
+                        Section.Home -> HomeTabContent(state.tab, state, true, compactHeight, model)
+                        Section.Settings -> SettingsDestination(settings, true)
                     }
                 }
-                if (state.loading) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
-                }
-                state.error?.let {
-                    ErrorBanner(
-                        it,
-                        model::clearError,
-                        Modifier.align(Alignment.BottomCenter),
-                        retry = { model.retry(true) },
-                        isTv = true,
-                    )
-                }
+            }
+            if (state.loading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            }
+            state.error?.let {
+                ErrorBanner(
+                    it,
+                    model::clearError,
+                    Modifier.align(Alignment.BottomCenter),
+                    retry = { model.retry(true) },
+                    isTv = true,
+                )
             }
         }
     }
 
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
 }
+
+private val Configuration.isTelevision
+    get() = uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
 
 private val RAIL_WIDTH = 80.dp
 private val LABELLED_RAIL_WIDTH = 84.dp
@@ -288,9 +284,11 @@ private val LABELLED_ITEM_HEIGHT = 64.dp
  * uncovers what was already laid out. The width is read in the layout phase, so the animation
  * re-measures the sheet without recomposing any of it.
  *
- * [labelled] is the touch-screen form: there is no moment at which focus "enters" the rail, so it
- * would never widen and the labels would never show. Instead the rail is a little wider, never
- * widens, and stacks each label under its icon, the way a navigation rail does.
+ * [labelled] is the form for a tablet or phone on this layout: there is no moment at which focus
+ * "enters" the rail, so it would never widen and the labels would never show. Instead the rail is
+ * a little wider, never widens, and stacks each label under its icon, the way a navigation rail
+ * does. Decided by the device's mode rather than its touch screen: a television box that reports
+ * a touch screen it does not have was getting the stacked rail, with Settings below the fold.
  */
 @Composable
 internal fun TvNavigationDrawer(
@@ -299,7 +297,7 @@ internal fun TvNavigationDrawer(
     notificationCount: Int,
     selectTab: (Tab) -> Unit,
     openSettings: () -> Unit,
-    labelled: Boolean = LocalConfiguration.current.touchscreen != Configuration.TOUCHSCREEN_NOTOUCH,
+    labelled: Boolean = !LocalConfiguration.current.isTelevision,
     content: @Composable () -> Unit,
 ) {
     val railWidth = if (labelled) LABELLED_RAIL_WIDTH else RAIL_WIDTH
