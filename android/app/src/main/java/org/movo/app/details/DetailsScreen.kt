@@ -50,6 +50,7 @@ import org.movo.app.core.Translator
 import org.movo.app.settings.AppSettings
 import org.movo.app.settings.Keys
 import org.movo.app.settings.save
+import org.movo.app.player.label
 import org.movo.app.player.selectStream
 import android.content.Intent
 import androidx.activity.compose.BackHandler
@@ -97,6 +98,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -222,10 +224,15 @@ internal fun DetailsScreen(
     val focusMemory = rememberSaveable(details.url, saver = TvFocusMemory.Saver) { TvFocusMemory() }
     focusMemory.destination = details.url
     focusMemory.fallback = "details:play"
+    // The bar slides away as the page scrolls on a phone; a television has no scroll gesture
+    // and its bar stays.
+    val scrollBehavior = if (isTv) null else TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
+        modifier = scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(details.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(
                         model::closeDetails,
@@ -715,6 +722,16 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
 internal fun preferredTranslator(translators: List<Translator>, translatorId: Long?) =
     translators.firstOrNull { it.id == translatorId } ?: translators.firstOrNull()
 
+/** The voice's name with what the provider flags about it: premium, a camera rip, ads, a cut. */
+@Composable
+private fun Translator.label(): String = listOfNotNull(
+    name,
+    stringResource(R.string.tag_premium).takeIf { premium },
+    stringResource(R.string.tag_camrip).takeIf { camrip },
+    stringResource(R.string.tag_ads).takeIf { hasAds },
+    stringResource(R.string.tag_director_cut).takeIf { directorCut },
+).joinToString(" · ")
+
 @Composable
 private fun RatingRow(details: MediaDetails) {
     val ratings = (listOfNotNull(
@@ -815,7 +832,7 @@ private fun PlaybackSheet(
                 title = stringResource(R.string.translation),
                 values = details.translators,
                 selected = translator,
-                label = { it.name },
+                label = { it.label() },
                 itemKey = { it.id },
                 choose = chooseTranslator,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -826,7 +843,7 @@ private fun PlaybackSheet(
                     title = stringResource(R.string.quality),
                     values = qualities,
                     selected = selectedQuality,
-                    label = { it.quality },
+                    label = { it.label() },
                     itemKey = { it.quality },
                     choose = chooseQuality,
                     modifier = Modifier.padding(horizontal = 24.dp),

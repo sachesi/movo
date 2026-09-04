@@ -263,7 +263,7 @@ fun <T> ChoiceRow(
     title: String,
     values: List<T>,
     selected: T?,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     itemKey: (T) -> Any,
     choose: (T) -> Unit,
     modifier: Modifier = Modifier,

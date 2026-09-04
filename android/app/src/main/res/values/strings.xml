@@ -180,6 +180,10 @@
     <string name="start_watching">Start watching</string>
     <string name="play_episode">Play %1$s</string>
     <string name="translation">Translation</string>
+    <string name="tag_premium">Premium</string>
+    <string name="tag_camrip">CAM</string>
+    <string name="tag_ads">Ads</string>
+    <string name="tag_director_cut">Director\'s cut</string>
     <string name="episode">Episode</string>
     <string name="rating_rezka">HDRezka %1$.1f</string>
     <string name="rating_imdb">IMDb %1$.1f</string>

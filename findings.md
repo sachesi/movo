@@ -137,6 +137,27 @@ lint 0 errors / 13 warnings / 1 hint.
   items name themselves to a screen reader; before, they were unlabeled icons until the
   rail opened.
 
+## F. Third pass, on request
+
+Five items held back from the earlier passes as feature-adjacent, then asked for.
+
+- **F1** `player/PlayerScreen.kt` double tap on a phone seeks by the configured interval,
+  backwards on the left half and forwards on the right; a single tap still toggles the
+  overlay. The single tap now waits out the double-tap window, as every player does.
+- **F2** `home/HomeShell.kt` pull to refresh on the phone's home tabs re-runs the visible
+  tab's load through the same path the error banner's Retry uses. The indicator follows a
+  flag set by the pull, not the global loading bit, so ordinary loads do not show it.
+- **F3** `details/DetailsScreen.kt`, `player/PlayerScreen.kt` translator chips carry the
+  flags the provider sends (premium, camera rip, ads, director's cut) and quality chips
+  and the player's quality menu mark premium streams. New strings in en/ru/uk.
+- **F4** `home/HomeShell.kt`, `details/DetailsScreen.kt` the phone's top bars slide away as
+  the content scrolls and return on the first scroll back. Not on a television, which has
+  no scroll gesture. The home bar's connection is installed only while the tabs are up,
+  so a bar collapsed under Settings does not come back hidden.
+- **F5** `player/PlayerScreen.kt` a sync error (a failed history write) fades after six
+  seconds instead of sitting over the film until the player closes; a playback error still
+  stays until the player recovers.
+
 ## D. Deferred
 
 - **D1** Dependency versions behind the current stable (lint lists activity-compose,

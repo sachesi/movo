@@ -76,7 +76,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -120,11 +122,19 @@ internal fun HomeFlow(
         return
     }
     var section by rememberSaveable { mutableStateOf(Section.Home) }
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    // A pull re-runs the visible tab's load. Tracked apart from `loading`, which every
+    // operation raises, so the indicator only shows for a refresh the user asked for.
+    var pulled by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loading) { if (!state.loading) pulled = false }
 
     Scaffold(
+        // Only while the tabs are up: the settings bar does not follow the scroll, and a bar left
+        // collapsed under Settings would come back hidden.
+        modifier = if (section == Section.Home) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         topBar = {
             if (section == Section.Home) {
-                HomeTopAppBar(state, model) { section = Section.Settings }
+                HomeTopAppBar(state, model, scrollBehavior) { section = Section.Settings }
             } else {
                 CenterAlignedTopAppBar(
                     title = { Text(stringResource(R.string.settings_title)) },
@@ -160,7 +170,12 @@ internal fun HomeFlow(
                     },
                 ) { s ->
                     when (s) {
-                        Section.Home -> HomeTabs(state, compactHeight, model)
+                        Section.Home -> PullToRefreshBox(
+                            isRefreshing = pulled && state.loading,
+                            onRefresh = { pulled = true; model.retry(false) },
+                        ) {
+                            HomeTabs(state, compactHeight, model)
+                        }
                         Section.Settings -> SettingsDestination(settings, false)
                     }
                 }
@@ -417,11 +432,17 @@ private fun SettingsDestination(settings: AppSettings, isTv: Boolean) {
 }
 
 @Composable
-private fun HomeTopAppBar(state: AppState, model: MovoViewModel, onOpenSettings: () -> Unit) {
+private fun HomeTopAppBar(
+    state: AppState,
+    model: MovoViewModel,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onOpenSettings: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
     TopAppBar(
         title = { Text(stringResource(R.string.app_name)) },
+        scrollBehavior = scrollBehavior,
         actions = {
             state.user?.let {
                 Text(

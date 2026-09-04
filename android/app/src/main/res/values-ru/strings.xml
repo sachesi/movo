@@ -165,6 +165,10 @@
     <string name="start_watching">Начать просмотр</string>
     <string name="play_episode">Смотреть %1$s</string>
     <string name="translation">Озвучка</string>
+    <string name="tag_premium">Премиум</string>
+    <string name="tag_camrip">CAM</string>
+    <string name="tag_ads">Реклама</string>
+    <string name="tag_director_cut">Режиссёрская версия</string>
     <string name="episode">Серия</string>
     <string name="rating_rezka">HDRezka %1$.1f</string>
     <string name="rating_imdb">IMDb %1$.1f</string>

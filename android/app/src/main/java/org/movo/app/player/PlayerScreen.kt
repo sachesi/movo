@@ -34,8 +34,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
@@ -148,6 +148,7 @@ internal const val TV_TIMELINE_MAX_SEEK_SECONDS = 20 * 60
 private val sessionCounter = AtomicLong()
 
 private const val PHONE_CONTROLS_TIMEOUT_MS = 3_000L
+private const val SYNC_ERROR_VISIBLE_MS = 6_000L
 private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
 private const val BUTTON_VIDEO_ZOOM = 1.5f
 private val EPISODE_MENU_MAX_HEIGHT = 320.dp
@@ -225,6 +226,16 @@ fun PlayerScreen(
     val latestIsTv by rememberUpdatedState(isTv)
     val latestPauseShowsControls by rememberUpdatedState(settings.tvPauseShowsControls)
 
+    // A failed history write is worth a glance, not a banner over the whole film: it fades on
+    // its own, while a playback error stays until the player recovers or is closed.
+    var shownSyncError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(syncError) {
+        shownSyncError = syncError
+        if (syncError != null) {
+            delay(SYNC_ERROR_VISIBLE_MS)
+            shownSyncError = null
+        }
+    }
     val noStreamsText = stringResource(R.string.no_streams)
     val playbackFailedText = stringResource(R.string.playback_failed)
     val mirrorUnavailableText = stringResource(R.string.mirror_unavailable)
@@ -530,9 +541,15 @@ fun PlayerScreen(
                 }
             }
             .then(
-                if (isTv) Modifier else Modifier
-                    .clickable(onClick = { ui.controlsVisible = !ui.controlsVisible })
-                    .background(Color.Transparent),
+                if (isTv) Modifier else Modifier.pointerInput(settings.seekSeconds) {
+                    // A tap toggles the overlay; a double tap on either half seeks that way.
+                    detectTapGestures(
+                        onTap = { ui.controlsVisible = !ui.controlsVisible },
+                        onDoubleTap = { offset ->
+                            seekBy(if (offset.x < size.width / 2) -settings.seekSeconds else settings.seekSeconds)
+                        },
+                    )
+                },
             )
             .then(
                 if (isTv) {
@@ -689,7 +706,7 @@ fun PlayerScreen(
             }
         }
 
-        (content.playbackError ?: syncError)?.let { error ->
+        (content.playbackError ?: shownSyncError)?.let { error ->
             Text(
                 text = error,
                 color = MaterialTheme.colorScheme.onErrorContainer,
@@ -1096,7 +1113,7 @@ private fun ControlBar(
                 PlayerMenu(
                     items = bundle.streams,
                     selected = stream,
-                    label = { it.quality },
+                    label = { it.label() },
                     onSelect = onSelectStream,
                     isTv = isTv,
                     onMenuOpenChange = onMenuOpenChange,
@@ -1268,6 +1285,11 @@ private fun tickWhen(selected: Boolean): (@Composable () -> Unit)? =
     }
 
 private fun formatSpeed(speed: Float) = if (speed == 1f) "1×" else "${speed}×"
+
+/** The quality, marked when the stream needs a premium account. */
+@Composable
+internal fun StreamEntry.label(): String =
+    if (premium) "$quality · ${stringResource(R.string.tag_premium)}" else quality
 
 private fun handleTimelineKey(
     event: KeyEvent,
