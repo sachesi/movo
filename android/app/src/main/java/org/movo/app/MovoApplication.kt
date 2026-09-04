@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.request.allowRgb565
 import coil3.request.crossfade
 
 /**
@@ -22,6 +23,9 @@ class MovoApplication : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .crossfade(!isTelevision())
+            // Posters are opaque JPEGs; at two bytes a pixel a television keeps twice as many of
+            // them in memory and uploads half as much to a GPU that is short of everything.
+            .allowRgb565(isTelevision())
             .build()
 
     private fun isTelevision() =

@@ -205,6 +205,11 @@ including the setting that would switch it back.
   nothing left is reported as an error.
 - **H6 fixed** `home/HomeShell.kt` the labelled rail lost 12 dp of ground either side of
   its buttons; the buttons and their labels keep the width they had.
+- **H7 fixed** `MovoApplication.kt`, `ui/Skeletons.kt` two more frames back for an old
+  television, without a profile to point at anything larger: opaque posters decode to RGB 565
+  there, halving what a rail keeps in memory and uploads, and the grid skeleton holds still
+  instead of pulsing every frame while a page loads. The rail prefetch is already the
+  default two items ahead, so nothing was added there.
 
 ## D. Deferred
 

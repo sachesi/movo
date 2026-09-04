@@ -124,17 +124,24 @@ internal fun TvHomeSkeleton() {
 /** Shimmering poster placeholders that mirror the real grid geometry. */
 @Composable
 internal fun MediaGridSkeleton(isTv: Boolean) {
-    val transition = rememberInfiniteTransition(label = "skeleton")
-    val pulse = transition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "skeleton alpha",
-    )
-    val alpha = { pulse.value }
+    // A television draws the placeholders still: the pulse redraws the whole grid every frame
+    // for as long as the load runs, on hardware that has no frames to spare.
+    val alpha: () -> Float = if (isTv) {
+        { 0.65f }
+    } else {
+        val transition = rememberInfiniteTransition(label = "skeleton")
+        val pulse = transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.9f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(700, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "skeleton alpha",
+        )
+        val read = { pulse.value }
+        read
+    }
     LazyVerticalGrid(
         // Same geometry as the grid it stands in for, so the content does not jump columns
         // the moment it arrives.
