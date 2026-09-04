@@ -28,6 +28,8 @@ pub struct SyncedHistory {
 pub struct RezkaClient {
     session: RezkaSession,
     account: Arc<RwLock<AccountState>>,
+    /// Lower-cased country names whose titles are left out of listings.
+    hidden_countries: Arc<RwLock<Vec<String>>>,
 }
 
 /// Signed-in account, shared between clones so every caller observes the same
@@ -91,7 +93,32 @@ impl RezkaClient {
         Self {
             session: RezkaSession::new(),
             account: Arc::default(),
+            hidden_countries: Arc::default(),
         }
+    }
+
+    /// Leave titles from these countries out of every listing from now on.
+    /// Names are matched as [`MediaItem::is_from`] does, so pass them through
+    /// [`models::parse_country_list`].
+    pub fn set_hidden_countries(&self, countries: Vec<String>) {
+        *self
+            .hidden_countries
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = countries;
+    }
+
+    fn shown(&self, items: Vec<MediaItem>) -> Vec<MediaItem> {
+        let hidden = self
+            .hidden_countries
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
+        if hidden.is_empty() {
+            return items;
+        }
+        items
+            .into_iter()
+            .filter(|item| !item.is_from(&hidden))
+            .collect()
     }
 
     fn set_account(&self, user: Option<UserProfile>) {
@@ -127,11 +154,13 @@ impl RezkaClient {
         filter: Option<&str>,
         page: usize,
     ) -> Result<Vec<MediaItem>, String> {
-        catalog::fetch_catalog(&self.session, category, filter, page).await
+        let items = catalog::fetch_catalog(&self.session, category, filter, page).await?;
+        Ok(self.shown(items))
     }
 
     pub async fn search_full(&self, query: &str, page: usize) -> Result<Vec<MediaItem>, String> {
-        search::search_full(&self.session, query, page).await
+        let items = search::search_full(&self.session, query, page).await?;
+        Ok(self.shown(items))
     }
 
     pub async fn search_suggestions(&self, query: &str) -> Result<Vec<String>, String> {
@@ -139,7 +168,14 @@ impl RezkaClient {
     }
 
     pub async fn home(&self) -> Result<Vec<HomeSection>, String> {
-        search::home(&self.session).await
+        let sections = search::home(&self.session).await?;
+        Ok(sections
+            .into_iter()
+            .map(|section| HomeSection {
+                items: self.shown(section.items),
+                ..section
+            })
+            .collect())
     }
 
     pub async fn search_filters(&self) -> Result<Vec<SearchFilter>, String> {
@@ -151,15 +187,20 @@ impl RezkaClient {
     }
 
     pub async fn fetch_path(&self, path: &str, page: usize) -> Result<Vec<MediaItem>, String> {
-        search::path(&self.session, path, page).await
+        let items = search::path(&self.session, path, page).await?;
+        Ok(self.shown(items))
     }
 
     pub async fn fetch_details(&self, url: &str) -> Result<MediaDetails, String> {
-        details::fetch_details(&self.session, url).await
+        let mut details = details::fetch_details(&self.session, url).await?;
+        details.related = self.shown(details.related);
+        Ok(details)
     }
 
     pub async fn fetch_actor(&self, url: &str) -> Result<ActorDetails, String> {
-        details::fetch_actor(&self.session, url).await
+        let mut actor = details::fetch_actor(&self.session, url).await?;
+        actor.films = self.shown(actor.films);
+        Ok(actor)
     }
 
     pub async fn fetch_comments(&self, post_id: i64, page: usize) -> Result<CommentsPage, String> {
@@ -547,6 +588,7 @@ mod tests {
         session.authenticate_for_test("42");
         RezkaClient {
             session,
+            hidden_countries: Arc::default(),
             account: Arc::new(RwLock::new(AccountState {
                 user: Some(UserProfile {
                     user_id: "42".to_string(),
@@ -756,5 +798,34 @@ mod tests {
             .await
             .is_err());
         server.join().unwrap();
+    }
+
+    #[test]
+    fn hidden_countries_drop_listings_by_their_info_line() {
+        let client = RezkaClient::new();
+        let item = |info: &str| MediaItem {
+            id: 1,
+            title: String::new(),
+            orig_title: None,
+            url: String::new(),
+            poster_url: None,
+            year: None,
+            category: None,
+            rating: None,
+            info: Some(info.to_string()),
+        };
+        let items = || {
+            vec![
+                item("2019, США, Боевики"),
+                item("2021, Россия, Драмы"),
+                item("2020, Великобритания, Комедии"),
+            ]
+        };
+
+        assert_eq!(client.shown(items()).len(), 3);
+        client.set_hidden_countries(models::parse_country_list(" россия ,, Великобритания"));
+        let shown = client.shown(items());
+        assert_eq!(shown.len(), 1);
+        assert_eq!(shown[0].info.as_deref(), Some("2019, США, Боевики"));
     }
 }

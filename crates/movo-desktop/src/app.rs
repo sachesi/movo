@@ -1,7 +1,7 @@
 use crate::i18n::{tr, trf};
 use crate::playback::launcher::{Launcher, LauncherMsg, LauncherOutput, PlayRequest};
 use crate::state::AppState;
-use crate::views::catalog::{CatalogOutput, CatalogView};
+use crate::views::catalog::{CatalogMsg, CatalogOutput, CatalogView};
 use crate::views::collections::{CollectionsOutput, CollectionsView};
 use crate::views::details::{DetailsOutput, DetailsView};
 use crate::views::favorites::{FavoritesMsg, FavoritesOutput, FavoritesView};
@@ -50,6 +50,8 @@ pub enum AppMsg {
     ShowSettings,
     ShowAbout,
     AccountChanged,
+    /// The hidden countries changed; the listings on screen no longer match.
+    FiltersChanged,
 }
 
 #[derive(Debug)]
@@ -347,6 +349,10 @@ impl Component for App {
             AppMsg::ShowSettings => self.show_settings(root, &sender),
             AppMsg::ShowAbout => show_about(root),
             AppMsg::AccountChanged => self.reload_account_views(),
+            AppMsg::FiltersChanged => {
+                self.home.emit(HomeMsg::Reload);
+                self._catalog.emit(CatalogMsg::Reload);
+            }
         }
     }
 
@@ -393,10 +399,18 @@ impl App {
 
     fn show_settings(&self, root: &adw::ApplicationWindow, sender: &ComponentSender<Self>) {
         let account_sender = sender.clone();
+        let filters_sender = sender.clone();
+        let hidden_countries = std::cell::RefCell::new(self.state.settings().hidden_countries);
         crate::dialogs::settings::present(
             root,
             self.state.clone(),
-            |settings| apply_theme(&settings.theme),
+            move |settings| {
+                apply_theme(&settings.theme);
+                if *hidden_countries.borrow() != settings.hidden_countries {
+                    hidden_countries.replace(settings.hidden_countries);
+                    filters_sender.input(AppMsg::FiltersChanged);
+                }
+            },
             move || account_sender.input(AppMsg::AccountChanged),
         );
     }

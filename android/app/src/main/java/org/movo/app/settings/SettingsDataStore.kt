@@ -64,6 +64,7 @@ internal object Keys {
     val LAST_QUALITY = stringPreferencesKey("last_quality")
     val SORT_VOICES = booleanPreferencesKey("sort_voices")
     val INITIAL_TAB = stringPreferencesKey("initial_tab")
+    val HIDDEN_COUNTRIES = stringPreferencesKey("hidden_countries")
 }
 
 data class AppSettings(
@@ -87,6 +88,8 @@ data class AppSettings(
     val lastQuality: String? = null,
     val sortVoices: Boolean = false,
     val initialTab: Tab = Tab.Catalog,
+    /** Country names, comma-separated as typed; titles from them are left out of listings. */
+    val hiddenCountries: String = "",
 )
 
 internal inline fun <reified T : Enum<T>> safeValueOf(name: String?, default: T): T {
@@ -119,6 +122,7 @@ val Context.settings: Flow<AppSettings>
                 lastQuality = prefs[Keys.LAST_QUALITY],
                 sortVoices = prefs[Keys.SORT_VOICES] ?: false,
                 initialTab = safeValueOf(prefs[Keys.INITIAL_TAB], Tab.Catalog),
+                hiddenCountries = prefs[Keys.HIDDEN_COUNTRIES] ?: "",
             )
         }
 

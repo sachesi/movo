@@ -4,7 +4,7 @@ use jni::{
     JNIEnv,
 };
 use movo_core::client::{
-    models::{CatalogCategory, Translator},
+    models::{self, CatalogCategory, Translator},
     RezkaClient,
 };
 use serde::Deserialize;
@@ -117,6 +117,9 @@ enum Command {
         season: Option<i64>,
         episode: Option<i64>,
     },
+    SetHiddenCountries {
+        countries: String,
+    },
     MarkWatched {
         post_id: i64,
         translator_id: i64,
@@ -154,6 +157,10 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
                 .fetch_catalog(category, filter.as_deref(), page)
                 .await?
         )),
+        Command::SetHiddenCountries { countries } => {
+            client.set_hidden_countries(models::parse_country_list(&countries));
+            Ok(Value::Null)
+        }
         Command::Search { query, page } => Ok(json!(client.search_full(&query, page).await?)),
         Command::SearchSuggestions { query } => Ok(json!(client.search_suggestions(&query).await?)),
         Command::Home => Ok(json!(client.home().await?)),

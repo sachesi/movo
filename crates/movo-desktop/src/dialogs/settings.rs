@@ -1,6 +1,7 @@
 use crate::i18n::{tr, trf};
 use crate::state::AppState;
 use crate::ui::image;
+use movo_core::client::models::parse_country_list;
 use movo_core::storage::cache::ImageCache;
 use movo_core::storage::settings::AppSettings;
 use relm4::adw;
@@ -225,6 +226,31 @@ pub fn present(
         playback.add(&row);
     }
     page.add(&playback);
+
+    let filters = adw::PreferencesGroup::builder()
+        .title(tr("Listings"))
+        .description(tr(
+            "Titles from these countries are left out of the catalog, search and home. Use the names the site shows, separated by commas.",
+        ))
+        .build();
+    let hidden_countries = adw::EntryRow::builder()
+        .title(tr("Hidden Countries"))
+        .text(settings.hidden_countries.join(", "))
+        .build();
+    {
+        let state = state.clone();
+        let save = save.clone();
+        hidden_countries.connect_changed(move |row| {
+            let mut settings = state.settings();
+            settings.hidden_countries = parse_country_list(&row.text());
+            state
+                .client
+                .set_hidden_countries(settings.hidden_countries.clone());
+            save(settings);
+        });
+    }
+    filters.add(&hidden_countries);
+    page.add(&filters);
 
     let storage = adw::PreferencesGroup::builder().title(tr("Cache")).build();
     let clear_cache = adw::ActionRow::builder()

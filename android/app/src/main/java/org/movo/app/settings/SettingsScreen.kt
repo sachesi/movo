@@ -34,10 +34,15 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,6 +110,11 @@ fun SettingsContent(
                     isTv = isTv,
                 )
                 SwitchItem(stringResource(R.string.sort_voices), settings.sortVoices, isTv) { actions.save(Keys.SORT_VOICES, it) }
+                TextItem(
+                    label = stringResource(R.string.hidden_countries),
+                    hint = stringResource(R.string.hidden_countries_hint),
+                    value = settings.hiddenCountries,
+                ) { actions.save(Keys.HIDDEN_COUNTRIES, it) }
                 }
             }
 
@@ -317,6 +327,27 @@ private fun SwitchItem(
             onCheckedChange = null,
         )
     }
+}
+
+/** A free-text setting, saved as it is typed. */
+@Composable
+private fun TextItem(
+    label: String,
+    hint: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    // Edits show at once and the store catches up; a field bound straight to the store lags a
+    // write behind every keystroke.
+    var text by remember(value) { mutableStateOf(value) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it; onValueChange(it) },
+        label = { Text(label) },
+        supportingText = { Text(hint) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    )
 }
 
 private val LayoutMode.label: Int get() = when (this) {

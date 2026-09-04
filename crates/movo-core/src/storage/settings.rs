@@ -25,6 +25,9 @@ pub struct AppSettings {
     /// Show the quality picker before every playback instead of using the saved choice.
     #[serde(default)]
     pub ask_quality_before_play: bool,
+    /// Lower-cased country names whose titles are left out of listings.
+    #[serde(default)]
+    pub hidden_countries: Vec<String>,
 }
 
 fn default_theme() -> String {
@@ -47,6 +50,7 @@ impl Default for AppSettings {
             initial_view: default_initial_view(),
             auto_next_episode: false,
             ask_quality_before_play: false,
+            hidden_countries: Vec::new(),
         }
     }
 }

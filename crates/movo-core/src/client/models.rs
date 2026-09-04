@@ -66,6 +66,29 @@ pub struct MediaItem {
     pub info: Option<String>,
 }
 
+impl MediaItem {
+    /// Whether the listing names one of `countries` as where the title was
+    /// made. A listing's info reads "2019, США, Боевики", so the country is
+    /// matched as a whole comma-separated part, against the lower-cased
+    /// names [`parse_country_list`] produces.
+    pub fn is_from(&self, countries: &[String]) -> bool {
+        self.info.as_deref().is_some_and(|info| {
+            info.split(',')
+                .map(|part| part.trim().to_lowercase())
+                .any(|part| countries.contains(&part))
+        })
+    }
+}
+
+/// Country names as a person types them, one per comma, ready for
+/// [`MediaItem::is_from`].
+pub fn parse_country_list(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(|name| name.trim().to_lowercase())
+        .filter(|name| !name.is_empty())
+        .collect()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Translator {
     pub id: i64,

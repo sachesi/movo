@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 17:16+0300\n"
+"POT-Creation-Date: 2026-09-04 17:21+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -17,67 +17,67 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr "Запит несподівано перервався"
 
-#: crates/movo-desktop/src/app.rs:111
-#: crates/movo-desktop/src/dialogs/settings.rs:44
+#: crates/movo-desktop/src/app.rs:113
+#: crates/movo-desktop/src/dialogs/settings.rs:45
 msgid "Settings"
 msgstr "Налаштування"
 
-#: crates/movo-desktop/src/app.rs:117
+#: crates/movo-desktop/src/app.rs:119
 msgid "About Movo"
 msgstr "Про застосунок Movo"
 
-#: crates/movo-desktop/src/app.rs:226
-#: crates/movo-desktop/src/dialogs/settings.rs:117
+#: crates/movo-desktop/src/app.rs:228
+#: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr "Головна"
 
-#: crates/movo-desktop/src/app.rs:233
-#: crates/movo-desktop/src/dialogs/settings.rs:118
+#: crates/movo-desktop/src/app.rs:235
+#: crates/movo-desktop/src/dialogs/settings.rs:119
 #: crates/movo-desktop/src/views/home.rs:206
 msgid "Catalog"
 msgstr "Каталог"
 
-#: crates/movo-desktop/src/app.rs:240
-#: crates/movo-desktop/src/dialogs/settings.rs:119
+#: crates/movo-desktop/src/app.rs:242
+#: crates/movo-desktop/src/dialogs/settings.rs:120
 #: crates/movo-desktop/src/views/search.rs:454
 msgid "Search"
 msgstr "Пошук"
 
-#: crates/movo-desktop/src/app.rs:247
-#: crates/movo-desktop/src/dialogs/settings.rs:120
+#: crates/movo-desktop/src/app.rs:249
+#: crates/movo-desktop/src/dialogs/settings.rs:121
 #: crates/movo-desktop/src/views/details.rs:510
 msgid "Collections"
 msgstr "Колекції"
 
-#: crates/movo-desktop/src/app.rs:254
-#: crates/movo-desktop/src/dialogs/settings.rs:121
+#: crates/movo-desktop/src/app.rs:256
+#: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr "Сповіщення"
 
-#: crates/movo-desktop/src/app.rs:261
-#: crates/movo-desktop/src/dialogs/settings.rs:122
+#: crates/movo-desktop/src/app.rs:263
+#: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr "Обране"
 
-#: crates/movo-desktop/src/app.rs:268
-#: crates/movo-desktop/src/dialogs/settings.rs:123
+#: crates/movo-desktop/src/app.rs:270
+#: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr "Історія"
 
-#: crates/movo-desktop/src/app.rs:298
+#: crates/movo-desktop/src/app.rs:300
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Відновлення сеансу несподівано перервалося"
 
-#: crates/movo-desktop/src/app.rs:339
+#: crates/movo-desktop/src/app.rs:341
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
 
-#: crates/movo-desktop/src/app.rs:361
+#: crates/movo-desktop/src/app.rs:367
 msgid "Signed in as {}"
 msgstr "Ви увійшли як {}"
 
 #: crates/movo-desktop/src/dialogs/actor.rs:23
-#: crates/movo-desktop/src/dialogs/settings.rs:367
+#: crates/movo-desktop/src/dialogs/settings.rs:393
 msgid "Profile"
 msgstr "Профіль"
 
@@ -144,7 +144,7 @@ msgid "Password"
 msgstr "Пароль"
 
 #: crates/movo-desktop/src/dialogs/login.rs:49
-#: crates/movo-desktop/src/dialogs/settings.rs:417
+#: crates/movo-desktop/src/dialogs/settings.rs:443
 #: crates/movo-desktop/src/ui/content.rs:39
 msgid "Sign In"
 msgstr "Увійти"
@@ -166,7 +166,7 @@ msgid "The provider accepts whole numbers from 1 to 10."
 msgstr "Провайдер приймає цілі числа від 1 до 10."
 
 #: crates/movo-desktop/src/dialogs/rating.rs:22
-#: crates/movo-desktop/src/dialogs/settings.rs:441
+#: crates/movo-desktop/src/dialogs/settings.rs:467
 #: crates/movo-desktop/src/playback/launcher.rs:591
 msgid "Cancel"
 msgstr "Скасувати"
@@ -180,182 +180,196 @@ msgstr "Оцінити"
 msgid "Sending the rating stopped unexpectedly"
 msgstr "Надсилання оцінки несподівано перервалося"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:82
+#: crates/movo-desktop/src/dialogs/settings.rs:83
 msgid "Appearance"
 msgstr "Оформлення"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:86
+#: crates/movo-desktop/src/dialogs/settings.rs:87
 msgid "Theme"
 msgstr "Тема"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:88
+#: crates/movo-desktop/src/dialogs/settings.rs:89
 msgid "System"
 msgstr "Системна"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:89
+#: crates/movo-desktop/src/dialogs/settings.rs:90
 msgid "Light"
 msgstr "Світла"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:90
+#: crates/movo-desktop/src/dialogs/settings.rs:91
 msgid "Dark"
 msgstr "Темна"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:115
+#: crates/movo-desktop/src/dialogs/settings.rs:116
 msgid "Initial Screen"
 msgstr "Початковий екран"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:148
+#: crates/movo-desktop/src/dialogs/settings.rs:149
 #: crates/movo-desktop/src/views/details.rs:753
 msgid "Playback"
 msgstr "Перегляд"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:149
+#: crates/movo-desktop/src/dialogs/settings.rs:150
 msgid "Titles play in an external player, mpv by default."
 msgstr "Відео відтворюється у зовнішньому програвачі, типово mpv."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:153
+#: crates/movo-desktop/src/dialogs/settings.rs:154
 msgid "Default Quality"
 msgstr "Типова якість"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:177
+#: crates/movo-desktop/src/dialogs/settings.rs:178
 msgid "Ask Quality Before Playback"
 msgstr "Питати якість перед відтворенням"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:178
+#: crates/movo-desktop/src/dialogs/settings.rs:179
 msgid "Show the quality picker every time playback starts"
 msgstr "Показувати вибір якості під час кожного запуску"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:193
+#: crates/movo-desktop/src/dialogs/settings.rs:194
 msgid "Auto-Next Episode"
 msgstr "Автоперехід до наступної серії"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:194
+#: crates/movo-desktop/src/dialogs/settings.rs:195
 msgid "Continue with the next episode when one finishes"
 msgstr "Продовжувати з наступної серії після завершення"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:209
+#: crates/movo-desktop/src/dialogs/settings.rs:210
 msgid "Sort Voice-overs by Rating"
 msgstr "Сортувати озвучення за рейтингом"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:210
+#: crates/movo-desktop/src/dialogs/settings.rs:211
 msgid "Show the highest-rated provider voice-overs first"
 msgstr "Спочатку показувати озвучення з найвищим рейтингом провайдера"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:229
+#: crates/movo-desktop/src/dialogs/settings.rs:231
+msgid "Listings"
+msgstr "Списки"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:233
+msgid ""
+"Titles from these countries are left out of the catalog, search and home. "
+"Use the names the site shows, separated by commas."
+msgstr "Фільми й серіали цих країн не потрапляють до каталогу, пошуку та на головну. Вкажіть назви так, як їх пише сайт, через кому."
+
+#: crates/movo-desktop/src/dialogs/settings.rs:237
+msgid "Hidden Countries"
+msgstr "Приховані країни"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:255
 msgid "Cache"
 msgstr "Кеш"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:231
+#: crates/movo-desktop/src/dialogs/settings.rs:257
 msgid "Clear Image Cache"
 msgstr "Очистити кеш зображень"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:232
+#: crates/movo-desktop/src/dialogs/settings.rs:258
 msgid "Removes saved covers and posters from disk"
 msgstr "Видаляє збережені обкладинки й постери з диска"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:235
+#: crates/movo-desktop/src/dialogs/settings.rs:261
 #: crates/movo-desktop/src/views/search.rs:144
 msgid "Clear"
 msgstr "Очистити"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:244
+#: crates/movo-desktop/src/dialogs/settings.rs:270
 msgid "Cleared"
 msgstr "Очищено"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:285
+#: crates/movo-desktop/src/dialogs/settings.rs:311
 msgid "Player Command"
 msgstr "Команда програвача"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:291
+#: crates/movo-desktop/src/dialogs/settings.rs:317
 msgid "Player"
 msgstr "Програвач"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:293
+#: crates/movo-desktop/src/dialogs/settings.rs:319
 msgid "mpv"
 msgstr "mpv"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:294
+#: crates/movo-desktop/src/dialogs/settings.rs:320
 msgid "VLC"
 msgstr "VLC"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:295
+#: crates/movo-desktop/src/dialogs/settings.rs:321
 msgid "Ask Every Time"
 msgstr "Запитувати щоразу"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:296
+#: crates/movo-desktop/src/dialogs/settings.rs:322
 msgid "System Default"
 msgstr "Системний за замовчуванням"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:297
+#: crates/movo-desktop/src/dialogs/settings.rs:323
 msgid "Custom Command"
 msgstr "Власна команда"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:308
+#: crates/movo-desktop/src/dialogs/settings.rs:334
 msgid "{} was not found on this system"
 msgstr "{} не знайдено в системі"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:310
+#: crates/movo-desktop/src/dialogs/settings.rs:336
 msgid "The chosen application receives no headers, so playback may be refused."
 msgstr ""
 "Обрана програма не отримує заголовки, тому відтворення може бути відхилено."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:313
+#: crates/movo-desktop/src/dialogs/settings.rs:339
 msgid "The system handler receives no headers, so playback may be refused."
 msgstr ""
 "Системний обробник не отримує заголовки, тому відтворення може бути "
 "відхилено."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:316
+#: crates/movo-desktop/src/dialogs/settings.rs:342
 msgid "Progress is only tracked with mpv."
 msgstr "Прогрес відстежується лише з mpv."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:363
+#: crates/movo-desktop/src/dialogs/settings.rs:389
 msgid "HDRezka Account"
 msgstr "Обліковий запис HDRezka"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:364
+#: crates/movo-desktop/src/dialogs/settings.rs:390
 msgid "Sign in to sync favorites, history and premium quality"
 msgstr ""
 "Увійдіть, щоб синхронізувати обране, історію та отримати преміум-якість"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:398
+#: crates/movo-desktop/src/dialogs/settings.rs:424
 msgid "Premium: {} days"
 msgstr "Преміум: {} дн."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:399
+#: crates/movo-desktop/src/dialogs/settings.rs:425
 msgid "VIP / Premium"
 msgstr "VIP / Преміум"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:400
+#: crates/movo-desktop/src/dialogs/settings.rs:426
 msgid "Standard"
 msgstr "Стандартний"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:408
-#: crates/movo-desktop/src/dialogs/settings.rs:441
+#: crates/movo-desktop/src/dialogs/settings.rs:434
+#: crates/movo-desktop/src/dialogs/settings.rs:467
 msgid "Sign Out"
 msgstr "Вийти"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:415
+#: crates/movo-desktop/src/dialogs/settings.rs:441
 msgid "Not signed in"
 msgstr "Вхід не виконано"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:416
+#: crates/movo-desktop/src/dialogs/settings.rs:442
 msgid "Sign in to sync favorites and unlock premium quality"
 msgstr "Увійдіть, щоб синхронізувати обране та відкрити преміум-якість"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:437
+#: crates/movo-desktop/src/dialogs/settings.rs:463
 msgid "Sign out?"
 msgstr "Вийти з облікового запису?"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:438
+#: crates/movo-desktop/src/dialogs/settings.rs:464
 msgid "Local session data will be removed from this device."
 msgstr "Локальні дані сеансу буде видалено з цього пристрою."
 
-#: crates/movo-desktop/src/dialogs/settings.rs:450
+#: crates/movo-desktop/src/dialogs/settings.rs:476
 msgid "Signing out stopped unexpectedly"
 msgstr "Вихід несподівано перервався"
 
-#: crates/movo-desktop/src/dialogs/settings.rs:455
+#: crates/movo-desktop/src/dialogs/settings.rs:481
 msgid "Signed out, but the stored session was not removed"
 msgstr "Вихід виконано, але збережений сеанс не видалено"
 
@@ -722,11 +736,11 @@ msgstr "Увійдіть, щоб побачити сповіщення"
 msgid "Loading Notifications"
 msgstr "Завантаження сповіщень"
 
-#: crates/movo-desktop/src/views/notifications.rs:195
+#: crates/movo-desktop/src/views/notifications.rs:196
 msgid "Not opened yet"
 msgstr "Ще не відкрито"
 
-#: crates/movo-desktop/src/views/notifications.rs:216
+#: crates/movo-desktop/src/views/notifications.rs:217
 msgid "No Notifications"
 msgstr "Немає сповіщень"
 

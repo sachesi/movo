@@ -2,6 +2,7 @@ package org.movo.app.core
 
 import org.movo.app.R
 import org.movo.app.settings.QualityMode
+import org.movo.app.settings.settings
 import org.movo.app.player.selectStream
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -107,7 +109,43 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var detailsBackLoading = false
     private var pathReturnFocus: String? = null
 
-    init { restore() }
+    /** What the core currently filters by, so only a real change reloads the listings. */
+    private var appliedHiddenCountries: String? = null
+
+    init {
+        restore()
+        viewModelScope.launch {
+            getApplication<Application>().settings.map { it.hiddenCountries }.distinctUntilChanged().collect { hidden ->
+                if (hidden == appliedHiddenCountries) return@collect
+                applyHiddenCountries(hidden)
+                reloadListings()
+            }
+        }
+    }
+
+    private suspend fun applyHiddenCountries(hidden: String) {
+        // Nothing to hide and nothing hidden yet: the core starts out that way.
+        if (hidden.isNotBlank() || appliedHiddenCountries != null) {
+            // Best-effort: a filter that did not reach the core costs a few extra rows, not the
+            // sign-in or the listing behind it.
+            runCatching { NativeBridge.call("set_hidden_countries", buildJsonObject { put("countries", hidden) }) }
+        }
+        appliedHiddenCountries = hidden
+    }
+
+    /** Fetch again whatever listing is on screen, now that the filter differs. */
+    private fun reloadListings() {
+        val current = state.value
+        when {
+            current.details != null || current.stream != null -> return
+            current.tab == Tab.Catalog && current.homeSections.isNotEmpty() -> {
+                _state.update { it.copy(homeSections = emptyList()) }
+                loadHome()
+            }
+            current.tab == Tab.Catalog && current.items.isNotEmpty() -> loadCatalog()
+            current.tab == Tab.Search && current.query.isNotBlank() -> search(current.query)
+        }
+    }
 
     private fun run(block: suspend () -> Unit) = viewModelScope.launch {
         activeOperations++
@@ -129,6 +167,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun restore() = run {
         warmUpNativeBridge()
+        // Before the first listing, so nothing hidden is shown on the way in.
+        applyHiddenCountries(getApplication<Application>().settings.first().hiddenCountries)
         try {
             val secret = store.secret() ?: return@run
             val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })

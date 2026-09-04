@@ -25,9 +25,12 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Rc<Self> {
+        let settings = AppSettings::load();
+        let client = RezkaClient::new();
+        client.set_hidden_countries(settings.hidden_countries.clone());
         Rc::new(Self {
-            client: Arc::new(RezkaClient::new()),
-            settings: RefCell::new(AppSettings::load()),
+            client: Arc::new(client),
+            settings: RefCell::new(settings),
         })
     }
 

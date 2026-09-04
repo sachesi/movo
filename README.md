@@ -18,7 +18,8 @@ maintenance whenever the site changes its markup or its stream encoding.
 ## What it does
 
 - Browse the catalog, collections and genre listings, with search, filters and
-  search suggestions.
+  search suggestions. Titles from countries named in Settings stay out of
+  the listings.
 - Open a title for its description, ratings, cast, comments, translator list and
   episode list.
 - Sign in, and read and write favorites, watch history and episode notifications

@@ -100,6 +100,8 @@
     <string name="dynamic_color">Use dynamic color</string>
     <string name="initial_screen">Initial screen</string>
     <string name="sort_voices">Sort translations by rating</string>
+    <string name="hidden_countries">Hidden countries</string>
+    <string name="hidden_countries_hint">Titles from these countries are left out of listings. Use the names the site shows, separated by commas.</string>
     <string name="quality_mode">Default stream quality</string>
     <string name="quality_max">Highest available</string>
     <string name="quality_480">480p</string>

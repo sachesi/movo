@@ -91,6 +91,8 @@
     <string name="dynamic_color">Динамічні кольори</string>
     <string name="initial_screen">Початковий екран</string>
     <string name="sort_voices">Сортувати озвучення за рейтингом</string>
+    <string name="hidden_countries">Приховані країни</string>
+    <string name="hidden_countries_hint">Фільми й серіали цих країн не показуються у списках. Вкажіть назви так, як їх пише сайт, через кому.</string>
     <string name="quality_mode">Якість за замовчуванням</string>
     <string name="quality_max">Найвища доступна</string>
     <string name="quality_480">480p</string>
