@@ -59,6 +59,11 @@
     <string name="sign_out_message">Для доступу до облікового запису потрібно буде ввійти знову.</string>
     <string name="history_empty">Історія порожня</string>
     <string name="operation_failed">Операцію не виконано</string>
+    <string name="error_timeout">Сайт надто довго не відповідає</string>
+    <string name="error_network">Не вдалося зв’язатися з сайтом. Перевірте з’єднання.</string>
+    <string name="error_provider">Сайт повернув помилку</string>
+    <string name="error_session">Сеанс більше не дійсний. Увійдіть знову.</string>
+    <string name="error_malformed">Сайт надіслав неочікувану відповідь</string>
     <string name="catalog_empty">У цьому розділі нічого немає</string>
     <string name="catalog_empty_hint">Оберіть інший розділ або порядок сортування</string>
     <string name="home_failed">Головна не завантажилася</string>

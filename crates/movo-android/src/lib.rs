@@ -326,9 +326,13 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
             })
             .and_then(invoke)
             .map(|data| json!({"data": data}))
-            .unwrap_or_else(
-                |failure| json!({"error": failure.message, "rejected": failure.session_rejected}),
-            )
+            .unwrap_or_else(|failure| {
+                json!({
+                    "error": failure.message,
+                    "code": movo_core::error::classify(&failure.message).code(),
+                    "rejected": failure.session_rejected,
+                })
+            })
             .to_string()
     });
     env.new_string(response).expect("JNI response").into_raw()

@@ -36,11 +36,13 @@ import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * A command the core refused. [sessionRejected] is set when the provider turned the stored session
- * down, which is the only case where the app should forget it: a request that never reached the
- * provider says nothing about whether the session is still good.
+ * A command the core refused. [code] names the kind of failure (timeout, network, provider,
+ * session, malformed, other), which is what the app puts into words; the message is for the log
+ * and for a failure of no particular kind. [sessionRejected] is set when the provider turned the
+ * stored session down, which is the only case where the app should forget it: a request that never
+ * reached the provider says nothing about whether the session is still good.
  */
-class BridgeException(message: String, val sessionRejected: Boolean) : IllegalStateException(message)
+class BridgeException(message: String, val code: String, val sessionRejected: Boolean) : IllegalStateException(message)
 
 /** Sends one serialized request to the core and returns its serialized reply. */
 internal fun interface CoreTransport {
@@ -90,7 +92,11 @@ object NativeBridge {
         val request = buildJsonObject { put("type", type); fields.forEach { (key, value) -> put(key, value) } }
         val response = json.parseToJsonElement(core.send(request.toString())).jsonObject
         response["error"]?.jsonPrimitive?.content?.let {
-            throw BridgeException(it, response["rejected"]?.jsonPrimitive?.booleanOrNull == true)
+            throw BridgeException(
+                it,
+                response["code"]?.jsonPrimitive?.content ?: "other",
+                response["rejected"]?.jsonPrimitive?.booleanOrNull == true,
+            )
         }
         response.getValue("data").toString()
     }
@@ -134,6 +140,7 @@ internal fun accountMigrations(context: Context, name: String) =
 private const val ACCOUNT_STORE_NAME = "account"
 
 private val SESSION = stringPreferencesKey("session")
+private val PROFILE = stringPreferencesKey("profile")
 
 private fun progressKeyOf(key: String) = longPreferencesKey("progress:$key")
 
@@ -181,8 +188,17 @@ class SessionStore(
     }
 
     private suspend fun forgetSession(): String? {
-        store.edit { it.remove(SESSION) }
+        store.edit { it.remove(SESSION); it.remove(PROFILE) }
         return null
+    }
+
+    /** The account as last seen, so the app can open on it while the provider is out of reach. */
+    suspend fun profile(): UserProfile? = read()[PROFILE]?.let {
+        runCatching { NativeBridge.json.decodeFromString<UserProfile>(it) }.getOrNull()
+    }
+
+    suspend fun saveProfile(user: UserProfile) {
+        store.edit { it[PROFILE] = NativeBridge.json.encodeToString(user) }
     }
 
     // Off the main thread: resolving the keystore key and running the cipher can take tens of

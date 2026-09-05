@@ -118,6 +118,17 @@ class MovoViewModelTest {
     }
 
     @Test
+    fun aFailureWithAKnownKindIsPutInTheUsersWords() = runTest {
+        val model = model(testScheduler)
+        NativeBridge.transport = CoreTransport { """{"error":"HTTP GET request failed: dns error","code":"network"}""" }
+        model.loadHistory()
+        advanceUntilIdle()
+
+        val expected = ApplicationProvider.getApplicationContext<android.content.Context>().getString(R.string.error_network)
+        assertEquals(expected, model.state.value.error)
+    }
+
+    @Test
     fun closingAListingOpenedFromATitleReopensTheTitle() = runTest {
         val model = model(testScheduler)
         model.openDetails("/films/dune")

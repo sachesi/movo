@@ -59,6 +59,11 @@
     <string name="sign_out_message">Для доступа к аккаунту потребуется войти снова.</string>
     <string name="history_empty">История пуста</string>
     <string name="operation_failed">Операция не выполнена</string>
+    <string name="error_timeout">Сайт слишком долго не отвечает</string>
+    <string name="error_network">Не удалось связаться с сайтом. Проверьте подключение.</string>
+    <string name="error_provider">Сайт вернул ошибку</string>
+    <string name="error_session">Сеанс больше не действителен. Войдите снова.</string>
+    <string name="error_malformed">Сайт прислал неожиданный ответ</string>
     <string name="catalog_empty">В этом разделе нет ничего</string>
     <string name="catalog_empty_hint">Выберите другой раздел или порядок сортировки</string>
     <string name="home_failed">Главная не загрузилась</string>
