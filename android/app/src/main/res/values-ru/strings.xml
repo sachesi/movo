@@ -158,6 +158,7 @@
     <string name="trailer">Трейлер</string>
     <string name="rate_title">Оценить</string>
     <string name="comments">Комментарии</string>
+    <string name="like_comment">Нравится</string>
     <string name="show_spoiler">Показать спойлер</string>
     <string name="share">Поделиться</string>
     <string name="born">Дата рождения: %1$s</string>

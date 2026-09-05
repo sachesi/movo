@@ -173,6 +173,7 @@
     <string name="trailer">Trailer</string>
     <string name="rate_title">Rate this title</string>
     <string name="comments">Comments</string>
+    <string name="like_comment">Like</string>
     <string name="show_spoiler">Show spoiler</string>
     <string name="share">Share</string>
     <string name="born">Born: %1$s</string>

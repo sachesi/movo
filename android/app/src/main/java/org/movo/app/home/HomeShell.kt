@@ -26,6 +26,7 @@ import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TvFocusMemory
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.settings.settings
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.R
@@ -266,7 +267,9 @@ private fun TvHomeFlow(
 private val Configuration.isTelevision
     get() = uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
 
-private val RAIL_WIDTH = 80.dp
+// Icon rail: safe-area padding, item padding, icon, item padding, safe-area padding.
+private val RAIL_PADDING = 24.dp
+private val RAIL_WIDTH = RAIL_PADDING * 2 + 14.dp * 2 + 24.dp
 private val LABELLED_RAIL_WIDTH = 84.dp
 private val PANEL_WIDTH = 260.dp
 private val DRAWER_ITEM_HEIGHT = 48.dp
@@ -351,7 +354,9 @@ private fun TvDrawerSheet(
                 .fillMaxHeight()
                 // Taller items than a phone in landscape has room for, so the labelled rail scrolls.
                 .then(if (labelled) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .padding(horizontal = if (labelled) 6.dp else 12.dp, vertical = 20.dp)
+                // Inside the television safe area, as the content beside it is: a set that crops
+                // the outer five percent was cutting into the first icon and the selection block.
+                .padding(horizontal = if (labelled) 6.dp else RAIL_PADDING, vertical = if (labelled) 20.dp else TV_OVERSCAN_VERTICAL)
                 .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {

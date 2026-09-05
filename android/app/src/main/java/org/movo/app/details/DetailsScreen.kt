@@ -106,6 +106,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -291,17 +296,26 @@ internal fun DetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
             item {
-                val seam = LocalFold.current
-                    ?.takeIf { it.orientation == FoldingFeature.Orientation.VERTICAL }
-                    ?.seamWidth()
-                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Box {
+                val fold = LocalFold.current?.takeIf { it.orientation == FoldingFeature.Orientation.VERTICAL }
+                // Where the row starts in the window, so the hinge can be placed within it. The
+                // poster then fills the pane left of the hinge and the text begins past it.
+                var rowLeft by remember { mutableStateOf<Float?>(null) }
+                val density = LocalDensity.current
+                val posterWidth = if (isTv) 220.dp else if (wideContent) 200.dp else 120.dp
+                val leftPane = fold?.let { hinge ->
+                    rowLeft?.let { left -> with(density) { (hinge.bounds.left - left).toDp() } }
+                }?.takeIf { it > posterWidth + 18.dp }
+                Row(
+                    Modifier.onGloballyPositioned { rowLeft = it.positionInWindow().x },
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    Box(if (leftPane != null) Modifier.width(leftPane - 18.dp) else Modifier) {
                         val tile = placeholderTile()
                         AsyncImage(
                             model = details.posterHqUrl ?: details.posterUrl,
                             contentDescription = null,
                             modifier = Modifier
-                                .width(if (isTv) 220.dp else if (wideContent) 200.dp else 120.dp)
+                                .width(posterWidth)
                                 .aspectRatio(2f / 3f)
                                 .clip(RoundedCornerShape(if (isTv) 16.dp else 12.dp)),
                             placeholder = tile,
@@ -328,8 +342,8 @@ internal fun DetailsScreen(
                             }
                         }
                     }
-                    // The seam of a book-posture fold falls between the poster and the text.
-                    if (seam != null) Spacer(Modifier.width(seam))
+                    // The hinge of a book-posture fold falls between the poster and the text.
+                    if (fold != null) Spacer(Modifier.width(fold.seamWidth()))
                     Column(
                         Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -808,10 +822,13 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
                     },
                     trailingContent = {
                         val like = { model.likeComment(comment.id) }
+                        val likeLabel = stringResource(R.string.like_comment)
+                        // Named and stateful for a screen reader, which otherwise heard the count alone.
+                        val likeSemantics = Modifier.semantics { selected = comment.liked }
                         if (isTv) {
-                            TvButton(like) { TvIcon(Icons.Default.ThumbUp, null); Spacer(Modifier.width(8.dp)); TvText(comment.likes.toString()) }
+                            TvButton(like, likeSemantics) { TvIcon(Icons.Default.ThumbUp, likeLabel); Spacer(Modifier.width(8.dp)); TvText(comment.likes.toString()) }
                         } else {
-                            TextButton(like, colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, null); Text(comment.likes.toString()) }
+                            TextButton(like, likeSemantics, colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, likeLabel); Text(comment.likes.toString()) }
                         }
                     },
                     modifier = Modifier.padding(start = (comment.indent.coerceAtMost(4) * 12).dp),

@@ -236,7 +236,8 @@ private fun MovoApp(
         .collectAsStateWithLifecycle(initialValue = null)
     val fold = layout?.displayFeatures
         ?.filterIsInstance<FoldingFeature>()
-        ?.firstOrNull { it.state == FoldingFeature.State.HALF_OPENED }
+        // A hinge held half open, or one that splits the display flat, as a dual screen does.
+        ?.firstOrNull { it.state == FoldingFeature.State.HALF_OPENED || it.isSeparating }
     CompositionLocalProvider(
         LocalReducedMotion provides reducedMotion,
         LocalFold provides fold,

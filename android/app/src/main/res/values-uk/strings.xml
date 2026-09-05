@@ -158,6 +158,7 @@
     <string name="trailer">Трейлер</string>
     <string name="rate_title">Оцінити</string>
     <string name="comments">Коментарі</string>
+    <string name="like_comment">Подобається</string>
     <string name="show_spoiler">Показати спойлер</string>
     <string name="share">Поділитися</string>
     <string name="born">Дата народження: %1$s</string>
