@@ -1,6 +1,7 @@
 pub mod anubis;
 pub mod auth;
 pub mod catalog;
+pub mod countries;
 pub mod details;
 pub mod models;
 pub mod search;
@@ -823,7 +824,8 @@ mod tests {
         };
 
         assert_eq!(client.shown(items()).len(), 3);
-        client.set_hidden_countries(models::parse_country_list(" россия ,, Великобритания"));
+        // Named in another language than the listing, and by code.
+        client.set_hidden_countries(models::parse_country_list(" Росія ,, gb"));
         let shown = client.shown(items());
         assert_eq!(shown.len(), 1);
         assert_eq!(shown[0].info.as_deref(), Some("2019, США, Боевики"));

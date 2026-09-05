@@ -97,7 +97,7 @@
     <string name="initial_screen">Начальный экран</string>
     <string name="sort_voices">Сортировать озвучки по рейтингу</string>
     <string name="hidden_countries">Скрытые страны</string>
-    <string name="hidden_countries_hint">Фильмы и сериалы этих стран не показываются в списках. Укажите названия так, как их пишет сайт, через запятую.</string>
+    <string name="hidden_countries_hint">Фильмы и сериалы этих стран не показываются в списках.</string>
     <string name="quality_mode">Качество по умолчанию</string>
     <string name="quality_max">Максимальное доступное</string>
     <string name="quality_480">480p</string>

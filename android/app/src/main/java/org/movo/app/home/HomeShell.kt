@@ -33,6 +33,7 @@ import org.movo.app.settings.settings
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.R
 import org.movo.app.core.AppState
+import org.movo.app.core.Country
 import org.movo.app.core.MovoViewModel
 import org.movo.app.core.Tab
 import org.movo.app.settings.AppSettings
@@ -190,7 +191,7 @@ internal fun HomeFlow(
                             ) {
                                 HomeTabs(state, compactHeight, model)
                             }
-                            Section.Settings -> SettingsDestination(settings, false)
+                            Section.Settings -> SettingsDestination(settings, false, state.countries, model)
                         }
                     }
                 }
@@ -272,7 +273,7 @@ private fun TvHomeFlow(
                 CompositionLocalProvider(LocalTvFocusMemory provides focusMemory) {
                     when (section) {
                         Section.Home -> HomeTabContent(state.tab, state, true, compactHeight, model)
-                        Section.Settings -> SettingsDestination(settings, true)
+                        Section.Settings -> SettingsDestination(settings, true, state.countries, model)
                     }
                 }
             }
@@ -517,7 +518,8 @@ private fun TvDrawerItem(
 }
 
 @Composable
-private fun SettingsDestination(settings: AppSettings, isTv: Boolean) {
+private fun SettingsDestination(settings: AppSettings, isTv: Boolean, countries: List<Country>, model: MovoViewModel) {
+    LaunchedEffect(model) { model.loadCountries() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val actions = remember(context, scope) {
@@ -527,7 +529,7 @@ private fun SettingsDestination(settings: AppSettings, isTv: Boolean) {
             }
         }
     }
-    SettingsContent(settings = settings, isTv = isTv, actions = actions)
+    SettingsContent(settings = settings, isTv = isTv, actions = actions, countries = countries)
 }
 
 @Composable

@@ -68,6 +68,8 @@ data class AppState(
     val detailAction: DetailAction? = null,
     /** The title a press is fetching, so the page can show the press landed. */
     val openingUrl: String? = null,
+    /** Countries the settings offer to hide, from the core. */
+    val countries: List<Country> = emptyList(),
 )
 
 /**
@@ -137,6 +139,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             getApplication<Application>().settings.map { it.hiddenCountries }.distinctUntilChanged().debounce(HIDDEN_COUNTRIES_SETTLE_MS).collect { hidden ->
                 if (hidden == appliedHiddenCountries) return@collect
                 applyHiddenCountries(hidden)
+                // Every kept listing was filtered by the old names.
+                listings.clear()
                 reloadListings()
             }
         }
@@ -388,6 +392,14 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 NativeBridge.decode<List<String>>("search_suggestions", buildJsonObject { put("query", query.trim()) })
             }.getOrNull()?.distinct() ?: return@launch
             if (state.value.tab == Tab.Search) _state.update { it.copy(suggestions = values) }
+        }
+    }
+
+    fun loadCountries() {
+        if (state.value.countries.isNotEmpty()) return
+        viewModelScope.launch {
+            runCatching { NativeBridge.decode<List<Country>>("countries") }
+                .onSuccess { countries -> _state.update { it.copy(countries = countries) } }
         }
     }
 

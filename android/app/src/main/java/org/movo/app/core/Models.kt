@@ -33,5 +33,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class FavoriteGroup(val id: Long? = null, val name: String, val url: String, val count: Int)
 @Serializable data class HistoryEntry(val id: String, val title: String, val url: String, @SerialName("poster_url") val posterUrl: String? = null, val info: String? = null, @SerialName("additional_info") val additionalInfo: String? = null, val date: String? = null, @SerialName("is_watched") val watched: Boolean)
 @Serializable data class UserProfile(@SerialName("user_id") val userId: String, val username: String, @SerialName("is_logged_in") val loggedIn: Boolean, @SerialName("is_vip") val vip: Boolean, val email: String? = null, @SerialName("avatar_url") val avatarUrl: String? = null, @SerialName("premium_days") val premiumDays: Int? = null, @SerialName("session_persistent") val sessionPersistent: Boolean = false)
+/** A country a listing can be from, named in each app language; [aliases] are every name it answers to, lower-cased. */
+@Serializable data class Country(val code: String, val name: CountryName, val aliases: List<String>)
+@Serializable data class CountryName(val en: String, val ru: String, val uk: String)
 @Serializable data class LoginResult(val user: UserProfile, val secret: String)
 @Serializable data class HistoryResult(val entries: List<HistoryEntry>)

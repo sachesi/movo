@@ -11,6 +11,7 @@ import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.R
+import org.movo.app.core.Country
 import org.movo.app.core.Tab
 import org.movo.app.home.label
 import android.os.Build
@@ -33,19 +34,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.os.ConfigurationCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -81,6 +80,7 @@ fun SettingsContent(
     isTv: Boolean,
     actions: SettingsActions,
     modifier: Modifier = Modifier,
+    countries: List<Country> = emptyList(),
 ) {
     Box(modifier.fillMaxSize()) {
         LazyColumn(
@@ -111,10 +111,10 @@ fun SettingsContent(
                     isTv = isTv,
                 )
                 SwitchItem(stringResource(R.string.sort_voices), settings.sortVoices, isTv) { actions.save(Keys.SORT_VOICES, it) }
-                TextItem(
-                    label = stringResource(R.string.hidden_countries),
-                    hint = stringResource(R.string.hidden_countries_hint),
+                CountryPicker(
+                    countries = countries,
                     value = settings.hiddenCountries,
+                    isTv = isTv,
                 ) { actions.save(Keys.HIDDEN_COUNTRIES, it) }
                 }
             }
@@ -336,25 +336,61 @@ private fun SwitchItem(
     }
 }
 
-/** A free-text setting, saved as it is typed. */
+/**
+ * The countries whose titles are left out of listings, chosen from the core's list by name in
+ * the app's language. A name typed the way the site spells it never matched what a person
+ * reads in another language; the setting now holds country codes, which the core matches
+ * against every spelling. A value typed by an earlier version is kept as it was.
+ */
 @Composable
-private fun TextItem(
-    label: String,
-    hint: String,
+private fun CountryPicker(
+    countries: List<Country>,
     value: String,
+    isTv: Boolean,
     onValueChange: (String) -> Unit,
 ) {
-    // The draft is the field's own. A field re-keyed on the stored value was reset by every
-    // write landing late, which put an earlier prefix back under fast typing.
-    var text by remember { mutableStateOf(value) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it; onValueChange(it) },
-        label = { Text(label) },
-        supportingText = { Text(hint) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).tvFocusMemory("settings:$label"),
+    SectionHeader(stringResource(R.string.hidden_countries))
+    Text(
+        stringResource(R.string.hidden_countries_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
     )
+    val language = ConfigurationCompat.getLocales(LocalConfiguration.current)[0]?.language
+    val named = remember(countries, language) {
+        countries.map { it to when (language) { "uk" -> it.name.uk; "ru" -> it.name.ru; else -> it.name.en } }
+            .sortedBy { (_, name) -> name }
+    }
+    val tokens = remember(value) { value.split(',').map { it.trim() }.filter { it.isNotEmpty() } }
+    // What each stored token stands for, so a name from an earlier version ticks its chip.
+    fun canonical(token: String) = countries.firstOrNull { token.lowercase() in it.aliases || token.lowercase() == it.code }?.code ?: token.lowercase()
+    val hidden = remember(tokens, countries) { tokens.map(::canonical).toSet() }
+    FlowRow(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .then(if (isTv) Modifier.focusRestorer().focusGroup() else Modifier),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        named.forEach { (country, name) ->
+            val selected = country.code in hidden
+            val toggle = {
+                val kept = tokens.filter { canonical(it) != country.code }
+                onValueChange((if (selected) kept else kept + country.code).joinToString(", "))
+            }
+            val checkbox = Modifier.semantics { role = Role.Checkbox }
+            if (isTv) {
+                TvFilterChip(
+                    selected = selected,
+                    onClick = toggle,
+                    modifier = checkbox.tvFocusMemory("settings:country:${country.code}"),
+                    scale = SelectableChipScale.None,
+                ) { TvText(name) }
+            } else {
+                MovoChoiceChip(selected = selected, onClick = toggle, label = { Text(name) }, modifier = checkbox)
+            }
+        }
+    }
 }
 
 private val LayoutMode.label: Int get() = when (this) {
