@@ -86,7 +86,7 @@ pot:
     #!/usr/bin/env bash
     set -euo pipefail
     xgettext --from-code=UTF-8 --language=C --keyword=tr --keyword=trf \
-        --package-name=Movo --package-version=0.2.1 \
+        --package-name=Movo --package-version=0.3.0 \
         --output=po/movo.pot $(find crates/movo-desktop/src -name '*.rs' | sort)
     for language in ru uk; do
         msgmerge --quiet --no-fuzzy-matching --update --backup=none \
