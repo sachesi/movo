@@ -906,6 +906,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         // banner-ed over whatever screen the user lands on next.
         _state.update { it.copy(stream = null, playbackQuality = null, error = null) }
         if (details == null || stream == null) return
+        // Shown as watched at once where the list is already up: the account's history lags the
+        // sync by a moment, and the list fetched right after it still said otherwise.
+        if (completed) _state.update { state ->
+            state.copy(history = state.history.map { if (it.url == details.url) it.copy(watched = true) else it })
+        }
         run {
             if (completed) {
                 store.clearProgress(progressKey(details.id, stream))
@@ -925,12 +930,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 adjacentEpisode(details, stream, 1)?.let { (season, episode) ->
                     rememberLastPlayed(details.id, season, episode, stream.translatorId)
                 }
-                // Reflect the just-synced watched state in an open History list without
-                // flipping the global loading/error state (quiet re-fetch).
-                if (state.value.tab == Tab.History) refreshHistory()
             } else {
                 store.saveProgress(progressKey(details.id, stream), positionMs)
             }
+            // The account's history moved either way, watched or not: the entry carries where
+            // the title was left. Reflected in an open History list without the global spinner.
+            if (state.value.tab == Tab.History) refreshHistory()
         }
     }
 

@@ -177,6 +177,7 @@ private const val PHONE_CONTROLS_TIMEOUT_MS = 3_000L
 private const val SYNC_ERROR_VISIBLE_MS = 6_000L
 private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
 private const val BUTTON_VIDEO_ZOOM = 1.5f
+private const val WATCHED_FRACTION = 0.9f
 private val EPISODE_MENU_MAX_HEIGHT = 320.dp
 private val EPISODE_MENU_WIDTH = 320.dp
 
@@ -491,9 +492,16 @@ fun PlayerScreen(
         }
     }
 
+    // Watched once the credits are all that is left: nobody sits through them, and a title
+    // stopped a minute from the end was neither marked watched nor offered its next episode.
+    fun finished(): Boolean {
+        val duration = player.duration.takeIf { it > 0L } ?: content.durationMs
+        return content.completed || (duration > 0L && player.currentPosition >= duration * WATCHED_FRACTION)
+    }
+
     fun exitPlayer() {
         player.pause()
-        actions.close(content.completed, player.currentPosition)
+        actions.close(finished(), player.currentPosition)
     }
     BackHandler {
         // On a television Back takes the overlay down first, as the players around it do; the
@@ -555,7 +563,7 @@ fun PlayerScreen(
     fun nextEpisode() {
         player.pause()
         actions.saveProgress(player.currentPosition)
-        actions.nextEpisode(false)
+        actions.nextEpisode(finished())
     }
 
     // Picture-in-picture, opt-in and phone layout only: the television layout has nothing to
