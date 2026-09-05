@@ -115,9 +115,16 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingDetailsUrl: String? = null
     private var detailsBackLoading = false
 
-/** The title a genre or collection listing was opened from, reopened when the listing closes. */
-private var discoveryReturnUrl: String? = null
+    /** The title a genre or collection listing was opened from, reopened when the listing closes. */
+    private var discoveryReturnUrl: String? = null
     private var pathReturnFocus: String? = null
+
+    /**
+     * Each tab's listing as the user left it. Shown again on return rather than fetched again, so
+     * the pages already loaded and the place in them survive a visit to another tab; pull-to-refresh,
+     * Retry and an action that changed the listing fetch it afresh.
+     */
+    private val listings = HashMap<Tab, Listing>()
     private var loginJob: Job? = null
 
     /** What the core currently filters by, so only a real change reloads the listings. */
@@ -212,6 +219,7 @@ private var discoveryReturnUrl: String? = null
         cancelRequests()
         try { NativeBridge.call("logout") } finally {
             store.saveSecret(null)
+            listings.clear()
             _state.value = AppState(restoring = false)
         }
     }
@@ -219,28 +227,31 @@ private var discoveryReturnUrl: String? = null
     fun selectTab(tab: Tab, isTv: Boolean) {
         cancelRequests()
         detailsBackStack.clear()
-        pathReturnFocus = null
         discoveryReturnUrl = null
-        // Items are one slot shared by every grid, so the previous tab's posters would sit under
-        // the new tab's chips until its own page arrives.
+        val leaving = state.value
+        listings[leaving.tab] = Listing(leaving.items, leaving.page, leaving.collectionPath, leaving.collectionTitle, pathReturnFocus)
+        val kept = listings[tab]?.takeIf { it.items.isNotEmpty() }
+        pathReturnFocus = kept?.returnFocus
+        // Items are one slot shared by every grid, so without its own kept listing the previous
+        // tab's posters would sit under the new tab's chips until its own page arrives.
         _state.update { it.copy(
             tab = tab,
             details = null,
-            collectionPath = null,
-            collectionTitle = null,
-            items = emptyList(),
-            page = 1,
+            collectionPath = kept?.collectionPath,
+            collectionTitle = kept?.collectionTitle,
+            items = kept?.items.orEmpty(),
+            page = kept?.page ?: 1,
             focusedUrl = null,
             error = null,
         ) }
         when (tab) {
-            Tab.Catalog -> if (isTv) loadHome() else loadCatalog()
+            Tab.Catalog -> if (isTv) loadHome() else if (kept == null) loadCatalog()
             Tab.Search -> {
                 state.value.user?.userId?.let { userId -> viewModelScope.launch { _state.update { it.copy(searchHistory = store.searchHistory(userId)) } } }
-                state.value.query.takeIf { it.isNotBlank() }?.let(::search)
+                if (kept == null) state.value.query.takeIf { it.isNotBlank() }?.let(::search)
             }
-            Tab.Collections -> loadCollections()
-            Tab.Favorites -> loadFavorites()
+            Tab.Collections -> if (kept == null && state.value.collections.isEmpty()) loadCollections()
+            Tab.Favorites -> if (kept == null) loadFavorites()
             Tab.History -> loadHistory()
             Tab.Notifications -> loadAccountData(true)
             Tab.Account -> loadAccountData(false)
@@ -679,6 +690,10 @@ private var discoveryReturnUrl: String? = null
         }
         detailsJob = run {
             NativeBridge.call("set_favorite", buildJsonObject { put("url", details.url); put("post_id", details.id); put("category_id", groupId); put("favorite", favorite) })
+            // The favourites listing no longer matches: fetched again on the next visit, or now
+            // if it is the page under this one.
+            listings.remove(Tab.Favorites)
+            if (state.value.tab == Tab.Favorites) loadFavorites()
             if (state.value.details?.url == details.url) loadDetails(details.url)
         }
     }
@@ -971,3 +986,12 @@ private const val HOME_RAIL_COUNT = 5
 
 /** Pause after the last keystroke in the hidden-countries field before the filter is applied. */
 private const val HIDDEN_COUNTRIES_SETTLE_MS = 600L
+
+/** A tab's listing as the user left it: its items, the page they reach, and an open collection. */
+private class Listing(
+    val items: List<MediaItem>,
+    val page: Int,
+    val collectionPath: String?,
+    val collectionTitle: String?,
+    val returnFocus: String?,
+)

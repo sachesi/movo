@@ -138,6 +138,8 @@ internal fun HomeFlow(
     // operation raises, so the indicator only shows for a refresh the user asked for.
     var pulled by remember { mutableStateOf(false) }
     LaunchedEffect(state.loading) { if (!state.loading) pulled = false }
+    // The tabs leave the composition while Settings is up; this keeps their scroll for the return.
+    val sections = rememberSaveableStateHolder()
 
     Scaffold(
         // Only while the tabs are up: the settings bar does not follow the scroll, and a bar left
@@ -180,14 +182,16 @@ internal fun HomeFlow(
                         else fadeIn() togetherWith fadeOut()
                     },
                 ) { s ->
-                    when (s) {
-                        Section.Home -> PullToRefreshBox(
-                            isRefreshing = pulled && state.loading,
-                            onRefresh = { pulled = true; model.retry(false) },
-                        ) {
-                            HomeTabs(state, compactHeight, model)
+                    sections.SaveableStateProvider(s) {
+                        when (s) {
+                            Section.Home -> PullToRefreshBox(
+                                isRefreshing = pulled && state.loading,
+                                onRefresh = { pulled = true; model.retry(false) },
+                            ) {
+                                HomeTabs(state, compactHeight, model)
+                            }
+                            Section.Settings -> SettingsDestination(settings, false)
                         }
-                        Section.Settings -> SettingsDestination(settings, false)
                     }
                 }
                 if (state.loading) {
@@ -692,6 +696,9 @@ private fun HomeTabs(
     // Directional slide: forward for tabs later in the list, back for earlier ones, so
     // navigation reads spatially instead of a flat cross-fade.
     val reducedMotion = LocalReducedMotion.current
+    // Each tab's scroll state outlives the slide away from it, so it reopens where it was left,
+    // on the listing the model kept for it.
+    val tabs = rememberSaveableStateHolder()
     AnimatedContent(
         targetState = state.tab,
         transitionSpec = {
@@ -705,7 +712,7 @@ private fun HomeTabs(
         },
         label = "home tabs",
     ) { tab ->
-        HomeTabContent(tab, state, false, compactHeight, model)
+        tabs.SaveableStateProvider(tab) { HomeTabContent(tab, state, false, compactHeight, model) }
     }
 }
 

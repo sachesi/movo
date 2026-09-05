@@ -102,6 +102,22 @@ class MovoViewModelTest {
     }
 
     @Test
+    fun returningToATabShowsItsListingWithoutFetchingAgain() = runTest {
+        val model = model(testScheduler)
+        model.selectTab(Tab.Catalog, isTv = false)
+        advanceUntilIdle()
+        assertEquals(listOf("Dune"), model.state.value.items.map { it.title })
+
+        model.selectTab(Tab.History, isTv = false)
+        assertEquals(emptyList<String>(), model.state.value.items.map { it.title })
+        model.selectTab(Tab.Catalog, isTv = false)
+        assertEquals(listOf("Dune"), model.state.value.items.map { it.title })
+        advanceUntilIdle()
+
+        assertEquals(1, core.requested.count { it == "catalog" })
+    }
+
+    @Test
     fun closingAListingOpenedFromATitleReopensTheTitle() = runTest {
         val model = model(testScheduler)
         model.openDetails("/films/dune")
