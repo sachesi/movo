@@ -19,6 +19,7 @@ import org.movo.app.details.DetailsScreen
 import org.movo.app.home.HomeFlow
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoBlue
+import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.toTvColorScheme
 import org.movo.app.ui.TvIconButton
 import org.movo.app.core.Rating
@@ -306,7 +307,9 @@ private fun MovoApp(
                             // Outside every Scaffold, so nothing else keeps it clear of the gesture bar.
                             Modifier
                                 .align(Alignment.BottomCenter)
-                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                                // And clear of the overscan band, which the insets say nothing about.
+                                .padding(bottom = if (isTv) TV_OVERSCAN_VERTICAL else 0.dp),
                         )
                     }
                 }

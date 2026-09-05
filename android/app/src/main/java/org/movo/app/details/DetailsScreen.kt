@@ -30,6 +30,7 @@ import org.movo.app.catalog.MediaCard
 import org.movo.app.ui.AdaptiveModal
 import org.movo.app.ui.ChoiceRow
 import org.movo.app.ui.ErrorBanner
+import org.movo.app.ui.OpeningOverlay
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.placeholderTile
 import org.movo.app.ui.tvInitialFocus
@@ -669,6 +670,7 @@ internal fun DetailsScreen(
                     isTv = isTv,
                 )
             }
+            if (state.openingUrl != null) OpeningOverlay()
         }
       }
     }

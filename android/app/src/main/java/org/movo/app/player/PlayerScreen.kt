@@ -983,9 +983,11 @@ private fun SeekRow(
     }
     Column {
         val previewMs = sliderPosition.toLong()
-        val cue = if (dragging) storyboard.firstOrNull { previewMs in it.startMs until it.endMs } else null
+        // While a finger drags the thumb or a remote holds a direction on the timeline.
+        val previewing = dragging || hold.direction != null
+        val cue = if (previewing) storyboard.firstOrNull { previewMs in it.startMs until it.endMs } else null
         val spriteSize = cue?.let { spriteSizes[it.imageUrl] }
-        if (dragging && cue != null && spriteSize != null && cue.width > 0 && cue.height > 0) {
+        if (cue != null && spriteSize != null && cue.width > 0 && cue.height > 0) {
             val scale = 192f / cue.width
             Box(
                 Modifier

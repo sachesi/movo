@@ -65,6 +65,8 @@ data class AppState(
     val playbackPositionMs: Long = 0,
     val focusedUrl: String? = null,
     val detailAction: DetailAction? = null,
+    /** The title a press is fetching, so the page can show the press landed. */
+    val openingUrl: String? = null,
 )
 
 /**
@@ -458,6 +460,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openDetails(url: String, returnFocus: String? = null) {
+        // A second press on the same card while its page loads restarted the load.
+        if (state.value.openingUrl == url) return
         // The content job is left running: every load checks its tab is still current before it
         // applies, and cancelling it here left a deep link that arrived mid-load with a home
         // that never finished and nothing to retry.
@@ -467,6 +471,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             detailsBackStack.clear()
             _state.update { it.copy(focusedUrl = returnFocus) }
         }
+        _state.update { it.copy(openingUrl = url) }
         pendingDetailsUrl = url.takeIf { previousUrl != null && previousUrl != url }
         detailsJob = run {
             try {
@@ -474,6 +479,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 if (previousUrl != null && previousUrl != url) detailsBackStack.addLast(previousUrl)
             } finally {
                 if (pendingDetailsUrl == url) pendingDetailsUrl = null
+                _state.update { if (it.openingUrl == url) it.copy(openingUrl = null) else it }
             }
         }
     }
@@ -654,6 +660,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFavorite(groupId: Long, favorite: Boolean) {
         val details = state.value.details ?: return
         detailsJob?.cancel()
+        // Ticked at once; the reload below confirms it or puts it back.
+        _state.update { state ->
+            state.copy(details = state.details?.let { current ->
+                current.copy(favoriteCategoryIds = if (favorite) current.favoriteCategoryIds + groupId else current.favoriteCategoryIds - groupId)
+            })
+        }
         detailsJob = run {
             NativeBridge.call("set_favorite", buildJsonObject { put("url", details.url); put("post_id", details.id); put("category_id", groupId); put("favorite", favorite) })
             if (state.value.details?.url == details.url) loadDetails(details.url)

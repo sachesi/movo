@@ -24,6 +24,7 @@ import org.movo.app.search.SearchScreen
 import org.movo.app.settings.SettingsActions
 import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
+import org.movo.app.ui.OpeningOverlay
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TvFocusMemory
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
@@ -106,6 +107,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -194,6 +196,7 @@ internal fun HomeFlow(
                 state.error?.let {
                     ErrorBanner(it, model::clearError, Modifier.align(Alignment.BottomCenter), retry = { model.retry(false) })
                 }
+                if (state.openingUrl != null) OpeningOverlay()
             }
         }
     }
@@ -230,14 +233,16 @@ private fun TvHomeFlow(
     // otherwise left the highlight in the drawer or nowhere; and the error banner going away,
     // which otherwise dropped it. The search page is left alone: its first element is the text
     // field, and landing there would open the keyboard on every visit.
+    // Only on a television: a tablet on this layout would show a lit card nobody pointed at.
+    val television = LocalConfiguration.current.isTelevision
     val contentFocus = remember { FocusRequester() }
     val contentFocused = remember { mutableStateOf(false) }
     LaunchedEffect(destinationKey) {
         // One frame: the page lays out and restores its own focus first.
         withFrameNanos {}
-        if (!contentFocused.value && state.tab != Tab.Search) runCatching { contentFocus.requestFocus() }
+        if (television && !contentFocused.value && state.tab != Tab.Search) runCatching { contentFocus.requestFocus() }
     }
-    val clearError = { model.clearError(); runCatching { contentFocus.requestFocus() }; Unit }
+    val clearError = { model.clearError(); if (television) runCatching { contentFocus.requestFocus() }; Unit }
 
     TvNavigationDrawer(
         selectedTab = state.tab,
@@ -279,6 +284,7 @@ private fun TvHomeFlow(
                     isTv = true,
                 )
             }
+            if (state.openingUrl != null) OpeningOverlay()
         }
     }
 
@@ -457,7 +463,7 @@ private fun TvDrawerItem(
         .background(container)
         .focusRequester(focusRequester)
         .onFocusChanged { focused = it.isFocused }
-        .selectable(selected = selected) {
+        .selectable(selected = selected, role = Role.Tab) {
             runCatching { focusRequester.requestFocus() }
             onClick()
         }

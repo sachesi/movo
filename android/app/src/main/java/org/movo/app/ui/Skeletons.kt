@@ -17,6 +17,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -146,7 +148,7 @@ internal fun MediaGridSkeleton(isTv: Boolean) {
     LazyVerticalGrid(
         // Same geometry as the grid it stands in for, so the content does not jump columns
         // the moment it arrives.
-        columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(140.dp),
+        columns = GridCells.Adaptive(140.dp),
         contentPadding = if (isTv) {
             PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
         } else {
@@ -184,6 +186,20 @@ private fun SkeletonBlock(alpha: () -> Float, modifier: Modifier, corner: Dp) {
             .drawBehind { drawRect(color.copy(alpha = alpha())) },
     )
 }
+
+/**
+ * Over the page while a title the user chose is on its way, so the press is seen to land: the
+ * thin bar at the top of the page read as nothing happening, and a second press restarted the load.
+ * Taps stop here; the remote still reaches the card, which the model ignores while it loads.
+ */
+@Composable
+internal fun OpeningOverlay() = Box(
+    Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
+        .pointerInput(Unit) { detectTapGestures { } },
+    contentAlignment = Alignment.Center,
+) { CircularProgressIndicator() }
 
 /** Before a search runs the grid invites one; afterwards it names the query that found nothing. */
 @Composable
@@ -240,7 +256,10 @@ internal fun ErrorBanner(
     // The banner floats over a focus group it is not part of, so on a television nothing would
     // carry the highlight to it; it claims focus on arrival instead.
     Snackbar(
-        modifier = modifier.padding(12.dp),
+        modifier = modifier.padding(
+            horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 12.dp,
+            vertical = if (isTv) TV_OVERSCAN_VERTICAL else 12.dp,
+        ),
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         action = {

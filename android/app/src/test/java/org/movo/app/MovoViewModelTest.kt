@@ -86,4 +86,16 @@ class MovoViewModelTest {
 
         assertEquals(1, core.requested.count { it == "search_suggestions" })
     }
+
+    @Test
+    fun aSecondPressOnTheSameCardDoesNotRestartTheLoad() = runTest {
+        val model = model(testScheduler)
+        model.openDetails("/films/dune")
+        assertEquals("/films/dune", model.state.value.openingUrl)
+        model.openDetails("/films/dune")
+        advanceUntilIdle()
+
+        assertEquals(1, core.requested.count { it == "details" })
+        assertEquals(null, model.state.value.openingUrl)
+    }
 }

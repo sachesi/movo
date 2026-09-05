@@ -315,7 +315,7 @@ internal fun CollectionsScreen(state: AppState, isTv: Boolean, model: MovoViewMo
     }
     LazyVerticalGrid(
         state = gridState,
-        columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(220.dp),
+        columns = GridCells.Adaptive(220.dp),
         contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -399,7 +399,8 @@ internal fun MediaGrid(
     if (loadMore != null) LoadMoreOnScroll(gridState, items.size, items.first().url, loading, loadMore)
     LazyVerticalGrid(
         state = gridState,
-        columns = if (isTv) GridCells.Fixed(5) else GridCells.Adaptive(140.dp),
+        // Adaptive on every layout: five fixed columns gave a portrait tablet 72dp posters.
+        columns = GridCells.Adaptive(140.dp),
         contentPadding = if (isTv) {
             PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL)
         } else {
