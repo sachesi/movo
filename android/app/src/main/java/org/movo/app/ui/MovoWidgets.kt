@@ -19,6 +19,12 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRestorer
 import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import android.provider.Settings
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
@@ -93,6 +99,31 @@ internal fun FoldingFeature.topHeight(): Dp = with(LocalDensity.current) { bound
 /** Width of the seam itself, which a layout has to leave empty. */
 @Composable
 internal fun FoldingFeature.seamWidth(): Dp = with(LocalDensity.current) { bounds.width().toDp() }
+
+/** Whether the device runs in the television UI mode, as opposed to a tablet showing that layout. */
+internal val Configuration.isTelevision
+    get() = uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+
+/** Where along a row or column the focused card is held, as a fraction of the viewport. */
+private const val FOCUS_PIVOT = 0.3f
+
+/**
+ * Keeps the focused card three tenths of the way into its row or column rather than at the edge
+ * it arrived at, so the next card is on screen before the remote reaches it. Only where the
+ * remote drives the scroll: a tap on a tablet would otherwise jump the grid for no reason.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun TvFocusPivot(content: @Composable () -> Unit) {
+    if (!LocalConfiguration.current.isTelevision) return content()
+    CompositionLocalProvider(LocalBringIntoViewSpec provides FocusPivotSpec, content = content)
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+internal object FocusPivotSpec : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        offset - containerSize * FOCUS_PIVOT
+}
 
 /** Marks a section title, so a screen reader can jump between sections instead of reading through. */
 internal fun Modifier.sectionHeading() = semantics { heading() }

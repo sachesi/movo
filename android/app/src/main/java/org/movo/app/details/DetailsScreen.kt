@@ -547,7 +547,7 @@ internal fun DetailsScreen(
                                         trailingIcon = if (!part.current) {
                                             { Icon(Icons.Default.ChevronRight, contentDescription = null) }
                                         } else null,
-                                        modifier = Modifier.widthIn(min = 150.dp, max = 300.dp).height(40.dp),
+                                        modifier = Modifier.widthIn(min = 150.dp, max = 300.dp),
                                     )
                                 }
                             }

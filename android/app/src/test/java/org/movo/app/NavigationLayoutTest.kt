@@ -10,6 +10,7 @@ import org.movo.app.home.PRIMARY_TABS
 import org.movo.app.catalog.homeStartPosition
 import org.movo.app.core.HomeSection
 import org.movo.app.core.MediaItem
+import org.movo.app.ui.FocusPivotSpec
 import org.movo.app.ui.toTvColorScheme
 import org.junit.Test
 
@@ -40,6 +41,14 @@ class NavigationLayoutTest {
 
         val light = lightColorScheme()
         assertEquals(light.primary, light.toTvColorScheme(isDark = false).primary)
+    }
+
+    @Test
+    fun theFocusedCardIsHeldThreeTenthsIntoTheViewport() {
+        // A card at the far edge scrolls back to the pivot; one already there does not move.
+        assertEquals(700f, FocusPivotSpec.calculateScrollDistance(offset = 1000f, size = 176f, containerSize = 1000f))
+        assertEquals(0f, FocusPivotSpec.calculateScrollDistance(offset = 300f, size = 176f, containerSize = 1000f))
+        assertEquals(-300f, FocusPivotSpec.calculateScrollDistance(offset = 0f, size = 176f, containerSize = 1000f))
     }
 
     @Test

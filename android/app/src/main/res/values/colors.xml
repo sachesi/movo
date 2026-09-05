@@ -1,4 +1,5 @@
 <resources>
-    <!-- Window chrome / first-frame surface. -->
-    <color name="movo_surface">#F9F9FF</color>
+    <!-- The first frame's ground, light here and dark under values-night, so a light theme no
+         longer launches through a dark flash. -->
+    <color name="movo_surface">#FEF7FF</color>
 </resources>

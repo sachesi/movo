@@ -53,6 +53,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -256,10 +259,13 @@ internal fun ErrorBanner(
     // The banner floats over a focus group it is not part of, so on a television nothing would
     // carry the highlight to it; it claims focus on arrival instead.
     Snackbar(
-        modifier = modifier.padding(
-            horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 12.dp,
-            vertical = if (isTv) TV_OVERSCAN_VERTICAL else 12.dp,
-        ),
+        modifier = modifier
+            .padding(
+                horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 12.dp,
+                vertical = if (isTv) TV_OVERSCAN_VERTICAL else 12.dp,
+            )
+            // Read out on arrival; a snackbar host would do this, and the banner has none.
+            .semantics { liveRegion = LiveRegionMode.Polite },
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         action = {

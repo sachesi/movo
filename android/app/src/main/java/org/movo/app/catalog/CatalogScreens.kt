@@ -83,6 +83,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.movo.app.ui.TvCard
+import org.movo.app.ui.TvFocusPivot
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import org.movo.app.ui.TvIconButton
 import androidx.tv.material3.Icon as TvIcon
@@ -196,7 +197,7 @@ internal fun TvHomeScreen(
     // composed and can take the focus back; as the grids do from the same key.
     val shown = sections.filter { it.items.isNotEmpty() }
     val (railIndex, cardIndex) = remember(shown, focusedUrl) { homeStartPosition(shown, focusedUrl) }
-    LazyColumn(
+    TvFocusPivot { LazyColumn(
         Modifier.fillMaxSize().testTag("tv-home-list").focusRestorer().focusGroup(),
         state = rememberLazyListState(initialFirstVisibleItemIndex = railIndex),
         contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL),
@@ -233,7 +234,7 @@ internal fun TvHomeScreen(
                 }
             }
         }
-    }
+    } }
 }
 
 /** Rail and card indices of the home focus key `section:url`, or the top-left when it is not on the page. */
@@ -397,7 +398,7 @@ internal fun MediaGrid(
     val initialIndex = remember(items, focusedUrl) { items.indexOfFirst { it.url == focusedUrl }.coerceAtLeast(0) }
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = initialIndex)
     if (loadMore != null) LoadMoreOnScroll(gridState, items.size, items.first().url, loading, loadMore)
-    LazyVerticalGrid(
+    TvFocusPivot { LazyVerticalGrid(
         state = gridState,
         // Adaptive on every layout: five fixed columns gave a portrait tablet 72dp posters.
         columns = GridCells.Adaptive(140.dp),
@@ -420,7 +421,7 @@ internal fun MediaGrid(
         items(items, key = { it.url }) { item ->
             MediaCard(item, isTv) { open(item.url) }
         }
-    }
+    } }
 }
 
 /**

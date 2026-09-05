@@ -25,6 +25,7 @@ import org.movo.app.settings.SettingsActions
 import org.movo.app.settings.SettingsContent
 import org.movo.app.ui.ErrorBanner
 import org.movo.app.ui.OpeningOverlay
+import org.movo.app.ui.isTelevision
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TvFocusMemory
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
@@ -102,7 +103,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.runtime.withFrameNanos
-import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -292,10 +292,10 @@ private fun TvHomeFlow(
         model.selectTab(settings.initialTab, true)
     }
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
+    // Composed last, so it wins: Back with the highlight in the drawer returns it to the page,
+    // as the launchers do, and only the next press leaves.
+    BackHandler(enabled = television && !contentFocused.value) { runCatching { contentFocus.requestFocus() } }
 }
-
-private val Configuration.isTelevision
-    get() = uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
 
 // Icon rail: safe-area padding, item padding, icon, item padding, safe-area padding.
 private val RAIL_PADDING = 24.dp
