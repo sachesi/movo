@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.tvFocusScale
+import org.movo.app.ui.tvInitialFocus
 import org.movo.app.settings.settings
 import org.movo.app.core.Season
 import org.movo.app.core.StoryboardCue
@@ -85,6 +86,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -224,7 +226,6 @@ fun PlayerScreen(
     val activity = LocalActivity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val playerFocusRequester = remember { FocusRequester() }
-    val controlsFocusRequester = remember { FocusRequester() }
     val contentKey = Triple(bundle.id, bundle.season, bundle.episode)
     val episodeTitle = seasons
         .firstOrNull { it.id == bundle.season }
@@ -442,14 +443,10 @@ fun PlayerScreen(
         }
         ui.controlsVisible = false
     }
-    // The control-bar requester is attached to the play button, which only exists while the
-    // overlay is composed, so the request can land before the node is there.
+    // Only the hidden half here: the play button takes focus itself when the overlay is placed,
+    // which a request from here raced and sometimes lost.
     LaunchedEffect(ui.controlsVisible, isTv) {
-        if (!isTv) return@LaunchedEffect
-        runCatching {
-            if (ui.controlsVisible) controlsFocusRequester.requestFocus()
-            else playerFocusRequester.requestFocus()
-        }
+        if (isTv && !ui.controlsVisible) runCatching { playerFocusRequester.requestFocus() }
     }
     LaunchedEffect(ui.seekFeedback) {
         if (ui.seekFeedback != null) {
@@ -934,7 +931,6 @@ fun PlayerScreen(
                         ui.videoOffset = Offset.Zero
                     },
                     isTv = isTv,
-                    playFocusRequester = controlsFocusRequester,
                     previousEpisode = ::previousEpisode,
                     nextEpisode = ::nextEpisode,
                     hasPreviousEpisode = hasPreviousEpisode,
@@ -978,6 +974,10 @@ private fun SeekRow(
     var dragging by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(positionMs.toFloat()) }
     val hold = remember { TimelineHoldState() }
+    // The track and thumb turn the accent colour while the timeline has the remote's focus;
+    // white in every state, nothing said whether Left would seek or move between buttons.
+    var focused by remember { mutableStateOf(false) }
+    val accent = if (focused && isTv) MaterialTheme.colorScheme.primary else Color.White
     LaunchedEffect(positionMs, duration) {
         if (!dragging) sliderPosition = positionMs.coerceIn(0L, duration).toFloat()
     }
@@ -1026,8 +1026,8 @@ private fun SeekRow(
             valueRange = 0f..duration.toFloat(),
             enabled = durationMs > 0,
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color.White,
+                thumbColor = accent,
+                activeTrackColor = accent,
                 inactiveTrackColor = Color.White.copy(alpha = 0.24f),
                 disabledThumbColor = Color.White.copy(alpha = 0.5f),
                 disabledActiveTrackColor = Color.White.copy(alpha = 0.25f),
@@ -1035,6 +1035,7 @@ private fun SeekRow(
             ),
             modifier = Modifier
                 .weight(1f)
+                .onFocusChanged { focused = it.isFocused }
                 .onPreviewKeyEvent { event ->
                     if (!isTv) return@onPreviewKeyEvent false
                     when (event.key) {
@@ -1116,7 +1117,7 @@ private fun PlayerIconButton(
             contentColor = if (focused && isTv) MaterialTheme.colorScheme.onPrimary else Color.White,
         ),
     ) {
-        Icon(icon, contentDescription)
+        Icon(icon, contentDescription, Modifier.size(if (isTv) 32.dp else 24.dp))
     }
 }
 
@@ -1135,7 +1136,6 @@ private fun ControlBar(
     zoomed: Boolean,
     onToggleZoom: () -> Unit,
     isTv: Boolean,
-    playFocusRequester: FocusRequester,
     previousEpisode: () -> Unit,
     nextEpisode: () -> Unit,
     hasPreviousEpisode: Boolean,
@@ -1187,7 +1187,7 @@ private fun ControlBar(
                     },
                 ),
                 isTv = isTv,
-                modifier = Modifier.focusRequester(playFocusRequester),
+                modifier = Modifier.tvInitialFocus(isTv),
             )
             if (hasPreviousEpisode) {
                 PlayerIconButton(previousEpisode, Icons.Default.SkipPrevious, stringResource(R.string.previous_episode), isTv)
@@ -1266,10 +1266,15 @@ private fun ControlBar(
             ) { open ->
                 if (playbackSpeed != 1f) {
                     // Text pill instead of an icon: shows the active speed without opening anything.
+                    var focused by remember { mutableStateOf(false) }
+                    val lit = focused && isTv
                     TextButton(
                         onClick = open,
-                        modifier = Modifier.tvFocusScale(isTv, 1.06f),
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                        modifier = Modifier.onFocusChanged { focused = it.isFocused }.tvFocusScale(isTv, 1.06f),
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = if (lit) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            contentColor = if (lit) MaterialTheme.colorScheme.onPrimary else Color.White,
+                        ),
                     ) { Text(formatSpeed(playbackSpeed), style = MaterialTheme.typography.labelLarge) }
                 } else {
                     PlayerIconButton(
@@ -1331,14 +1336,11 @@ internal fun EpisodeSelector(
                         contentPadding = PaddingValues(vertical = 8.dp),
                     ) {
                         items(episodes, key = { (season, episode) -> "${season.id}:${episode.id}" }) { (season, episode) ->
-                            DropdownMenuItem(
-                                onClick = { expanded = false; playEpisode(season.id, episode.id) },
-                                text = { Text("${season.title} • ${episode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                                trailingIcon = if (season.id == currentSeason && episode.id == currentEpisode) {
-                                    { Icon(Icons.Default.Check, null) }
-                                } else null,
-                            )
+                            PlayerMenuItem(
+                                text = "${season.title} • ${episode.title}",
+                                selected = season.id == currentSeason && episode.id == currentEpisode,
+                                isTv = isTv,
+                            ) { expanded = false; playEpisode(season.id, episode.id) }
                         }
                     }
                 }
@@ -1394,32 +1396,40 @@ private fun <T> PlayerMenu(
         ) {
             if (reset != null) {
                 val (resetLabel, onReset) = reset
-                DropdownMenuItem(
-                    onClick = { expanded = false; onReset() },
-                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                    text = { Text(resetLabel) },
-                    trailingIcon = tickWhen(selected == null),
-                )
+                PlayerMenuItem(resetLabel, selected == null, isTv) { expanded = false; onReset() }
             }
             items.forEach { item ->
-                DropdownMenuItem(
-                    onClick = { expanded = false; onSelect(item) },
-                    modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                    text = { Text(label(item), style = MaterialTheme.typography.bodyLarge) },
-                    trailingIcon = tickWhen(item == selected),
-                )
+                PlayerMenuItem(label(item), item == selected, isTv) { expanded = false; onSelect(item) }
             }
         }
     }
 }
 
-/** Trailing tick for the entry a menu currently has selected. */
-private fun tickWhen(selected: Boolean): (@Composable () -> Unit)? =
-    if (selected) {
-        { Icon(Icons.Default.Check, contentDescription = null) }
-    } else {
-        null
-    }
+/**
+ * One entry of a player menu, ticked when [selected]. On a television the focused entry is a
+ * filled block in the accent colour: the Material 3 item's own cue is a faint state layer that
+ * from across a room reads as no highlight at all.
+ */
+@Composable
+private fun PlayerMenuItem(text: String, selected: Boolean, isTv: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val lit = focused && isTv
+    val colors = MaterialTheme.colorScheme
+    DropdownMenuItem(
+        onClick = onClick,
+        text = { Text(text, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        modifier = Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .background(if (lit) colors.primary else Color.Transparent),
+        trailingIcon = if (selected) {
+            { Icon(Icons.Default.Check, contentDescription = null) }
+        } else null,
+        colors = MenuDefaults.itemColors(
+            textColor = if (lit) colors.onPrimary else colors.onSurface,
+            trailingIconColor = if (lit) colors.onPrimary else colors.onSurfaceVariant,
+        ),
+    )
+}
 
 private fun formatSpeed(speed: Float) = if (speed == 1f) "1×" else "${speed}×"
 
