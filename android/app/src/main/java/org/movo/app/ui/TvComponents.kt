@@ -4,10 +4,10 @@ package org.movo.app.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,9 +68,19 @@ internal fun TvFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     scale: SelectableChipScale = FilterChipDefaults.scale(),
+    trailingIcon: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
-) = TvMaterialFilterChip(selected, onClick, modifier.tapToClick(true, onClick), scale = scale, content = content)
+) = TvMaterialFilterChip(
+    selected,
+    onClick,
+    modifier.tapToClick(enabled, onClick),
+    enabled = enabled,
+    trailingIcon = trailingIcon,
+    scale = scale,
+    content = content,
+)
 
 @Composable
 internal fun TvAssistChip(
@@ -114,13 +124,11 @@ internal fun TvListItem(
     scale = scale,
 )
 
-/** The corner radius every card in the app is drawn with, so the focus border follows it. */
-internal val TV_CARD_SHAPE = RoundedCornerShape(14.dp)
-
 /**
  * A card lifts a little and takes a thick border in the accent colour when focused. The library's
  * own focus border is a thin hairline in the text colour, which from across a room is not there.
  * The lift stays small because the rows and grids that hold cards clip to their own bounds.
+ * Drawn with the theme's card shape, so the focus border follows the same corners as the phone's.
  */
 @Composable
 internal fun TvCard(
@@ -128,16 +136,19 @@ internal fun TvCard(
     modifier: Modifier = Modifier,
     scale: CardScale = CardDefaults.scale(focusedScale = 1.04f),
     content: @Composable ColumnScope.() -> Unit,
-) = TvMaterialCard(
-    onClick,
-    modifier.tapToClick(true, onClick),
-    shape = CardDefaults.shape(TV_CARD_SHAPE),
-    scale = scale,
-    border = CardDefaults.border(
-        focusedBorder = Border(BorderStroke(3.dp, TvMaterialTheme.colorScheme.primary), shape = TV_CARD_SHAPE),
-    ),
-    content = content,
-)
+) {
+    val shape = MaterialTheme.shapes.medium
+    TvMaterialCard(
+        onClick,
+        modifier.tapToClick(true, onClick),
+        shape = CardDefaults.shape(shape),
+        scale = scale,
+        border = CardDefaults.border(
+            focusedBorder = Border(BorderStroke(3.dp, TvMaterialTheme.colorScheme.primary), shape = shape),
+        ),
+        content = content,
+    )
+}
 
 /**
  * A tap on a tv-material surface takes its focus and runs its click. Focus first, so the

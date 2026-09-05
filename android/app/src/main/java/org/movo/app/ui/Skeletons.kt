@@ -103,7 +103,7 @@ internal fun TvHomeSkeleton() {
                                 Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(2f / 3f)
-                                    .clip(RoundedCornerShape(14.dp))
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant),
                             )
                             Spacer(Modifier.height(8.dp))

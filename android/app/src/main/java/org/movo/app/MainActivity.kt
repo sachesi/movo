@@ -65,6 +65,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -244,7 +245,9 @@ private fun MovoApp(
     ) {
         // The tv-material controls carry their own theme; restated once here from the resolved
         // scheme so every surface, the details page and its dialogs included, uses one palette.
-        MaterialTheme(colorScheme = colorScheme) {
+        // One set of corners for the whole app: cards, grouped settings and modals used to carry
+        // their own literal radii next to components on the library defaults.
+        MaterialTheme(colorScheme = colorScheme, shapes = MOVO_SHAPES) {
             TvMaterialTheme(colorScheme = colorScheme.toTvColorScheme(isDark)) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
@@ -311,6 +314,12 @@ private fun MovoApp(
         }
     }
 }
+
+private val MOVO_SHAPES = Shapes(
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp),
+)
 
 internal fun usesNavigationRail(isTv: Boolean, width: WindowWidthSizeClass) =
     isTv || width != WindowWidthSizeClass.Compact

@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -197,7 +196,8 @@ fun SettingsContent(
                 }
             }
 
-            item {
+            // Only the D-pad handling in the player reads these.
+            if (isTv) item {
                 SettingsGroup(title = stringResource(R.string.settings_group_tv), isTv = isTv) {
                 SwitchItem(stringResource(R.string.tv_center_pauses), settings.tvCenterPauses, isTv) { actions.save(Keys.TV_CENTER_PAUSES, it) }
                 if (settings.tvCenterPauses) SwitchItem(stringResource(R.string.tv_pause_shows_controls), settings.tvPauseShowsControls, isTv) { actions.save(Keys.TV_PAUSE_SHOWS_CONTROLS, it) }
@@ -229,7 +229,7 @@ private fun SettingsGroup(
     if (isTv) {
         TvSurface(
             modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = SurfaceDefaults.colors(containerColor = TvMaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(Modifier.padding(vertical = 4.dp).focusRestorer().focusGroup(), content = content)
@@ -237,7 +237,7 @@ private fun SettingsGroup(
     } else {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)),
         ) {
             Column(Modifier.padding(vertical = 4.dp), content = content)
@@ -289,7 +289,6 @@ private fun <T> ChoiceSection(
                     selected = selected == value,
                     onClick = { choose(value) },
                     label = { Text(label(value)) },
-                    isTv = false,
                     modifier = Modifier.semantics { role = Role.RadioButton },
                 )
             }

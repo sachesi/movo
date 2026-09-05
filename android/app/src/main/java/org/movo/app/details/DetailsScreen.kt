@@ -116,7 +116,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import org.movo.app.ui.TvAssistChip
+import org.movo.app.ui.TvFilterChip
+import androidx.tv.material3.SelectableChipScale
 import org.movo.app.ui.TvButton
 import org.movo.app.ui.TvIconButton
 import org.movo.app.ui.TvListItem
@@ -241,6 +245,10 @@ internal fun DetailsScreen(
     val focusMemory = rememberSaveable(details.url, saver = TvFocusMemory.Saver) { TvFocusMemory() }
     focusMemory.destination = details.url
     focusMemory.fallback = "details:play"
+    // Entered again after the error banner took the highlight, which puts it back on the row the
+    // user left rather than wherever the next press happens to land.
+    val pageFocus = remember { FocusRequester() }
+    val clearError = { model.clearError(); if (isTv) runCatching { pageFocus.requestFocus() }; Unit }
     // The bar slides away as the page scrolls on a phone; a television has no scroll gesture
     // and its bar stays.
     val scrollBehavior = if (isTv) null else TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -283,7 +291,7 @@ internal fun DetailsScreen(
                         .widthIn(max = 1200.dp)
                         .fillMaxSize()
                         .align(Alignment.TopCenter)
-                        .then(if (isTv) Modifier.focusRestorer() else Modifier)
+                        .then(if (isTv) Modifier.focusRequester(pageFocus).focusRestorer() else Modifier)
                         .focusGroup(),
                     contentPadding = if (isTv) {
                         PaddingValues(
@@ -363,7 +371,7 @@ internal fun DetailsScreen(
                                 it,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = if (isTv) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -375,7 +383,7 @@ internal fun DetailsScreen(
                         if (metadata.isNotEmpty()) {
                             Text(
                                 metadata,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = if (isTv) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -425,9 +433,6 @@ internal fun DetailsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            FilledTonalIconButton(onClick = { showFavorites = true }) {
-                                Icon(favoriteIcon, contentDescription = stringResource(R.string.favorite))
-                            }
                             Button(onClick = play, enabled = canPlay) {
                                 if (state.loading) {
                                     CircularProgressIndicator(
@@ -439,6 +444,9 @@ internal fun DetailsScreen(
                                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                                 }
                                 Text(stringResource(R.string.play))
+                            }
+                            FilledTonalIconButton(onClick = { showFavorites = true }) {
+                                Icon(favoriteIcon, contentDescription = stringResource(R.string.favorite))
                             }
                             if (details.trailerAvailable && wideContent) {
                                 FilledTonalIconButton(model::loadTrailer) { Icon(Icons.Default.Movie, stringResource(R.string.trailer)) }
@@ -503,34 +511,44 @@ internal fun DetailsScreen(
                                 details.franchises,
                                 key = { "${it.url}:${it.title}" },
                             ) { part ->
-                                MovoChoiceChip(
-                                    selected = part.current,
-                                    onClick = {
-                                        if (!part.current && part.url.isNotBlank()) {
-                                            model.openDetails(part.url)
-                                        }
-                                    },
-                                    enabled = part.current || part.url.isNotBlank(),
-                                    label = {
-                                        Text(
-                                            part.title,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = if (isTv) {
-                                                MaterialTheme.typography.titleSmall
-                                            } else {
-                                                MaterialTheme.typography.labelLarge
-                                            },
-                                        )
-                                    },
-                                    trailingIcon = if (!part.current) {
-                                        { Icon(Icons.Default.ChevronRight, contentDescription = null) }
-                                    } else null,
-                                    modifier = Modifier
-                                        .widthIn(min = if (isTv) 200.dp else 150.dp, max = 300.dp)
-                                        .height(if (isTv) 52.dp else 40.dp),
-                                    isTv = isTv,
-                                )
+                                val openPart = {
+                                    if (!part.current && part.url.isNotBlank()) {
+                                        model.openDetails(part.url)
+                                    }
+                                }
+                                val enabled = part.current || part.url.isNotBlank()
+                                if (isTv) {
+                                    TvFilterChip(
+                                        selected = part.current,
+                                        onClick = openPart,
+                                        enabled = enabled,
+                                        modifier = Modifier.widthIn(min = 200.dp, max = 300.dp),
+                                        scale = SelectableChipScale.None,
+                                        trailingIcon = if (!part.current) {
+                                            { TvIcon(Icons.Default.ChevronRight, contentDescription = null) }
+                                        } else null,
+                                    ) {
+                                        TvText(part.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                } else {
+                                    MovoChoiceChip(
+                                        selected = part.current,
+                                        onClick = openPart,
+                                        enabled = enabled,
+                                        label = {
+                                            Text(
+                                                part.title,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.labelLarge,
+                                            )
+                                        },
+                                        trailingIcon = if (!part.current) {
+                                            { Icon(Icons.Default.ChevronRight, contentDescription = null) }
+                                        } else null,
+                                        modifier = Modifier.widthIn(min = 150.dp, max = 300.dp).height(40.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -645,7 +663,7 @@ internal fun DetailsScreen(
             state.error?.let {
                 ErrorBanner(
                     it,
-                    model::clearError,
+                    clearError,
                     Modifier.align(Alignment.BottomCenter),
                     retry = { model.openDetails(details.url) },
                     isTv = isTv,
@@ -712,7 +730,8 @@ internal fun DetailsScreen(
                     items((1..10).toList()) { rating ->
                         val rate = { showRating = false; model.rate(rating) }
                         if (isTv) {
-                            TvButton(rate) { TvText(rating.toString()) }
+                            // Opened to rate, so the first score is lit rather than Cancel.
+                            TvButton(rate, Modifier.tvInitialFocus(rating == 1)) { TvText(rating.toString()) }
                         } else {
                             FilledTonalButton(rate, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(rating.toString()) }
                         }
@@ -722,7 +741,7 @@ internal fun DetailsScreen(
             confirmButton = {},
             dismissButton = {
                 if (isTv) {
-                    TvButton({ showRating = false }, Modifier.tvInitialFocus()) { TvText(stringResource(R.string.cancel)) }
+                    TvButton({ showRating = false }) { TvText(stringResource(R.string.cancel)) }
                 } else {
                     TextButton({ showRating = false }) { Text(stringResource(R.string.cancel)) }
                 }
@@ -736,34 +755,36 @@ internal fun DetailsScreen(
 @Composable
 private fun ActorDialog(actor: ActorDetails, isTv: Boolean, model: MovoViewModel) {
     AdaptiveModal(isTv, model::closeActor) {
-        LazyColumn(Modifier.fillMaxHeight(.9f), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    val tile = placeholderTile()
-                    AsyncImage(
-                        actor.photoUrl,
-                        null,
-                        Modifier.width(150.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp)),
-                        placeholder = tile,
-                        error = tile,
-                        fallback = tile,
-                        contentScale = ContentScale.Crop,
-                    )
-                    Column {
-                        Text(actor.name, style = MaterialTheme.typography.headlineSmall)
-                        actor.originalName?.let { Text(it) }
-                        actor.birthDate?.let { Text(stringResource(R.string.born, it)) }
-                        actor.birthPlace?.let { Text(it) }
-                        actor.height?.let { Text(it) }
-                        if (actor.careers.isNotEmpty()) Text(actor.careers.joinToString())
-                    }
+        // The header stays above the list: a remote scrolls only by focus, and the biography is
+        // nothing to focus, so inside the list it was gone for good after the first film row.
+        Column(Modifier.fillMaxHeight(if (isTv) 1f else .9f).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                val tile = placeholderTile()
+                AsyncImage(
+                    actor.photoUrl,
+                    null,
+                    Modifier.width(150.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp)),
+                    placeholder = tile,
+                    error = tile,
+                    fallback = tile,
+                    contentScale = ContentScale.Crop,
+                )
+                Column {
+                    Text(actor.name, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.sectionHeading())
+                    actor.originalName?.let { Text(it) }
+                    actor.birthDate?.let { Text(stringResource(R.string.born, it)) }
+                    actor.birthPlace?.let { Text(it) }
+                    actor.height?.let { Text(it) }
+                    if (actor.careers.isNotEmpty()) Text(actor.careers.joinToString())
                 }
             }
-            if (actor.roles.isEmpty()) {
-                items(actor.films, key = { it.url }) { film -> ActorFilmRow(film, isTv, model) }
-            } else actor.roles.forEach { role ->
-                item("role:${role.name}") { Column { Text(role.name, style = MaterialTheme.typography.titleLarge); if (role.info.isNotBlank()) Text(role.info) } }
-                items(role.films, key = { "${role.name}:${it.url}" }) { film -> ActorFilmRow(film, isTv, model) }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (actor.roles.isEmpty()) {
+                    items(actor.films, key = { it.url }) { film -> ActorFilmRow(film, isTv, model) }
+                } else actor.roles.forEach { role ->
+                    item("role:${role.name}") { Column { Text(role.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.sectionHeading()); if (role.info.isNotBlank()) Text(role.info) } }
+                    items(role.films, key = { "${role.name}:${it.url}" }) { film -> ActorFilmRow(film, isTv, model) }
+                }
             }
         }
     }
@@ -795,8 +816,8 @@ private fun ActorFilmRow(film: MediaItem, isTv: Boolean, model: MovoViewModel) {
 private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewModel) {
     var revealedSpoilers by remember(page.page) { mutableStateOf(emptySet<String>()) }
     AdaptiveModal(isTv, model::closeComments) {
-        LazyColumn(Modifier.fillMaxHeight(.9f), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { Text(stringResource(R.string.comments), style = MaterialTheme.typography.headlineSmall) }
+        LazyColumn(Modifier.fillMaxHeight(if (isTv) 1f else .9f), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item { Text(stringResource(R.string.comments), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.sectionHeading()) }
             items(page.items, key = { it.id }) { comment ->
                 val tile = placeholderTile()
                 ListItem(
@@ -922,7 +943,7 @@ private fun FavoriteFoldersSheet(
                 Text(
                     stringResource(R.string.favorite_folders),
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).sectionHeading(),
                 )
             }
             items(groups, key = { it.id ?: it.name }) { group ->
@@ -981,13 +1002,14 @@ private fun PlaybackSheet(
     }
     AdaptiveModal(isTv, dismiss) {
         Column(
-            modifier = Modifier.fillMaxHeight(0.85f),
+            // The television modal already sets the height; a fraction of a fraction left a dead band.
+            modifier = Modifier.fillMaxHeight(if (isTv) 1f else 0.85f),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
                 stringResource(R.string.choose_playback),
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.padding(horizontal = 24.dp).sectionHeading(),
             )
             error?.let {
                 Text(

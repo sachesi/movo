@@ -22,7 +22,6 @@ import android.content.Context
 import android.provider.Settings
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.tv.material3.ColorScheme as TvColorScheme
 import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 import androidx.tv.material3.lightColorScheme as tvLightColorScheme
@@ -30,10 +29,7 @@ import org.movo.app.settings.save
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -68,10 +64,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.SelectableChipScale
+import androidx.tv.material3.Text as TvText
 
 internal val MovoBlue = Color(0xFF9CCAFF)
 
@@ -246,7 +242,7 @@ internal fun AdaptiveModal(
                     // opens lands nowhere.
                     .focusRestorer()
                     .focusGroup(),
-                shape = RoundedCornerShape(24.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 tonalElevation = 6.dp,
             ) { content() }
         }
@@ -258,6 +254,7 @@ internal fun AdaptiveModal(
     }
 }
 
+/** A titled row of exclusive choices: tv-material chips on a television, Material 3 elsewhere. */
 @Composable
 fun <T> ChoiceRow(
     title: String,
@@ -271,68 +268,56 @@ fun <T> ChoiceRow(
 ) {
     Column(modifier) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        LazyRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(
+            Modifier.selectableGroup().then(if (isTv) Modifier.focusRestorer().focusGroup() else Modifier),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             items(values, key = itemKey) { value ->
-                MovoChoiceChip(
-                    selected = value == selected,
-                    onClick = { choose(value) },
-                    label = { Text(label(value)) },
-                    isTv = isTv,
-                    modifier = Modifier.semantics { role = Role.RadioButton },
-                )
+                val radio = Modifier.semantics { role = Role.RadioButton }
+                if (isTv) {
+                    TvFilterChip(
+                        selected = value == selected,
+                        onClick = { choose(value) },
+                        modifier = radio,
+                        scale = SelectableChipScale.None,
+                    ) { TvText(label(value)) }
+                } else {
+                    MovoChoiceChip(
+                        selected = value == selected,
+                        onClick = { choose(value) },
+                        label = { Text(label(value)) },
+                        modifier = radio,
+                    )
+                }
             }
         }
     }
 }
 
+/** The phone layout's choice chip; the television layout uses [TvFilterChip]. */
 @Composable
 internal fun MovoChoiceChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: @Composable () -> Unit,
-    isTv: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     trailingIcon: (@Composable () -> Unit)? = null,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val focused by interactionSource.collectIsFocusedAsState()
-    val tvFocused = isTv && focused
-    val scale by animateFloatAsState(
-        targetValue = if (tvFocused) 1.06f else 1f,
-        animationSpec = motionSpec(spring()),
-        label = "choice focus",
-    )
-    val focusContainer = MaterialTheme.colorScheme.primary
-    val focusContent = MaterialTheme.colorScheme.onPrimary
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        modifier = modifier
-            .zIndex(if (tvFocused) 1f else 0f)
-            .graphicsLayer { scaleX = scale; scaleY = scale },
-        enabled = enabled,
-        // Only once selected. Holding the slot open with a transparent icon kept the chip from
-        // resizing, at the cost of every unselected label sitting an icon's width right of centre.
-        leadingIcon = if (selected) {
-            { Icon(Icons.Default.Check, contentDescription = null) }
-        } else {
-            null
-        },
-        trailingIcon = trailingIcon,
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = if (tvFocused) focusContainer else Color.Transparent,
-            labelColor = if (tvFocused) focusContent else MaterialTheme.colorScheme.onSurfaceVariant,
-            iconColor = if (tvFocused) focusContent else MaterialTheme.colorScheme.onSurfaceVariant,
-            selectedContainerColor = if (tvFocused) focusContainer else MaterialTheme.colorScheme.secondaryContainer,
-            selectedLabelColor = if (tvFocused) focusContent else MaterialTheme.colorScheme.onSecondaryContainer,
-            selectedLeadingIconColor = if (tvFocused) focusContent else MaterialTheme.colorScheme.onSecondaryContainer,
-            selectedTrailingIconColor = if (tvFocused) focusContent else MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
-        interactionSource = interactionSource,
-    )
-}
+) = FilterChip(
+    selected = selected,
+    onClick = onClick,
+    label = label,
+    modifier = modifier,
+    enabled = enabled,
+    // Only once selected. Holding the slot open with a transparent icon kept the chip from
+    // resizing, at the cost of every unselected label sitting an icon's width right of centre.
+    leadingIcon = if (selected) {
+        { Icon(Icons.Default.Check, contentDescription = null) }
+    } else {
+        null
+    },
+    trailingIcon = trailingIcon,
+)
 
 /**
  * TV focus treatment: gentle scale-up while focused.

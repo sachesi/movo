@@ -78,7 +78,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -96,7 +96,7 @@ internal fun CatalogScreen(
 ) {
     if (isTv) {
         if (state.homeSections.isNotEmpty()) {
-            TvHomeScreen(state.homeSections, state.loading, state.focusedUrl) { url, key ->
+            TvHomeScreen(state.homeSections, state.focusedUrl) { url, key ->
                 model.openDetails(url, key)
             }
         } else {
@@ -122,7 +122,6 @@ internal fun CatalogScreen(
                         selected = state.category == category,
                         onClick = { model.setCatalog(category = category) },
                         label = { Text(stringResource(category.label)) },
-                        isTv = isTv,
                     )
                 }
                 item { VerticalDivider(Modifier.height(32.dp)) }
@@ -132,7 +131,6 @@ internal fun CatalogScreen(
                         selected = state.sort == value,
                         onClick = { model.setCatalog(sort = value) },
                         label = { Text(stringResource(label)) },
-                        isTv = isTv,
                     )
                 }
             }
@@ -151,7 +149,6 @@ internal fun CatalogScreen(
                         selected = state.category == category,
                         onClick = { model.setCatalog(category = category) },
                         label = { Text(stringResource(category.label)) },
-                        isTv = isTv,
                     )
                 }
             }
@@ -169,7 +166,6 @@ internal fun CatalogScreen(
                         selected = state.sort == value,
                         onClick = { model.setCatalog(sort = value) },
                         label = { Text(stringResource(label)) },
-                        isTv = isTv,
                     )
                 }
             }
@@ -192,7 +188,6 @@ internal fun CatalogScreen(
 @Composable
 internal fun TvHomeScreen(
     sections: List<HomeSection>,
-    loading: Boolean,
     focusedUrl: String? = null,
     open: (String, String) -> Unit,
 ) {
@@ -238,7 +233,6 @@ internal fun TvHomeScreen(
                 }
             }
         }
-        if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     }
 }
 
@@ -469,7 +463,7 @@ internal fun MediaCard(
     focusKey: String = item.url,
     open: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = MaterialTheme.shapes.medium
     val modifier = Modifier
         .fillMaxWidth()
         .then(if (isTv) Modifier.tvFocusMemory(focusKey) else Modifier)
@@ -485,7 +479,7 @@ internal fun MediaCard(
 }
 
 @Composable
-private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCornerShape) {
+private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: Shape) {
     val tile = placeholderTile()
     AsyncImage(
         model = item.posterUrl,
@@ -504,7 +498,7 @@ private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCorne
             item.title,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            style = if (isTv) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
+            style = if (isTv) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
         )
         val metadata = listOfNotNull(
             item.year?.toString(),
@@ -516,7 +510,7 @@ private fun MediaCardContent(item: MediaItem, isTv: Boolean, shape: RoundedCorne
                 metadata,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
+                style = if (isTv) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

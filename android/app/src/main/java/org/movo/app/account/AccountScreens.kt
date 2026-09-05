@@ -17,6 +17,7 @@ import org.movo.app.ui.Empty
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoChoiceChip
 import org.movo.app.ui.placeholderTile
+import org.movo.app.ui.sectionHeading
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.R
 import org.movo.app.core.AppState
@@ -124,7 +125,10 @@ internal fun LoginScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it; clearError() },
-                    modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Username },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentType = ContentType.Username }
+                        .tvInitialFocus(isTv),
                     label = { Text(stringResource(R.string.login_hint)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
@@ -211,7 +215,7 @@ internal fun NotificationsScreen(state: AppState, isTv: Boolean, model: MovoView
                     group.date,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp).sectionHeading(),
                 )
             }
             items(group.items, key = { "${group.date}:${it.url}:${it.info}" }) { item ->
@@ -486,7 +490,6 @@ internal fun FavoritesScreen(state: AppState, isTv: Boolean, model: MovoViewMode
                         selected = state.favoriteGroup == group.id,
                         onClick = { model.loadFavorites(group.id) },
                         label = { Text("${group.name} (${group.count})") },
-                        isTv = false,
                     )
                 }
             }
@@ -515,7 +518,7 @@ internal fun TvFavoriteFilters(
     select: (Long?) -> Unit,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = 12.dp),
+        contentPadding = PaddingValues(start = TV_OVERSCAN_HORIZONTAL, end = TV_OVERSCAN_HORIZONTAL, top = TV_OVERSCAN_VERTICAL),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .focusProperties { down = gridFocusRequester }
@@ -583,7 +586,7 @@ private fun HistoryCard(entry: HistoryEntry, isTv: Boolean, model: MovoViewModel
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (entry.watched) .72f else 1f),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
     ) {
         ListItem(
             headlineContent = { Text(entry.title.ifEmpty { stringResource(R.string.unknown) }) },
@@ -646,6 +649,8 @@ internal fun TvHistoryCard(
     remove: () -> Unit,
 ) {
     var confirmRemoval by remember { mutableStateOf(false) }
+    // Dimmed as on the phone. Not `selected`: that paints every watched title as the chosen row.
+    val contentAlpha = if (entry.watched) .6f else 1f
 
     Row(
         Modifier.fillMaxWidth().focusRestorer().focusGroup(),
@@ -653,18 +658,18 @@ internal fun TvHistoryCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TvListItem(
-            selected = entry.watched,
+            selected = false,
             onClick = open,
-            headlineContent = { TvText(entry.title.ifEmpty { stringResource(R.string.unknown) }) },
+            headlineContent = { TvText(entry.title.ifEmpty { stringResource(R.string.unknown) }, Modifier.alpha(contentAlpha)) },
             supportingContent = {
-                TvText(listOfNotNull(entry.info, entry.additionalInfo, entry.date).joinToString(" • "))
+                TvText(listOfNotNull(entry.info, entry.additionalInfo, entry.date).joinToString(" • "), Modifier.alpha(contentAlpha))
             },
             leadingContent = {
                 val tile = placeholderTile()
                 AsyncImage(
                     model = entry.posterUrl,
                     contentDescription = null,
-                    modifier = Modifier.size(88.dp, 132.dp).clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.size(88.dp, 132.dp).clip(RoundedCornerShape(10.dp)).alpha(contentAlpha),
                     placeholder = tile,
                     error = tile,
                     fallback = tile,

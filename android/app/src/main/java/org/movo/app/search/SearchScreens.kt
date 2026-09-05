@@ -70,9 +70,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.movo.app.ui.TvButton
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import org.movo.app.ui.TvFilterChip
+import org.movo.app.ui.TvAssistChip
 import org.movo.app.ui.TvIconButton
-import androidx.tv.material3.SelectableChipScale
 import androidx.tv.material3.Icon as TvIcon
 import androidx.tv.material3.Text as TvText
 
@@ -266,11 +265,9 @@ internal fun TvSearchContent(
                 modifier = Modifier.focusRestorer().focusGroup(),
             ) {
                 items(state.suggestions, key = { it }) { suggestion ->
-                    TvFilterChip(
-                        selected = false,
+                    TvAssistChip(
                         onClick = { chooseHistory(suggestion) },
                         modifier = Modifier.tvFocusMemory("search:suggestion:$suggestion"),
-                        scale = SelectableChipScale.None,
                     ) {
                         TvText(suggestion)
                     }
@@ -298,11 +295,10 @@ internal fun TvSearchContent(
                 modifier = Modifier.focusRestorer().focusGroup(),
             ) {
                 items(state.searchHistory, key = { it }) { value ->
-                    TvFilterChip(
-                        selected = false,
+                    TvAssistChip(
                         onClick = { chooseHistory(value) },
                         modifier = Modifier.tvFocusMemory("search:history:$value"),
-                        scale = SelectableChipScale.None,
+                        leadingIcon = { TvIcon(Icons.Default.History, null) },
                     ) {
                         TvText(value)
                     }
@@ -356,19 +352,11 @@ private fun SearchFiltersDialog(filters: List<SearchFilter>, isTv: Boolean, dism
                 Modifier.then(if (isTv) Modifier.focusRestorer().focusGroup() else Modifier),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (isTv) {
-                    TvChoiceRow(stringResource(R.string.category), filters, filter, { it.name }, { it.name }, {
-                        filter = it; genre = it.genres.firstOrNull(); year = it.years.firstOrNull()
-                    })
-                    TvChoiceRow(stringResource(R.string.genre), filter.genres, genre, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { genre = it })
-                    TvChoiceRow(stringResource(R.string.year), filter.years, year, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { year = it })
-                } else {
-                    ChoiceRow(stringResource(R.string.category), filters, filter, { it.name }, { it.name }, {
-                        filter = it; genre = it.genres.firstOrNull(); year = it.years.firstOrNull()
-                    })
-                    ChoiceRow(stringResource(R.string.genre), filter.genres, genre, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { genre = it })
-                    ChoiceRow(stringResource(R.string.year), filter.years, year, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { year = it })
-                }
+                ChoiceRow(stringResource(R.string.category), filters, filter, { it.name }, { it.name }, {
+                    filter = it; genre = it.genres.firstOrNull(); year = it.years.firstOrNull()
+                }, isTv = isTv)
+                ChoiceRow(stringResource(R.string.genre), filter.genres, genre, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { genre = it }, isTv = isTv)
+                ChoiceRow(stringResource(R.string.year), filter.years, year, { if (it.url == "-1") recentLabel else it.name }, { it.url }, { year = it }, isTv = isTv)
             }
         },
         confirmButton = {
@@ -386,32 +374,4 @@ private fun SearchFiltersDialog(filters: List<SearchFilter>, isTv: Boolean, dism
             else TextButton(dismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
-}
-
-@Composable
-private fun <T> TvChoiceRow(
-    title: String,
-    values: List<T>,
-    selected: T?,
-    label: (T) -> String,
-    itemKey: (T) -> Any,
-    choose: (T) -> Unit,
-) {
-    Column {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.focusRestorer().focusGroup(),
-        ) {
-            items(values, key = itemKey) { value ->
-                TvFilterChip(
-                    selected = value == selected,
-                    onClick = { choose(value) },
-                    scale = SelectableChipScale.None,
-                ) {
-                    TvText(label(value))
-                }
-            }
-        }
-    }
 }
