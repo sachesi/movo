@@ -59,6 +59,7 @@ import org.movo.app.player.selectStream
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.selection.toggleable
@@ -392,6 +393,19 @@ internal fun DetailsScreen(
                         val favoriteIcon = if (details.favoriteCategoryIds.isEmpty()) Icons.Default.FavoriteBorder else Icons.Default.Favorite
                         val play = { automaticPlayback = !settings.askQuality; showPlayback = true }
                         val canPlay = translators.isNotEmpty() && !state.loading
+                        // The episode a show picks up at, when it has one. Continue plays it at once
+                        // in the voice it was watched in, no sheet; Play still asks.
+                        val resumePoint = if (series) {
+                            details.seasons.firstOrNull { it.id == state.resumeSeasonId }?.let { season ->
+                                season.episodes.firstOrNull { it.id == state.resumeEpisodeId }?.let { episode -> season to episode }
+                            }
+                        } else null
+                        val resume = {
+                            translator = preferredTranslator(translators, state.resumeTranslatorId)
+                            selectedSeasonId = state.resumeSeasonId
+                            automaticPlayback = true
+                            showPlayback = true
+                        }
                         if (isTv) {
                             // tv-material controls: a Material 3 button marks focus with a faint
                             // state layer, which from across a room reads as no highlight at all.
@@ -416,6 +430,13 @@ internal fun DetailsScreen(
                                     }
                                     Spacer(Modifier.width(8.dp))
                                     TvText(stringResource(R.string.play))
+                                }
+                                if (resumePoint != null) {
+                                    TvButton(onClick = resume, enabled = canPlay, modifier = Modifier.tvFocusMemory("details:continue")) {
+                                        TvIcon(Icons.Default.PlayArrow, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        TvText(stringResource(R.string.resume_watching))
+                                    }
                                 }
                                 TvIconButton({ showFavorites = true }, Modifier.tvFocusMemory("details:favorite")) {
                                     TvIcon(favoriteIcon, stringResource(R.string.favorite))
@@ -446,6 +467,12 @@ internal fun DetailsScreen(
                                 }
                                 Text(stringResource(R.string.play))
                             }
+                            if (resumePoint != null) {
+                                FilledTonalButton(onClick = resume, enabled = canPlay) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                    Text(stringResource(R.string.resume_watching))
+                                }
+                            }
                             FilledTonalIconButton(onClick = { showFavorites = true }) {
                                 Icon(favoriteIcon, contentDescription = stringResource(R.string.favorite))
                             }
@@ -467,17 +494,13 @@ internal fun DetailsScreen(
                                 }, shareLabel))
                             }) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
                         }
-                        // Where the show picks up, so Play is known to go there and not to the pilot.
-                        if (series) {
-                            details.seasons.firstOrNull { it.id == state.resumeSeasonId }?.let { season ->
-                                season.episodes.firstOrNull { it.id == state.resumeEpisodeId }?.let { episode ->
-                                    Text(
-                                        stringResource(R.string.continue_watching, "${season.title} • ${episode.title}"),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
+                        // Where Continue goes.
+                        resumePoint?.let { (season, episode) ->
+                            Text(
+                                stringResource(R.string.continue_watching, "${season.title} • ${episode.title}"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -1133,7 +1156,9 @@ private fun PlaybackSheet(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
-                key(season.id) {
+                // No stretch at the ends: inside the sheet a fast fling that hit the bottom of
+                // the list sprang the rows about instead of stopping.
+                key(season.id) { CompositionLocalProvider(LocalOverscrollFactory provides null) {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(bottom = 24.dp),
@@ -1184,7 +1209,7 @@ private fun PlaybackSheet(
                             )
                         }
                     }
-                }
+                } }
             }
         }
     }

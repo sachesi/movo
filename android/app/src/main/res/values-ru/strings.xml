@@ -173,6 +173,7 @@
     <string name="choose_playback">Выбор воспроизведения</string>
     <string name="start_watching">Начать просмотр</string>
     <string name="continue_watching">Продолжить: %1$s</string>
+    <string name="resume_watching">Продолжить</string>
     <string name="play_episode">Смотреть %1$s</string>
     <string name="translation">Озвучка</string>
     <string name="tag_premium">Премиум</string>

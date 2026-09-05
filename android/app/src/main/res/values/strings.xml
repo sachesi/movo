@@ -188,6 +188,7 @@
     <string name="choose_playback">Choose playback</string>
     <string name="start_watching">Start watching</string>
     <string name="continue_watching">Continue: %1$s</string>
+    <string name="resume_watching">Continue</string>
     <string name="play_episode">Play %1$s</string>
     <string name="translation">Translation</string>
     <string name="tag_premium">Premium</string>
