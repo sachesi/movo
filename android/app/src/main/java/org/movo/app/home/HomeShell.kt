@@ -209,7 +209,13 @@ private fun TvHomeFlow(
     var section by rememberSaveable { mutableStateOf(Section.Home) }
     val focusMemory = rememberSaveable(saver = TvFocusMemory.Saver) { TvFocusMemory() }
     val stateHolder = rememberSaveableStateHolder()
-    val destinationKey = if (section == Section.Settings) "settings" else state.tab.name
+    // A collection opened from a tab is its own destination: its cards must not overwrite the
+    // record of where the user left the tab's own grid.
+    val destinationKey = when {
+        section == Section.Settings -> "settings"
+        state.collectionPath != null -> "${state.tab.name}:${state.collectionPath}"
+        else -> state.tab.name
+    }
     focusMemory.destination = destinationKey
     focusMemory.fallback = state.focusedUrl
 

@@ -128,7 +128,9 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
             clearHistory = model::clearSearchHistory,
             openFilters = { showFilters = true },
             open = { url -> model.openDetails(url, url) },
-            loadMore = { model.search(query, true) },
+            // The committed query, not the draft: an edit not yet submitted must not change the
+            // page being fetched or clear the results on screen.
+            loadMore = { model.search(state.query, true) },
         )
         if (showFilters) SearchFiltersDialog(state.searchFilters, true, { showFilters = false }) { title, path ->
             showFilters = false
@@ -194,7 +196,7 @@ internal fun SearchScreen(state: AppState, isTv: Boolean, model: MovoViewModel) 
                 emptyTitle = searchEmptyTitle(state.query),
                 emptyHint = searchEmptyHint(state.query),
                 emptyIcon = searchEmptyIcon(state.query),
-            ) { model.search(query, true) }
+            ) { model.search(state.query, true) }
         }
     }
     if (showFilters) SearchFiltersDialog(state.searchFilters, false, { showFilters = false }) { title, path ->

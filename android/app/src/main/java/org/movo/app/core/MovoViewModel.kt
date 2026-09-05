@@ -8,11 +8,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -78,6 +82,7 @@ enum class Tab { Catalog, Search, Collections, Favorites, History, Notifications
 enum class Screen { Restoring, Login, Player, Trailer, Details, Home }
 enum class DetailAction { Favorites, Comments, Rating }
 
+@OptIn(FlowPreview::class)
 class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private val store = SessionStore(application)
     private val _state = MutableStateFlow(AppState())
@@ -108,6 +113,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingDetailsUrl: String? = null
     private var detailsBackLoading = false
     private var pathReturnFocus: String? = null
+    private var loginJob: Job? = null
 
     /** What the core currently filters by, so only a real change reloads the listings. */
     private var appliedHiddenCountries: String? = null
@@ -115,7 +121,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     init {
         restore()
         viewModelScope.launch {
-            getApplication<Application>().settings.map { it.hiddenCountries }.distinctUntilChanged().collect { hidden ->
+            getApplication<Application>().settings.map { it.hiddenCountries }.distinctUntilChanged().debounce(HIDDEN_COUNTRIES_SETTLE_MS).collect { hidden ->
                 if (hidden == appliedHiddenCountries) return@collect
                 applyHiddenCountries(hidden)
                 reloadListings()
@@ -173,7 +179,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val secret = store.secret() ?: return@run
             val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
             _state.update { it.copy(user = user) }
-            runCatching { refreshAccountData(false) }
+            // Notifications and premium days are decoration: they load beside the restored
+            // session, not ahead of it, so the splash does not wait on them.
+            viewModelScope.launch { runCatching { refreshAccountData(false) } }
         } catch (error: BridgeException) {
             // Only forget the session the provider actually turned down. Clearing it on any
             // failure signed the account out whenever restore happened to hit a dead network.
@@ -182,12 +190,17 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(login: String, password: String) = run {
-        require(login.isNotBlank() && password.isNotBlank()) { text(R.string.enter_credentials) }
-        val result = NativeBridge.decode<LoginResult>("login", buildJsonObject { put("login", login.trim()); put("password", password) })
-        store.saveSecret(result.secret)
-        _state.update { it.copy(user = result.user) }
-        runCatching { refreshAccountData(false) }
+    fun login(login: String, password: String) {
+        // One at a time: the keyboard's Done submits as well as the button, and a repeat while
+        // the first is pending queued another round trip behind it.
+        if (loginJob?.isActive == true) return
+        loginJob = run {
+            require(login.isNotBlank() && password.isNotBlank()) { text(R.string.enter_credentials) }
+            val result = NativeBridge.decode<LoginResult>("login", buildJsonObject { put("login", login.trim()); put("password", password) })
+            store.saveSecret(result.secret)
+            _state.update { it.copy(user = result.user) }
+            runCatching { refreshAccountData(false) }
+        }
     }
 
     fun logout() = run {
@@ -228,13 +241,21 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** The Catalog tab is the home rails on a television and the flat grid elsewhere; a layout change swaps the source. */
+    fun layoutChanged(isTv: Boolean) {
+        if (state.value.tab != Tab.Catalog) return
+        if (isTv) loadHome() else if (state.value.items.isEmpty()) loadCatalog()
+    }
+
     fun setCatalog(category: CatalogCategory = state.value.category, sort: String = state.value.sort) {
         _state.update { it.copy(category = category, sort = sort, focusedUrl = null) }
         loadCatalog()
     }
 
     fun loadHome() {
-        if (state.value.homeSections.isNotEmpty()) return
+        // Only a complete home is final: one that came back with a rail missing is fetched again
+        // on the next visit rather than kept for the life of the session.
+        if (state.value.homeSections.size >= HOME_RAIL_COUNT) return
         contentJob?.cancel()
         contentJob = run {
             val sections = NativeBridge.decode<List<HomeSection>>("home")
@@ -400,9 +421,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun refreshAccountData(markRead: Boolean) {
-        val data = NativeBridge.decode<AccountData>("account_data")
-        val keys = data.notifications.flatMap { group -> group.items.map { "${it.url}|${it.info}" } }.toSet()
         val userId = state.value.user?.userId ?: return
+        val data = NativeBridge.decode<AccountData>("account_data")
+        if (state.value.user?.userId != userId) return
+        val keys = data.notifications.flatMap { group -> group.items.map { "${it.url}|${it.info}" } }.toSet()
         val seen = store.seenNotifications(userId)
         if (markRead) store.markNotificationsSeen(userId, keys)
         _state.update { it.copy(
@@ -456,13 +478,15 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun loadDetails(url: String) {
+    private suspend fun loadDetails(url: String) = coroutineScope {
+        // Fetched beside the title, and optional: a slow or failed folder list must not hold the
+        // page back or turn a title that loaded into an error.
+        val groups = async { runCatching { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") }.getOrNull() }
         val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
-        val groups = NativeBridge.decode<List<FavoriteGroup>>("favorite_categories")
         val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
         _state.update { it.copy(
             details = details,
-            favoriteGroups = groups,
+            favoriteGroups = groups.await() ?: it.favoriteGroups,
             resumeSeasonId = resume?.first,
             resumeEpisodeId = resume?.second,
             resumeTranslatorId = resume?.third,
@@ -561,7 +585,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun closeComments() { _state.update { it.copy(comments = null) } }
+    fun closeComments() {
+        // The page still on its way would otherwise reopen the dialog just dismissed.
+        detailsJob?.cancel()
+        _state.update { it.copy(comments = null) }
+    }
 
     fun likeComment(id: String) {
         val details = state.value.details ?: return
@@ -912,3 +940,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+/** Rails the core assembles for the home page; fewer means one of them failed. */
+private const val HOME_RAIL_COUNT = 5
+
+/** Pause after the last keystroke in the hidden-countries field before the filter is applied. */
+private const val HIDDEN_COUNTRIES_SETTLE_MS = 600L

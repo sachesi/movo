@@ -345,9 +345,9 @@ private fun TextItem(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
-    // Edits show at once and the store catches up; a field bound straight to the store lags a
-    // write behind every keystroke.
-    var text by remember(value) { mutableStateOf(value) }
+    // The draft is the field's own. A field re-keyed on the stored value was reset by every
+    // write landing late, which put an earlier prefix back under fast typing.
+    var text by remember { mutableStateOf(value) }
     OutlinedTextField(
         value = text,
         onValueChange = { text = it; onValueChange(it) },

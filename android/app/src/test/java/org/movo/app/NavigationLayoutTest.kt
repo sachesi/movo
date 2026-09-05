@@ -7,6 +7,9 @@ import org.junit.Assert.assertTrue
 import org.movo.app.core.Tab
 import org.movo.app.home.OVERFLOW_TABS
 import org.movo.app.home.PRIMARY_TABS
+import org.movo.app.catalog.homeStartPosition
+import org.movo.app.core.HomeSection
+import org.movo.app.core.MediaItem
 import org.movo.app.ui.toTvColorScheme
 import org.junit.Test
 
@@ -37,5 +40,16 @@ class NavigationLayoutTest {
 
         val light = lightColorScheme()
         assertEquals(light.primary, light.toTvColorScheme(isDark = false).primary)
+    }
+
+    @Test
+    fun theHomePageReopensOnTheRailAndCardTheUserLeftFrom() {
+        val sections = listOf(
+            HomeSection("hot", listOf(MediaItem(id = 1, title = "A", url = "/a"))),
+            HomeSection("new", listOf(MediaItem(id = 2, title = "B", url = "/b"), MediaItem(id = 3, title = "C", url = "/c:d"))),
+        )
+        assertEquals(1 to 1, homeStartPosition(sections, "new:/c:d"))
+        assertEquals(0 to 0, homeStartPosition(sections, "popular:/zzz"))
+        assertEquals(0 to 0, homeStartPosition(sections, null))
     }
 }

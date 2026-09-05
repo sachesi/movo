@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -95,7 +96,7 @@ internal fun CatalogScreen(
 ) {
     if (isTv) {
         if (state.homeSections.isNotEmpty()) {
-            TvHomeScreen(state.homeSections, state.loading) { url, key ->
+            TvHomeScreen(state.homeSections, state.loading, state.focusedUrl) { url, key ->
                 model.openDetails(url, key)
             }
         } else {
@@ -192,14 +193,21 @@ internal fun CatalogScreen(
 internal fun TvHomeScreen(
     sections: List<HomeSection>,
     loading: Boolean,
+    focusedUrl: String? = null,
     open: (String, String) -> Unit,
 ) {
+    // Home leaves the composition while a title is open, and its scroll state with it. Opened
+    // again, the rail and row holding the card the user left from start at that card, so it is
+    // composed and can take the focus back; as the grids do from the same key.
+    val shown = sections.filter { it.items.isNotEmpty() }
+    val (railIndex, cardIndex) = remember(shown, focusedUrl) { homeStartPosition(shown, focusedUrl) }
     LazyColumn(
         Modifier.fillMaxSize().testTag("tv-home-list").focusRestorer().focusGroup(),
+        state = rememberLazyListState(initialFirstVisibleItemIndex = railIndex),
         contentPadding = PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        sections.filter { it.items.isNotEmpty() }.forEach { section ->
+        shown.forEachIndexed { index, section ->
             item(section.id) {
                 Column(
                     Modifier.testTag("tv-home-rail-${section.id}"),
@@ -212,6 +220,7 @@ internal fun TvHomeScreen(
                         modifier = Modifier.sectionHeading(),
                     )
                     LazyRow(
+                        state = rememberLazyListState(initialFirstVisibleItemIndex = if (index == railIndex) cardIndex else 0),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.focusRestorer().focusGroup(),
                     ) {
@@ -231,6 +240,14 @@ internal fun TvHomeScreen(
         }
         if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     }
+}
+
+/** Rail and card indices of the home focus key `section:url`, or the top-left when it is not on the page. */
+internal fun homeStartPosition(sections: List<HomeSection>, focusedUrl: String?): Pair<Int, Int> {
+    val (sectionId, url) = focusedUrl?.split(':', limit = 2)?.takeIf { it.size == 2 } ?: return 0 to 0
+    val rail = sections.indexOfFirst { it.id == sectionId }
+    if (rail < 0) return 0 to 0
+    return rail to sections[rail].items.indexOfFirst { it.url == url }.coerceAtLeast(0)
 }
 
 private val HomeSection.title: Int get() = when (id) {
@@ -429,10 +446,12 @@ internal fun LoadMoreOnScroll(
     // trigger frames and stalled autoload during fast scrolls).
     val isLoading by rememberUpdatedState(loading)
     LaunchedEffect(gridState, itemCount, loadMore) {
-        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+        // Loading is part of the observed pair: a viewport already at the threshold when a load
+        // clears would otherwise wait for the next scroll before asking for the page.
+        snapshotFlow { (gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) to isLoading }
             .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                if (shouldLoadMore(lastVisibleIndex, itemCount, isLoading, requestedItemCount)) {
+            .collect { (lastVisibleIndex, loadingNow) ->
+                if (shouldLoadMore(lastVisibleIndex, itemCount, loadingNow, requestedItemCount)) {
                     requestedItemCount = itemCount
                     loadMore()
                 }

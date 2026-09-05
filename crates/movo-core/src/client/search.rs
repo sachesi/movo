@@ -2,13 +2,26 @@ use super::catalog;
 use super::models::{Collection, HomeSection, LinkedItem, MediaItem, SearchFilter};
 use super::session::RezkaSession;
 use scraper::{Html, Selector};
+use std::time::Duration;
+
+/// How long any one home rail may take. The rails are fetched together and shown together, so
+/// one page hanging to the session's full timeout and its retries held the four that had arrived.
+const HOME_SECTION_TIMEOUT: Duration = Duration::from_secs(15);
+
+async fn bounded(
+    page: impl std::future::Future<Output = Result<String, String>>,
+) -> Result<String, String> {
+    tokio::time::timeout(HOME_SECTION_TIMEOUT, page)
+        .await
+        .unwrap_or_else(|_| Err("Timed out".to_string()))
+}
 
 pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
-    let hot = session.post_ajax("engine/ajax/get_newest_slider_content.php", &[("id", "0")]);
-    let new = session.get_html("new");
-    let watching = session.get_html("new?filter=watching");
-    let popular = session.get_html("new?filter=popular");
-    let awaiting = session.get_html("announce");
+    let hot = bounded(session.post_ajax("engine/ajax/get_newest_slider_content.php", &[("id", "0")]));
+    let new = bounded(session.get_html("new"));
+    let watching = bounded(session.get_html("new?filter=watching"));
+    let popular = bounded(session.get_html("new?filter=popular"));
+    let awaiting = bounded(session.get_html("announce"));
     let (hot, new, watching, popular, awaiting) =
         tokio::join!(hot, new, watching, popular, awaiting);
     // One slow or refused page must not take the whole home page down with it: the

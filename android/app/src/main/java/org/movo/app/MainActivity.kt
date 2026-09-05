@@ -255,6 +255,14 @@ private fun MovoApp(
                             model.selectTab(settings.initialTab, isTv)
                         }
                     }
+                    // A layout change after that swaps what the Catalog tab shows; the initial tab
+                    // is not applied again, so the new surface has to be asked for here.
+                    var appliedLayout by rememberSaveable { mutableStateOf<Boolean?>(null) }
+                    LaunchedEffect(screen, isTv) {
+                        if (screen != Screen.Home) return@LaunchedEffect
+                        if (appliedLayout != null && appliedLayout != isTv) model.layoutChanged(isTv)
+                        appliedLayout = isTv
+                    }
                     LaunchedEffect(screen, deepLink) {
                         val url = deepLink ?: return@LaunchedEffect
                         if (screen == Screen.Home || screen == Screen.Details) {
