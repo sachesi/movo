@@ -834,40 +834,57 @@ private fun CommentsDialog(page: CommentsPage, isTv: Boolean, model: MovoViewMod
             item { Text(stringResource(R.string.comments), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.sectionHeading()) }
             items(page.items, key = { it.id }) { comment ->
                 val tile = placeholderTile()
-                ListItem(
-                    headlineContent = { Text(comment.username) },
-                    supportingContent = { Column {
-                        if (comment.hasSpoiler && comment.id !in revealedSpoilers) {
-                            val reveal = { revealedSpoilers = revealedSpoilers + comment.id }
-                            if (isTv) TvButton(reveal) { TvIcon(Icons.Default.Visibility, null); Spacer(Modifier.width(8.dp)); TvText(stringResource(R.string.show_spoiler)) }
-                            else TextButton(reveal) { Icon(Icons.Default.Visibility, null); Text(stringResource(R.string.show_spoiler)) }
-                        } else Text(comment.text)
-                        Text(comment.date, style = MaterialTheme.typography.labelSmall)
-                    } },
-                    leadingContent = {
-                        AsyncImage(
-                            comment.avatarUrl,
-                            null,
-                            Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)),
-                            placeholder = tile,
-                            error = tile,
-                            fallback = tile,
-                            contentScale = ContentScale.Crop,
-                        )
-                    },
-                    trailingContent = {
-                        val like = { model.likeComment(comment.id) }
-                        val likeLabel = stringResource(R.string.like_comment)
-                        // Named and stateful for a screen reader, which otherwise heard the count alone.
-                        val likeSemantics = Modifier.semantics { selected = comment.liked }
-                        if (isTv) {
+                val hidden = comment.hasSpoiler && comment.id !in revealedSpoilers
+                val reveal = { revealedSpoilers = revealedSpoilers + comment.id }
+                val like = { model.likeComment(comment.id) }
+                val likeLabel = stringResource(R.string.like_comment)
+                // Named and stateful for a screen reader, which otherwise heard the count alone.
+                val likeSemantics = Modifier.semantics { selected = comment.liked }
+                val avatar: @Composable () -> Unit = {
+                    AsyncImage(
+                        comment.avatarUrl,
+                        null,
+                        Modifier.size(48.dp).clip(RoundedCornerShape(24.dp)),
+                        placeholder = tile,
+                        error = tile,
+                        fallback = tile,
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                val indent = Modifier.padding(start = (comment.indent.coerceAtMost(4) * 12).dp)
+                if (isTv) {
+                    // The row itself takes focus, so a comment taller than the dialog can be read
+                    // by remote; the like button was the only stop before, and it sat mid-row.
+                    TvListItem(
+                        selected = false,
+                        onClick = { if (hidden) reveal() },
+                        headlineContent = { TvText(comment.username) },
+                        supportingContent = { Column {
+                            if (hidden) TvText(stringResource(R.string.show_spoiler)) else TvText(comment.text)
+                            TvText(comment.date, style = MaterialTheme.typography.labelSmall)
+                        } },
+                        leadingContent = { avatar() },
+                        trailingContent = {
                             TvButton(like, likeSemantics) { TvIcon(Icons.Default.ThumbUp, likeLabel); Spacer(Modifier.width(8.dp)); TvText(comment.likes.toString()) }
-                        } else {
+                        },
+                        modifier = indent.fillMaxWidth(),
+                        scale = ListItemScale.None,
+                    )
+                } else {
+                    ListItem(
+                        headlineContent = { Text(comment.username) },
+                        supportingContent = { Column {
+                            if (hidden) TextButton(reveal) { Icon(Icons.Default.Visibility, null); Text(stringResource(R.string.show_spoiler)) }
+                            else Text(comment.text)
+                            Text(comment.date, style = MaterialTheme.typography.labelSmall)
+                        } },
+                        leadingContent = avatar,
+                        trailingContent = {
                             TextButton(like, likeSemantics, colors = ButtonDefaults.textButtonColors(contentColor = if (comment.liked) MaterialTheme.colorScheme.primary else LocalContentColor.current)) { Icon(Icons.Default.ThumbUp, likeLabel); Text(comment.likes.toString()) }
-                        }
-                    },
-                    modifier = Modifier.padding(start = (comment.indent.coerceAtMost(4) * 12).dp),
-                )
+                        },
+                        modifier = indent,
+                    )
+                }
             }
             if (page.totalPages > 1) {
                 item {
