@@ -62,6 +62,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,6 +71,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Surface
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -167,6 +176,7 @@ private const val SYNC_ERROR_VISIBLE_MS = 6_000L
 private const val TV_CONTROLS_TIMEOUT_MS = 5_000L
 private const val BUTTON_VIDEO_ZOOM = 1.5f
 private val EPISODE_MENU_MAX_HEIGHT = 320.dp
+private val EPISODE_MENU_WIDTH = 320.dp
 
 /** What the player asks of the rest of the app. */
 @Stable
@@ -374,8 +384,9 @@ fun PlayerScreen(
             ui.controlsVisible = true
             return
         }
+        val sameContent = ui.preparedContentKey == contentKey
         val position = playbackStartPosition(
-            sameContent = ui.preparedContentKey == contentKey,
+            sameContent = sameContent,
             currentPosition = player.currentPosition,
             resumePosition = resumePositionMs,
         )
@@ -383,8 +394,10 @@ fun PlayerScreen(
         player.setMediaItem(buildMediaItem())
         player.prepare()
         if (position > 0L) player.seekTo(position)
-        player.playWhenReady = true
-        ui.isPlaying = true
+        // A quality, subtitle or mirror change on the same title keeps whatever the user had,
+        // playing or paused; only a title just asked for starts on its own.
+        if (!sameContent) player.playWhenReady = true
+        ui.isPlaying = player.playWhenReady
     }
 
     LaunchedEffect(player, content.stream, content.subtitle, content.urlIndex) { prepare() }
@@ -489,7 +502,7 @@ fun PlayerScreen(
             player.seekTo(0)
             content.completed = false
             player.play()
-        } else if (player.isPlaying) {
+        } else if (player.playWhenReady) {
             player.pause()
         } else {
             player.play()
@@ -550,6 +563,14 @@ fun PlayerScreen(
     val videoBounds = remember { mutableStateOf<Rect?>(null) }
     val autoEnter = wantsPictureInPicture(content.playWhenReady, content.completed, content.playbackError != null)
     val latestAutoEnter by rememberUpdatedState(autoEnter)
+    // The receiver and listener below are registered once per activity and outlive the player:
+    // an episode change builds a new one, and callbacks captured at registration kept driving
+    // the released one. These always reach the current player.
+    val latestTogglePlayback by rememberUpdatedState({ togglePlayback() })
+    val latestPreviousEpisode by rememberUpdatedState({ previousEpisode() })
+    val latestNextEpisode by rememberUpdatedState({ nextEpisode() })
+    val latestExitPlayer by rememberUpdatedState({ exitPlayer() })
+    val latestSeekBy by rememberUpdatedState({ seconds: Int -> seekBy(seconds) })
     val playPauseTitle = stringResource(if (ui.isPlaying) R.string.pause else R.string.play)
     val previousTitle = stringResource(R.string.previous_episode)
     val nextTitle = stringResource(R.string.next_episode)
@@ -569,7 +590,7 @@ fun PlayerScreen(
                 inPip = info.isInPictureInPictureMode
                 // Left the mode with the activity already stopped: the window was dismissed, not
                 // expanded, so the player goes with it instead of waiting paused behind the launcher.
-                if (!inPip && lifecycleOwner.lifecycle.currentState == Lifecycle.State.CREATED) exitPlayer()
+                if (!inPip && lifecycleOwner.lifecycle.currentState == Lifecycle.State.CREATED) latestExitPlayer()
             }
             host?.addOnPictureInPictureModeChangedListener(modeListener)
             val main = activity as? MainActivity
@@ -578,9 +599,9 @@ fun PlayerScreen(
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
                     when (intent.getIntExtra(PIP_CONTROL_EXTRA, 0)) {
-                        PIP_PLAY_PAUSE -> togglePlayback()
-                        PIP_PREVIOUS -> previousEpisode()
-                        PIP_NEXT -> nextEpisode()
+                        PIP_PLAY_PAUSE -> latestTogglePlayback()
+                        PIP_PREVIOUS -> latestPreviousEpisode()
+                        PIP_NEXT -> latestNextEpisode()
                     }
                 }
             }
@@ -629,7 +650,7 @@ fun PlayerScreen(
                 detectTapGestures(
                     onTap = { ui.controlsVisible = !ui.controlsVisible },
                     onDoubleTap = { offset ->
-                        seekBy(if (offset.x < size.width / 2) -settings.seekSeconds else settings.seekSeconds)
+                        latestSeekBy(if (offset.x < size.width / 2) -settings.seekSeconds else settings.seekSeconds)
                     },
                 )
             }
@@ -1265,7 +1286,7 @@ private fun ControlBar(
 }
 
 @Composable
-private fun EpisodeSelector(
+internal fun EpisodeSelector(
     seasons: List<Season>,
     currentSeason: Long?,
     currentEpisode: Long?,
@@ -1294,23 +1315,50 @@ private fun EpisodeSelector(
     }
     Box {
         PlayerIconButton({ expanded = true }, Icons.Default.VideoLibrary, stringResource(R.string.episode), isTv)
-        DropdownMenu(expanded, { expanded = false }) {
-            // A show with many seasons has hundreds of episodes; composing them all when the menu
-            // opens stalls the frame, so the rows are virtualized. The bounded height is required
-            // because the menu already places its content inside a vertical scroll.
-            LazyColumn(state = listState, modifier = Modifier.heightIn(max = EPISODE_MENU_MAX_HEIGHT)) {
-                items(episodes, key = { (season, episode) -> "${season.id}:${episode.id}" }) { (season, episode) ->
-                    DropdownMenuItem(
-                        onClick = { expanded = false; playEpisode(season.id, episode.id) },
-                        text = { Text("${season.title} • ${episode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.tvFocusScale(isTv, 1.03f),
-                        trailingIcon = if (season.id == currentSeason && episode.id == currentEpisode) {
-                            { Icon(Icons.Default.Check, null) }
-                        } else null,
-                    )
+        // A show with many seasons has hundreds of episodes; composing them all when the menu
+        // opens stalls the frame, so the rows are virtualized. Not a DropdownMenu: that sizes its
+        // content by intrinsic width, which a lazy list cannot answer, and threw on opening.
+        if (expanded) {
+            Popup(
+                popupPositionProvider = AboveOrBelowAnchor,
+                onDismissRequest = { expanded = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                Surface(shape = MaterialTheme.shapes.extraSmall, tonalElevation = 3.dp, shadowElevation = 3.dp) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.width(EPISODE_MENU_WIDTH).heightIn(max = EPISODE_MENU_MAX_HEIGHT),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                    ) {
+                        items(episodes, key = { (season, episode) -> "${season.id}:${episode.id}" }) { (season, episode) ->
+                            DropdownMenuItem(
+                                onClick = { expanded = false; playEpisode(season.id, episode.id) },
+                                text = { Text("${season.title} • ${episode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                modifier = Modifier.tvFocusScale(isTv, 1.03f),
+                                trailingIcon = if (season.id == currentSeason && episode.id == currentEpisode) {
+                                    { Icon(Icons.Default.Check, null) }
+                                } else null,
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+/** Opens under the anchor when the window has room there, over it otherwise, kept on screen. */
+private object AboveOrBelowAnchor : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val x = anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val below = anchorBounds.bottom
+        val y = if (below + popupContentSize.height <= windowSize.height) below else anchorBounds.top - popupContentSize.height
+        return IntOffset(x, y.coerceAtLeast(0))
     }
 }
 
