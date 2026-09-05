@@ -1,11 +1,13 @@
 package org.movo.app
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.core.app.ApplicationProvider
 import org.movo.app.core.AppState
 import org.movo.app.core.CoreTransport
 import org.movo.app.core.MediaItem
+import org.movo.app.core.Tab
 import org.movo.app.core.MovoViewModel
 import org.movo.app.core.NativeBridge
 import org.movo.app.core.UserProfile
@@ -17,6 +19,7 @@ import org.movo.app.settings.SettingsContent
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.settings.AppSettings
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,7 +33,7 @@ private object EmptyCore2 : CoreTransport {
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [23, 28, 34])
 class ScreenRenderTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @After fun tearDown() { NativeBridge.transport = null }
 
@@ -53,6 +56,20 @@ class ScreenRenderTest {
             }
         }
         compose.waitForIdle()
+    }
+
+    @Test
+    fun backOnAnotherTabReturnsToTheInitialTabInsteadOfLeaving() {
+        val m = model()
+        compose.setContent {
+            MaterialTheme {
+                HomeFlow(state.copy(tab = Tab.Search), isTv = false, useRail = false, compactHeight = false, model = m, settings = AppSettings())
+            }
+        }
+        compose.waitForIdle()
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(Tab.Catalog, m.state.value.tab)
     }
 
     @Test

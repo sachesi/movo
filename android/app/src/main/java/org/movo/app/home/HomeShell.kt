@@ -100,6 +100,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.runtime.withFrameNanos
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -197,6 +198,11 @@ internal fun HomeFlow(
         }
     }
 
+    // Back returns to the initial tab before it leaves the app. Composed after the tabs, so it
+    // must stand aside while a collection has its own way back.
+    BackHandler(enabled = section == Section.Home && state.collectionPath == null && state.tab != settings.initialTab) {
+        model.selectTab(settings.initialTab, false)
+    }
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
 }
 
@@ -219,6 +225,19 @@ private fun TvHomeFlow(
     }
     focusMemory.destination = destinationKey
     focusMemory.fallback = state.focusedUrl
+    // The content's focus group. Entered by hand in two cases the memory does not cover: a
+    // destination nothing restores itself on (the first visit, or the first launch), which
+    // otherwise left the highlight in the drawer or nowhere; and the error banner going away,
+    // which otherwise dropped it. The search page is left alone: its first element is the text
+    // field, and landing there would open the keyboard on every visit.
+    val contentFocus = remember { FocusRequester() }
+    val contentFocused = remember { mutableStateOf(false) }
+    LaunchedEffect(destinationKey) {
+        // One frame: the page lays out and restores its own focus first.
+        withFrameNanos {}
+        if (!contentFocused.value && state.tab != Tab.Search) runCatching { contentFocus.requestFocus() }
+    }
+    val clearError = { model.clearError(); runCatching { contentFocus.requestFocus() }; Unit }
 
     TvNavigationDrawer(
         selectedTab = state.tab,
@@ -235,6 +254,8 @@ private fun TvHomeFlow(
         Box(
             Modifier
                 .fillMaxSize()
+                .focusRequester(contentFocus)
+                .onFocusChanged { contentFocused.value = it.hasFocus }
                 .focusRestorer()
                 .focusGroup(),
         ) {
@@ -252,7 +273,7 @@ private fun TvHomeFlow(
             state.error?.let {
                 ErrorBanner(
                     it,
-                    model::clearError,
+                    clearError,
                     Modifier.align(Alignment.BottomCenter),
                     retry = { model.retry(true) },
                     isTv = true,
@@ -261,6 +282,9 @@ private fun TvHomeFlow(
         }
     }
 
+    BackHandler(enabled = section == Section.Home && state.collectionPath == null && state.tab != settings.initialTab) {
+        model.selectTab(settings.initialTab, true)
+    }
     BackHandler(enabled = section == Section.Settings) { section = Section.Home }
 }
 
@@ -270,6 +294,7 @@ private val Configuration.isTelevision
 // Icon rail: safe-area padding, item padding, icon, item padding, safe-area padding.
 private val RAIL_PADDING = 24.dp
 private val RAIL_WIDTH = RAIL_PADDING * 2 + 14.dp * 2 + 24.dp
+private val LABELLED_RAIL_PADDING = 6.dp
 private val LABELLED_RAIL_WIDTH = 84.dp
 private val PANEL_WIDTH = 260.dp
 private val DRAWER_ITEM_HEIGHT = 48.dp
@@ -310,10 +335,14 @@ internal fun TvNavigationDrawer(
     content: @Composable () -> Unit,
 ) {
     val railWidth = if (labelled) LABELLED_RAIL_WIDTH else RAIL_WIDTH
+    // The content starts under the rail's own inner padding: every page adds the overscan margin
+    // itself, and measured from the rail's edge that put 72dp of blank between the icons and
+    // the first card against 48dp on the right.
+    val contentStart = railWidth - if (labelled) LABELLED_RAIL_PADDING else RAIL_PADDING
     // Inside the safe area: a television reports none, but a phone or tablet on this layout has
     // a status bar and a camera cutout, and without this the clock sat over the rail.
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).testTag("tv-navigation-drawer")) {
-        Box(Modifier.fillMaxSize().padding(start = railWidth)) { content() }
+        Box(Modifier.fillMaxSize().padding(start = contentStart)) { content() }
         TvDrawerSheet(selectedTab, settingsSelected, notificationCount, labelled, selectTab, openSettings)
     }
 }
@@ -356,7 +385,7 @@ private fun TvDrawerSheet(
                 .then(if (labelled) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 // Inside the television safe area, as the content beside it is: a set that crops
                 // the outer five percent was cutting into the first icon and the selection block.
-                .padding(horizontal = if (labelled) 6.dp else RAIL_PADDING, vertical = if (labelled) 20.dp else TV_OVERSCAN_VERTICAL)
+                .padding(horizontal = if (labelled) LABELLED_RAIL_PADDING else RAIL_PADDING, vertical = if (labelled) 20.dp else TV_OVERSCAN_VERTICAL)
                 .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
