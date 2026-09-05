@@ -36,6 +36,8 @@ private class FakeCore(private val replies: Map<String, String>) : CoreTransport
 private const val CATALOG_REPLY =
     """{"data":[{"id":1,"title":"Dune","url":"/films/dune"}]}"""
 private const val SUGGESTIONS_REPLY = """{"data":["dune","dune two"]}"""
+private const val DETAILS_REPLY =
+    """{"data":{"id":1,"title":"Dune","url":"/films/dune","description":"","media_type":"Film","genres":[],"countries":[],"directors":[],"actors":[],"translators":[],"seasons":[],"franchises":[]}}"""
 
 /** Comfortably shorter than the debounce, so four keystrokes still make one request. */
 private const val SUGGEST_KEYSTROKE_GAP_MS = 50L
@@ -44,7 +46,7 @@ private const val SUGGEST_KEYSTROKE_GAP_MS = 50L
 @RunWith(RobolectricTestRunner::class)
 class MovoViewModelTest {
     private val core = FakeCore(
-        mapOf("catalog" to CATALOG_REPLY, "search_suggestions" to SUGGESTIONS_REPLY),
+        mapOf("catalog" to CATALOG_REPLY, "search_suggestions" to SUGGESTIONS_REPLY, "details" to DETAILS_REPLY),
     )
 
     private fun model(scheduler: kotlinx.coroutines.test.TestCoroutineScheduler): MovoViewModel {
@@ -97,5 +99,21 @@ class MovoViewModelTest {
 
         assertEquals(1, core.requested.count { it == "details" })
         assertEquals(null, model.state.value.openingUrl)
+    }
+
+    @Test
+    fun closingAListingOpenedFromATitleReopensTheTitle() = runTest {
+        val model = model(testScheduler)
+        model.openDetails("/films/dune")
+        advanceUntilIdle()
+        model.openDiscoveryPath(Tab.Search, "Drama", "/drama")
+        advanceUntilIdle()
+        assertEquals(null, model.state.value.details)
+
+        model.closeCollection()
+        advanceUntilIdle()
+
+        assertEquals("/films/dune", model.state.value.details?.url)
+        assertEquals(null, model.state.value.collectionPath)
     }
 }

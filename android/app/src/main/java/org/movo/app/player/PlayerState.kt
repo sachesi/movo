@@ -66,4 +66,11 @@ class PlayerUiState(initialSpeed: Float) {
     var seekFeedback by mutableStateOf<Pair<Int, Long>?>(null)
     var menuOpen by mutableStateOf(false)
     var preparedContentKey by mutableStateOf<Triple<Long, Long?, Long?>?>(null)
+    /** The subtitle language the user picked, [SUBTITLES_OFF] for none, null while untouched. */
+    var subtitleLanguage by mutableStateOf<String?>(null)
 }
+
+internal const val SUBTITLES_OFF = ""
+
+/** What identifies a subtitle track across episodes, whose tracks carry different urls. */
+internal val SubtitleTrack.language: String get() = languageCode ?: code

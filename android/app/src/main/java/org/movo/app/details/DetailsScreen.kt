@@ -467,6 +467,18 @@ internal fun DetailsScreen(
                                 }, shareLabel))
                             }) { Icon(Icons.Default.Share, stringResource(R.string.share)) }
                         }
+                        // Where the show picks up, so Play is known to go there and not to the pilot.
+                        if (series) {
+                            details.seasons.firstOrNull { it.id == state.resumeSeasonId }?.let { season ->
+                                season.episodes.firstOrNull { it.id == state.resumeEpisodeId }?.let { episode ->
+                                    Text(
+                                        stringResource(R.string.continue_watching, "${season.title} • ${episode.title}"),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

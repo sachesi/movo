@@ -134,6 +134,7 @@
     <string name="back">Назад</string>
     <string name="no_streams">Для цього відео немає доступних потоків</string>
     <string name="quality_unavailable">Вибрана якість недоступна</string>
+    <string name="quality_fallback">Перемкнуто на %1$s</string>
     <string name="playback_failed">Помилка відтворення</string>
     <string name="mirror_unavailable">Вибране джерело недоступне</string>
     <string name="replay">Дивитися знову</string>
@@ -166,6 +167,7 @@
     <string name="next">Далі</string>
     <string name="choose_playback">Вибір відтворення</string>
     <string name="start_watching">Почати перегляд</string>
+    <string name="continue_watching">Продовжити: %1$s</string>
     <string name="play_episode">Дивитися %1$s</string>
     <string name="translation">Озвучення</string>
     <string name="tag_premium">Преміум</string>

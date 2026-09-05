@@ -234,14 +234,21 @@ fun PlayerScreen(
         ?.title
     val displayTitle = episodeTitle?.takeUnless { it == title }?.let { "$title • $it" } ?: title
 
+    val ui = remember { PlayerUiState(initialSpeed = settings.playbackSpeed) }
     val content = remember(bundle) {
+        // The user's subtitle choice carries over to the next episode; the provider's default
+        // only stands until one is made.
+        val default = bundle.subtitles.firstOrNull { it.default }
         PlayerContentState(
             initialStream = selectStream(bundle, settings.qualityMode, preferredQuality),
-            initialSubtitle = bundle.subtitles.firstOrNull { it.default },
+            initialSubtitle = when (val chosen = ui.subtitleLanguage) {
+                null -> default
+                SUBTITLES_OFF -> null
+                else -> bundle.subtitles.firstOrNull { it.language == chosen } ?: default
+            },
             initialPositionMs = resumePositionMs,
         )
     }
-    val ui = remember { PlayerUiState(initialSpeed = settings.playbackSpeed) }
     // Written on every remote key press, so it is deliberately never read from composition:
     // observing it here would recompose the whole player on each auto-repeat event.
     val lastInteractionMs = remember { mutableLongStateOf(0L) }
@@ -923,7 +930,7 @@ fun PlayerScreen(
                         content.urlIndex = 0
                         actions.qualityChanged(it.quality, true)
                     },
-                    onSelectSubtitle = { content.subtitle = it },
+                    onSelectSubtitle = { content.subtitle = it; ui.subtitleLanguage = it?.language ?: SUBTITLES_OFF },
                     onSelectSpeed = { ui.playbackSpeed = it },
                     zoomed = ui.videoScale > 1f,
                     onToggleZoom = {

@@ -145,6 +145,7 @@
     <string name="back">Back</string>
     <string name="no_streams">No streams available for this item</string>
     <string name="quality_unavailable">Selected quality is unavailable</string>
+    <string name="quality_fallback">Switched to %1$s</string>
     <string name="playback_failed">Playback failed</string>
     <string name="mirror_unavailable">Selected mirror unavailable</string>
     <string name="replay">Replay</string>
@@ -181,6 +182,7 @@
     <string name="next">Next</string>
     <string name="choose_playback">Choose playback</string>
     <string name="start_watching">Start watching</string>
+    <string name="continue_watching">Continue: %1$s</string>
     <string name="play_episode">Play %1$s</string>
     <string name="translation">Translation</string>
     <string name="tag_premium">Premium</string>

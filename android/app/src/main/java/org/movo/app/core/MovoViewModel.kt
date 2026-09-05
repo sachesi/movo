@@ -114,6 +114,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private val detailsBackStack = ArrayDeque<String>()
     private var pendingDetailsUrl: String? = null
     private var detailsBackLoading = false
+
+/** The title a genre or collection listing was opened from, reopened when the listing closes. */
+private var discoveryReturnUrl: String? = null
     private var pathReturnFocus: String? = null
     private var loginJob: Job? = null
 
@@ -217,6 +220,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         cancelRequests()
         detailsBackStack.clear()
         pathReturnFocus = null
+        discoveryReturnUrl = null
         // Items are one slot shared by every grid, so the previous tab's posters would sit under
         // the new tab's chips until its own page arrives.
         _state.update { it.copy(
@@ -376,11 +380,14 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun openPath(title: String, path: String, returnFocus: String? = null) {
         contentJob?.cancel()
         pathReturnFocus = returnFocus
+        discoveryReturnUrl = null
         _state.update { it.copy(collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null) }
         loadPath(path)
     }
 
     fun openDiscoveryPath(tab: Tab, title: String, path: String) {
+        // The listing replaces the title, so closing it reopens the title rather than the tab.
+        discoveryReturnUrl = state.value.details?.url
         discardDetails()
         pathReturnFocus = null
         _state.update { it.copy(tab = tab, collectionPath = path, collectionTitle = title, items = emptyList(), page = 1, focusedUrl = null) }
@@ -402,6 +409,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             Tab.Collections -> loadCollections()
             Tab.Search -> state.value.query.takeIf { it.isNotBlank() }?.let(::search)
             else -> Unit
+        }
+        discoveryReturnUrl?.let { url ->
+            discoveryReturnUrl = null
+            openDetails(url)
         }
     }
 
@@ -791,8 +802,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun previousEpisode() = playAdjacentEpisode(-1, completed = false)
     fun nextEpisode(completed: Boolean) = playAdjacentEpisode(1, completed)
 
-    fun selectPlaybackQuality(quality: String) {
+    /** [fallback] is set when the player dropped to [quality] on its own after a failure. */
+    fun selectPlaybackQuality(quality: String, fallback: Boolean = false) {
         _state.update { it.copy(playbackQuality = quality) }
+        if (fallback) notify(getApplication<Application>().getString(R.string.quality_fallback, quality))
     }
 
     fun playEpisode(season: Long, episode: Long) {
