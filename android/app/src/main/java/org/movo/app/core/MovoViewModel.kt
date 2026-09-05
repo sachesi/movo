@@ -17,6 +17,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -173,7 +174,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            _state.update { it.copy(error = error.message ?: text(R.string.operation_failed)) }
+            _state.update { it.copy(error = describe(error)) }
         } finally {
             activeOperations--
             _state.update { it.copy(
@@ -183,13 +184,37 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** What the banner says: the kind of failure in the user's words, or the message when it has no kind. */
+    private fun describe(error: Exception): String {
+        val code = (error as? BridgeException)?.code
+        val id = when (code) {
+            "timeout" -> R.string.error_timeout
+            "network" -> R.string.error_network
+            "provider" -> R.string.error_provider
+            "session" -> R.string.error_session
+            "malformed" -> R.string.error_malformed
+            else -> return error.message ?: text(R.string.operation_failed)
+        }
+        return text(id)
+    }
+
     private fun restore() = run {
         warmUpNativeBridge()
         // Before the first listing, so nothing hidden is shown on the way in.
         applyHiddenCountries(getApplication<Application>().settings.first().hiddenCountries)
         try {
             val secret = store.secret() ?: return@run
-            val user = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
+            // The provider may be slow or away; a bounded wait, then the app opens on the account
+            // as last seen with a banner, rather than a splash for as long as the network takes.
+            val user = withTimeoutOrNull(RESTORE_TIMEOUT_MS) {
+                NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
+            }
+            if (user == null) {
+                val known = store.profile() ?: error(text(R.string.error_timeout))
+                _state.update { it.copy(user = known, error = text(R.string.error_timeout)) }
+                return@run
+            }
+            store.saveProfile(user)
             _state.update { it.copy(user = user) }
             // Notifications and premium days are decoration: they load beside the restored
             // session, not ahead of it, so the splash does not wait on them.
@@ -210,6 +235,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             require(login.isNotBlank() && password.isNotBlank()) { text(R.string.enter_credentials) }
             val result = NativeBridge.decode<LoginResult>("login", buildJsonObject { put("login", login.trim()); put("password", password) })
             store.saveSecret(result.secret)
+            store.saveProfile(result.user)
             _state.update { it.copy(user = result.user) }
             runCatching { refreshAccountData(false) }
         }
@@ -983,6 +1009,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
 /** Rails the core assembles for the home page; fewer means one of them failed. */
 private const val HOME_RAIL_COUNT = 5
+private const val RESTORE_TIMEOUT_MS = 10_000L
 
 /** Pause after the last keystroke in the hidden-countries field before the filter is applied. */
 private const val HIDDEN_COUNTRIES_SETTLE_MS = 600L
