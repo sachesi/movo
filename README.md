@@ -46,7 +46,7 @@ Linux desktop:
 Android:
 
 - JDK 17 or 21
-- Android SDK 36 and Build Tools 36
+- Android SDK platform 37 (`platforms;android-37.0`) and Build Tools 36
 - Android NDK 29.0.14206865
 - `cargo-ndk`, and the `aarch64-linux-android`, `armv7-linux-androideabi` and
   `x86_64-linux-android` Rust targets

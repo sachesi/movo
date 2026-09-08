@@ -5,7 +5,7 @@ The Android client uses the same Rust provider engine as the Linux application a
 ## Requirements
 
 - JDK 17 or 21
-- Android SDK 36 and Android Build Tools 36
+- Android SDK platform 37 (`platforms;android-37.0`) and Android Build Tools 36
 - Android NDK 29.0.14206865
 - Rust targets `aarch64-linux-android`, `armv7-linux-androideabi`, and `x86_64-linux-android`
 - `cargo-ndk`
