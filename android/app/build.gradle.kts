@@ -2,14 +2,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "org.movo.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.movo.app"
@@ -39,7 +38,7 @@ android {
     packaging { jniLibs.useLegacyPackaging = false }
     // The unit tests render real composables under Robolectric, which needs the resources.
     testOptions { unitTests.isIncludeAndroidResources = true }
-    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("generated/jniLibs"))
+    sourceSets["main"].jniLibs.directories.add(layout.buildDirectory.dir("generated/jniLibs").get().asFile.absolutePath)
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -65,7 +64,7 @@ tasks.withType<Test>().configureEach {
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-val buildRust by tasks.registering(Exec::class) {
+val buildRust = tasks.register<Exec>("buildRust") {
     workingDir = rustRoot
     // Declared so Gradle can skip the cargo invocation when nothing in the core changed.
     inputs.dir(File(rustRoot, "crates")).withPathSensitivity(PathSensitivity.RELATIVE)
