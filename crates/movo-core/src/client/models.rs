@@ -388,6 +388,22 @@ impl ServerHistoryEntry {
             .ok()
             .filter(|id| *id > 0)
     }
+
+    /// The season and episode the row's labels name, each absent when the
+    /// row does not state it.
+    pub fn labelled_position(&self) -> (Option<i64>, Option<i64>) {
+        super::details::labelled_position(&format!(
+            "{} {}",
+            self.info.as_deref().unwrap_or_default(),
+            self.additional_info.as_deref().unwrap_or_default()
+        ))
+    }
+
+    /// Where a series row stopped, when it names both numbers.
+    pub fn position(&self) -> Option<(i64, i64)> {
+        let (season, episode) = self.labelled_position();
+        Some((season?, episode?))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

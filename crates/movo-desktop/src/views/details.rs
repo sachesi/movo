@@ -36,6 +36,9 @@ pub struct DetailsView {
     season: Option<i64>,
     /// What this account played last of this title, if anything.
     resume: Option<WatchHistoryEntry>,
+    /// Where the account's history says this series stopped, for a player
+    /// that reports no progress of its own.
+    account_point: Option<(i64, i64)>,
     /// The saved season has not been applied yet: the voice-over it was
     /// watched in may still be loading its episodes.
     resume_pending: bool,
@@ -75,11 +78,13 @@ pub enum DetailsOutput {
     Notify(String),
 }
 
-/// A title with the account's favorites groups and its last local playback.
+/// A title with the account's favorites groups, its last local playback, and
+/// failing that the season and episode the account's history stopped at.
 type LoadedDetails = (
     MediaDetails,
     Vec<FavoritesCollection>,
     Option<WatchHistoryEntry>,
+    Option<(i64, i64)>,
 );
 
 #[derive(Debug)]
@@ -149,6 +154,7 @@ impl relm4::Component for DetailsView {
             translator: None,
             season: None,
             resume: None,
+            account_point: None,
             resume_pending: false,
             content,
             body,
@@ -184,7 +190,7 @@ impl relm4::Component for DetailsView {
                             serde_json::from_str::<MediaDetails>(&json)
                                 .map_err(|error| error.to_string())
                         }) {
-                        Ok(details) => self.render(details, None, &sender),
+                        Ok(details) => self.render(details, None, None, &sender),
                         Err(error) => self.content.set(ContentState::Error(&error)),
                     }
                     return;
@@ -199,7 +205,7 @@ impl relm4::Component for DetailsView {
                         guarded_as(client, account, move |client| async move {
                             let details = client.fetch_details(&url).await?;
                             let Some(user_id) = user_id else {
-                                return Ok((details, Vec::new(), None));
+                                return Ok((details, Vec::new(), None, None));
                             };
                             let categories = client
                                 .fetch_favorites_categories()
@@ -214,7 +220,22 @@ impl relm4::Component for DetailsView {
                             .map_err(|_| {
                                 tr("Loading local history stopped unexpectedly").to_string()
                             })??;
-                            Ok((details, categories, resume))
+                            // Without a local position, the account's history
+                            // still names the episode a series stopped at.
+                            let is_series = details.media_type == MediaType::TVSeries
+                                || !details.seasons.is_empty();
+                            let account_point = if resume.is_none() && is_series {
+                                client
+                                    .fetch_history()
+                                    .await
+                                    .unwrap_or_default()
+                                    .iter()
+                                    .find(|row| row.media_id() == Some(media_id))
+                                    .and_then(|row| row.position())
+                            } else {
+                                None
+                            };
+                            Ok((details, categories, resume, account_point))
                         })
                         .await,
                     ))
@@ -231,12 +252,15 @@ impl relm4::Component for DetailsView {
                 if !details.seasons.is_empty() || details.media_type == MediaType::TVSeries {
                     let client = self.state.client.clone();
                     let post_id = details.id;
+                    let schedules = details.schedules.clone();
                     let account = self.account.clone();
                     sender.oneshot_command(async move {
                         DetailsCommand::Episodes {
                             translator_id: translator.id,
                             loaded: guarded_as(client, account, move |client| async move {
-                                client.fetch_episodes(post_id, translator.id).await
+                                client
+                                    .fetch_episodes(post_id, translator.id, &schedules)
+                                    .await
                             })
                             .await,
                         }
@@ -423,9 +447,9 @@ impl relm4::Component for DetailsView {
                 }
                 self.account = loaded.account.clone();
                 match loaded.result {
-                    Ok((details, categories, resume)) => {
+                    Ok((details, categories, resume, account_point)) => {
                         self.favorite_categories = categories;
-                        self.render(details, resume, &sender);
+                        self.render(details, resume, account_point, &sender);
                     }
                     Err(error) => self.content.set(ContentState::Error(&error)),
                 }
@@ -516,6 +540,7 @@ impl DetailsView {
         &mut self,
         mut details: MediaDetails,
         resume: Option<WatchHistoryEntry>,
+        account_point: Option<(i64, i64)>,
         sender: &relm4::ComponentSender<Self>,
     ) {
         if self.state.settings().sort_voices {
@@ -530,7 +555,8 @@ impl DetailsView {
         self.translator = details.translators.get(translator).cloned();
         self.season = None;
         self.resume = resume;
-        self.resume_pending = self.resume.is_some();
+        self.account_point = account_point;
+        self.resume_pending = self.resume.is_some() || self.account_point.is_some();
         self.details = Some(details.clone());
         self.rails.clear();
 
@@ -1041,6 +1067,7 @@ impl DetailsView {
                 row.add_suffix(&label);
             }
             if episode.is_watched {
+                row.add_css_class("dim-label");
                 row.add_suffix(&gtk::Image::from_icon_name("object-select-symbolic"));
             }
             row.add_suffix(&gtk::Image::from_icon_name("media-playback-start-symbolic"));
@@ -1056,26 +1083,46 @@ impl DetailsView {
     }
 
     /// The episode to offer next: the one last played, or the one after it
-    /// when that was watched to the end.
+    /// when that was watched to the end. The local position knows the end
+    /// was reached; the account's history row only does when the episode is
+    /// marked watched.
     fn continue_point(&self, seasons: &[Season]) -> Option<(i64, i64)> {
-        continue_point(self.resume.as_ref()?, seasons)
+        if let Some(entry) = self.resume.as_ref() {
+            return continue_point(entry, seasons);
+        }
+        let at = self.account_point?;
+        let watched = seasons
+            .iter()
+            .find(|season| season.id == at.0)?
+            .episodes
+            .iter()
+            .find(|episode| episode.id == at.1)?
+            .is_watched;
+        continue_from(at, watched, seasons)
     }
 }
 
 fn continue_point(entry: &WatchHistoryEntry, seasons: &[Season]) -> Option<(i64, i64)> {
-    let (season, episode) = (entry.season?, entry.episode?);
+    continue_from(
+        (entry.season?, entry.episode?),
+        entry.is_finished(),
+        seasons,
+    )
+}
+
+fn continue_from(at: (i64, i64), finished: bool, seasons: &[Season]) -> Option<(i64, i64)> {
     let episodes = seasons
         .iter()
         .flat_map(|s| s.episodes.iter().map(move |e| (s.id, e.id)))
         .collect::<Vec<_>>();
-    let index = episodes.iter().position(|&at| at == (season, episode))?;
-    let offset = usize::from(entry.is_finished() && index + 1 < episodes.len());
+    let index = episodes.iter().position(|&candidate| candidate == at)?;
+    let offset = usize::from(finished && index + 1 < episodes.len());
     Some(episodes[index + offset])
 }
 
 #[cfg(test)]
 mod tests {
-    use super::continue_point;
+    use super::{continue_from, continue_point};
     use movo_core::client::models::{Episode, MediaType, Season};
     use movo_core::storage::history::WatchHistoryEntry;
 
@@ -1128,5 +1175,13 @@ mod tests {
             Some((2, 2))
         );
         assert_eq!(continue_point(&entry(3, 1, 0.0), &seasons()), None);
+    }
+
+    #[test]
+    fn account_history_continues_at_the_row_or_after_a_watched_one() {
+        assert_eq!(continue_from((1, 1), false, &seasons()), Some((1, 1)));
+        assert_eq!(continue_from((1, 2), true, &seasons()), Some((2, 1)));
+        assert_eq!(continue_from((2, 2), true, &seasons()), Some((2, 2)));
+        assert_eq!(continue_from((3, 1), false, &seasons()), None);
     }
 }

@@ -31,37 +31,9 @@ fn history_entry_matches(
     let (Some(season), Some(episode)) = (season, episode) else {
         return true;
     };
-    let details = format!(
-        "{} {}",
-        entry.info.as_deref().unwrap_or_default(),
-        entry.additional_info.as_deref().unwrap_or_default()
-    )
-    .to_lowercase();
-    if details.trim().is_empty() {
-        return true;
-    }
-    let tokens = details
-        .split(|character: char| !character.is_alphanumeric())
-        .filter(|token| !token.is_empty())
-        .collect::<Vec<_>>();
-    let season_labels = ["season", "сезон"];
-    let episode_labels = ["episode", "серия", "серія", "эпизод", "епізод"];
-    let has_season_labels = tokens.iter().any(|token| season_labels.contains(token));
-    let has_episode_labels = tokens.iter().any(|token| episode_labels.contains(token));
-    if !has_season_labels && !has_episode_labels {
-        return true;
-    }
-    let season = season.to_string();
-    let episode = episode.to_string();
-    let number_for = |labels: &[&str], wanted: &str| {
-        tokens.windows(2).any(|pair| {
-            (labels.contains(&pair[0]) && pair[1] == wanted)
-                || (pair[0] == wanted && labels.contains(&pair[1]))
-        })
-    };
-    let season_match = number_for(&season_labels, &season);
-    let episode_match = number_for(&episode_labels, &episode);
-    (season_match || !has_season_labels) && (episode_match || !has_episode_labels)
+    // The row has to agree wherever it states a season or an episode.
+    let (row_season, row_episode) = entry.labelled_position();
+    row_season.is_none_or(|at| at == season) && row_episode.is_none_or(|at| at == episode)
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -281,12 +253,17 @@ impl RezkaClient {
         auth::toggle_schedule_watched(&self.session, id).await
     }
 
+    /// The episodes of a voice-over, carrying the watched state the title's
+    /// schedule keeps for them.
     pub async fn fetch_episodes(
         &self,
         post_id: i64,
         translator_id: i64,
+        schedules: &[models::ScheduleGroup],
     ) -> Result<Vec<models::Season>, String> {
-        details::fetch_episodes(&self.session, post_id, translator_id).await
+        let mut seasons = details::fetch_episodes(&self.session, post_id, translator_id).await?;
+        details::mark_scheduled(&mut seasons, schedules);
+        Ok(seasons)
     }
 
     pub async fn fetch_movie_stream(
@@ -445,7 +422,8 @@ impl RezkaClient {
         }
     }
 
-    async fn fetch_history(&self) -> Result<Vec<ServerHistoryEntry>, String> {
+    /// The account's history rows, newest first.
+    pub async fn fetch_history(&self) -> Result<Vec<ServerHistoryEntry>, String> {
         self.ensure_signed_in()?;
         auth::fetch_history(&self.session).await
     }
@@ -538,10 +516,12 @@ impl RezkaClient {
         }
     }
 
+    /// Records that the title at `url` was watched to the end: the history
+    /// row is flagged, and for an episode so is its schedule row.
     pub async fn mark_watched(
         &self,
+        url: &str,
         post_id: i64,
-        translator_id: i64,
         season: Option<i64>,
         episode: Option<i64>,
     ) -> Result<(), String> {
@@ -561,24 +541,19 @@ impl RezkaClient {
             return Err("The account did not confirm the watched state".to_string());
         }
         if let (Some(season), Some(episode)) = (season, episode) {
-            let seasons = self.fetch_episodes(post_id, translator_id).await?;
-            let item = seasons
-                .iter()
-                .find(|item| item.id == season)
-                .and_then(|item| item.episodes.iter().find(|item| item.id == episode))
-                .ok_or_else(|| "Finished episode was not found".to_string())?;
+            // The provider keeps an episode's watched flag on its schedule
+            // row; an episode the schedule does not list has none to set.
+            let schedules = details::fetch_schedules(&self.session, url).await?;
+            let Some(item) = details::schedule_item_for(&schedules, season, episode)
+                .filter(|item| !item.id.is_empty())
+            else {
+                return Ok(());
+            };
             if !item.is_watched {
-                let watch_id = item
-                    .watch_id
-                    .as_deref()
-                    .ok_or_else(|| "Finished episode has no watched-state ID".to_string())?;
-                auth::toggle_schedule_watched(&self.session, watch_id).await?;
+                auth::toggle_schedule_watched(&self.session, &item.id).await?;
             }
-            let confirmed = self.fetch_episodes(post_id, translator_id).await?;
-            let item = confirmed
-                .iter()
-                .find(|item| item.id == season)
-                .and_then(|item| item.episodes.iter().find(|item| item.id == episode))
+            let confirmed = details::fetch_schedules(&self.session, url).await?;
+            let item = details::schedule_item_for(&confirmed, season, episode)
                 .ok_or_else(|| "Finished episode was not found".to_string())?;
             if !item.is_watched {
                 return Err("The account did not confirm the episode watched state".to_string());
@@ -878,7 +853,7 @@ mod tests {
         });
 
         authenticated_test_client(&base_url)
-            .mark_watched(7, 8, None, None)
+            .mark_watched("/films/7-test.html", 7, None, None)
             .await
             .unwrap();
         server.join().unwrap();

@@ -255,11 +255,12 @@ impl Launcher {
             request.season,
             request.episode,
         );
+        let url = request.details.url;
         sender.oneshot_command(async move {
             LauncherCommand::Marked(
                 guarded_as(client, account, move |client| async move {
                     if finished {
-                        client.mark_watched(id, translator, season, episode).await
+                        client.mark_watched(&url, id, season, episode).await
                     } else {
                         client.save_watch(id, translator, season, episode).await
                     }

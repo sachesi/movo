@@ -81,6 +81,8 @@ enum Command {
     Episodes {
         post_id: i64,
         translator_id: i64,
+        #[serde(default)]
+        schedules: Vec<models::ScheduleGroup>,
     },
     MovieStream {
         post_id: i64,
@@ -122,8 +124,8 @@ enum Command {
     },
     Countries,
     MarkWatched {
+        url: String,
         post_id: i64,
-        translator_id: i64,
         season: Option<i64>,
         episode: Option<i64>,
     },
@@ -191,7 +193,12 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
         Command::Episodes {
             post_id,
             translator_id,
-        } => Ok(json!(client.fetch_episodes(post_id, translator_id).await?)),
+            schedules,
+        } => Ok(json!(
+            client
+                .fetch_episodes(post_id, translator_id, &schedules)
+                .await?
+        )),
         Command::MovieStream {
             post_id,
             translator,
@@ -243,14 +250,12 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
             Ok(Value::Null)
         }
         Command::MarkWatched {
+            url,
             post_id,
-            translator_id,
             season,
             episode,
         } => {
-            client
-                .mark_watched(post_id, translator_id, season, episode)
-                .await?;
+            client.mark_watched(&url, post_id, season, episode).await?;
             Ok(Value::Null)
         }
     }

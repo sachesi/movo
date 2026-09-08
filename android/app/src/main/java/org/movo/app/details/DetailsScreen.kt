@@ -1179,7 +1179,6 @@ private fun PlaybackSheet(
                                     onClick = start,
                                     enabled = playable,
                                     headlineContent = { TvText(episode.title, modifier = Modifier.alpha(contentAlpha)) },
-                                    supportingContent = episode.watchId?.let { id -> { TvText(id, Modifier.alpha(contentAlpha), maxLines = 1) } },
                                     trailingContent = {
                                         if (loading && startingEpisodeId == episode.id) {
                                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -1192,7 +1191,6 @@ private fun PlaybackSheet(
                                 )
                             } else ListItem(
                                 headlineContent = { Text(episode.title, modifier = Modifier.alpha(contentAlpha)) },
-                                supportingContent = episode.watchId?.let { id -> { Text(id, Modifier.alpha(contentAlpha), maxLines = 1) } },
                                 modifier = Modifier
                                     .clickable(enabled = playable, onClickLabel = stringResource(R.string.play_episode, episode.title), onClick = start),
                                 trailingContent = {

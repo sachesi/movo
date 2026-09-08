@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 
 data class AppState(
@@ -715,7 +716,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details ?: return
         episodesJob?.cancel()
         episodesJob = run {
-            val seasons = NativeBridge.decode<List<Season>>("episodes", buildJsonObject { put("post_id", details.id); put("translator_id", translator.id) })
+            val seasons = NativeBridge.decode<List<Season>>("episodes", buildJsonObject {
+                put("post_id", details.id)
+                put("translator_id", translator.id)
+                // The watched state of the episodes lives on the title's schedule.
+                put("schedules", NativeBridge.json.encodeToJsonElement(details.schedules))
+            })
             if (state.value.user?.userId == userId && state.value.details?.url == details.url) {
                 _state.update { it.copy(
                     details = state.value.details?.copy(seasons = seasons),
@@ -997,8 +1003,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         if (markedWatchedKey == key) return
         runCatching {
             NativeBridge.call("mark_watched", buildJsonObject {
+                put("url", details.url)
                 put("post_id", details.id)
-                put("translator_id", stream.translatorId)
                 stream.season?.let { put("season", it) }
                 stream.episode?.let { put("episode", it) }
             })
