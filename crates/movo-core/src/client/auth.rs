@@ -349,18 +349,22 @@ pub async fn save_watch(
     let translator_id = translator_id.to_string();
     let season = season.unwrap_or(0).to_string();
     let episode = episode.unwrap_or(0).to_string();
-    // Sent the way the site's player sends it at playback start. The reply
-    // is `success: false` for the site as well, so it is never inspected.
+    // Posted with the app headers like every other write: the provider's edge
+    // rejects a browser-shaped post from outside a browser with an empty 403.
+    // The site's player sends the save a second into playback, when the
+    // position is already real, so the position is reported as one second.
+    // `success` is true only when a row was inserted; updating the row of a
+    // title already in the history answers false, so the reply is never
+    // inspected and the read-back decides.
     let response = session
-        .post_ajax_as_site(
+        .post_ajax(
             "ajax/send_save/",
             &[
                 ("post_id", &post_id),
                 ("translator_id", &translator_id),
                 ("season", &season),
                 ("episode", &episode),
-                ("current_time", "0"),
-                ("duration", "0"),
+                ("current_time", "1"),
             ],
         )
         .await?;
@@ -528,14 +532,20 @@ mod tests {
             let (mut request, _) = listener.accept().unwrap();
             let request_text = read_request(&mut request);
             assert!(request_text.starts_with("POST /ajax/send_save/"));
-            // The site accepts the save only in its own page script's shape.
+            // The provider's edge only lets the app-tagged multipart post through.
             let lower = request_text.to_ascii_lowercase();
-            assert!(lower.contains("content-type: application/x-www-form-urlencoded"));
-            assert!(lower.contains("x-requested-with: xmlhttprequest"));
-            assert!(!lower.contains("x-hdrezka-android-app"));
-            assert!(request_text.ends_with(
-                "post_id=7&translator_id=8&season=1&episode=2&current_time=0&duration=0"
-            ));
+            assert!(lower.contains("content-type: multipart/form-data"));
+            assert!(lower.contains("x-hdrezka-android-app: 1"));
+            for field in [
+                "post_id\"\r\n\r\n7",
+                "translator_id\"\r\n\r\n8",
+                "season\"\r\n\r\n1",
+                "episode\"\r\n\r\n2",
+                "current_time\"\r\n\r\n1",
+            ] {
+                assert!(request_text.contains(field), "missing {field:?}");
+            }
+            assert!(!request_text.contains("name=\"duration\""));
             respond(
                 &mut request,
                 "Content-Type: application/json\r\n",

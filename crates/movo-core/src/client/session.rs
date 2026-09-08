@@ -1,9 +1,7 @@
 use super::anubis;
 use super::anubis::AnubisSolution;
 use reqwest::cookie::CookieStore;
-use reqwest::header::{
-    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, ORIGIN, REFERER, USER_AGENT,
-};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, REFERER, USER_AGENT};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -21,16 +19,6 @@ pub const OFFICIAL_MIRROR: &str = "https://hdrzk.org";
 
 /// First retry waits this long; each further attempt doubles it.
 const RETRY_BASE_DELAY: Duration = Duration::from_millis(300);
-
-/// How a POST is encoded and tagged. The provider serves the app and the
-/// page script differently, and some endpoints only answer one of them.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum PostShape {
-    /// Multipart form with the Android app headers the rest of the client uses.
-    App,
-    /// Url-encoded XHR as the site's own page script sends it.
-    Site,
-}
 
 /// Upper bound of the random-ish spread added to every retry delay.
 const RETRY_SPREAD_MS: u64 = 100;
@@ -53,8 +41,6 @@ pub struct RezkaSession {
     /// pass-challenge call, whose 302 carries the clearance Set-Cookie that
     /// would be hidden if followed.
     pass_client: reqwest::Client,
-    /// Same jar, no app headers: for the endpoints that only answer the page script.
-    site_client: reqwest::Client,
     cookie_jar: Arc<SharedCookieJar>,
     auth_epoch: Arc<AtomicU64>,
     base_url: String,
@@ -110,27 +96,9 @@ impl RezkaSession {
             .build()
             .expect("Failed to build Anubis pass-challenge HTTP client");
 
-        // Default headers are merged in at send time, so a request that must
-        // not carry the app tag needs a client that never had it.
-        let mut site_headers = HeaderMap::new();
-        site_headers.insert(USER_AGENT, HeaderValue::from_static(DEFAULT_USER_AGENT));
-        site_headers.insert(
-            ACCEPT_LANGUAGE,
-            HeaderValue::from_static("ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"),
-        );
-        let site_client = reqwest::Client::builder()
-            .cookie_provider(cookie_jar.clone())
-            .default_headers(site_headers)
-            .timeout(Duration::from_secs(25))
-            .gzip(true)
-            .brotli(true)
-            .build()
-            .expect("Failed to build site-shaped HTTP client");
-
         Self {
             client,
             pass_client,
-            site_client,
             cookie_jar,
             auth_epoch: Arc::new(AtomicU64::new(0)),
             base_url: base,
@@ -428,35 +396,13 @@ impl RezkaSession {
         endpoint: &str,
         form_data: &[(&str, &str)],
     ) -> Result<String, String> {
-        self.post_ajax_shaped(endpoint, form_data, PostShape::App)
-            .await
-    }
-
-    /// Like [`post_ajax`](Self::post_ajax), but shaped exactly as the site's
-    /// own page script sends it: url-encoded, `X-Requested-With`, no app
-    /// headers. The history save is accepted only in that shape.
-    pub async fn post_ajax_as_site(
-        &self,
-        endpoint: &str,
-        form_data: &[(&str, &str)],
-    ) -> Result<String, String> {
-        self.post_ajax_shaped(endpoint, form_data, PostShape::Site)
-            .await
-    }
-
-    async fn post_ajax_shaped(
-        &self,
-        endpoint: &str,
-        form_data: &[(&str, &str)],
-        shape: PostShape,
-    ) -> Result<String, String> {
         let full_url = self.ajax_url(endpoint);
 
         let mut last_err = String::new();
         for attempt in 0..3 {
             Self::back_off(attempt).await;
 
-            match self.execute_post(&full_url, form_data, shape).await {
+            match self.execute_post(&full_url, form_data).await {
                 Ok(resp) => return Ok(resp),
                 Err(e) => {
                     last_err = e;
@@ -479,39 +425,17 @@ impl RezkaSession {
         endpoint: &str,
         form_data: &[(&str, &str)],
     ) -> Result<String, String> {
-        self.execute_post(&self.ajax_url(endpoint), form_data, PostShape::App)
-            .await
-    }
-
-    /// The client whose default headers match `shape`; the request must be
-    /// sent by the same client that built it, or the other set is merged in.
-    fn client_for(&self, shape: PostShape) -> &reqwest::Client {
-        match shape {
-            PostShape::App => &self.client,
-            PostShape::Site => &self.site_client,
-        }
+        self.execute_post(&self.ajax_url(endpoint), form_data).await
     }
 
     fn post_request(
         &self,
         full_url: &str,
         form_data: &[(&str, &str)],
-        shape: PostShape,
     ) -> Result<reqwest::Request, String> {
-        let builder = match shape {
-            PostShape::App => self
-                .client
-                .post(full_url)
-                .multipart(Self::multipart_form(form_data)),
-            PostShape::Site => self
-                .site_client
-                .post(full_url)
-                .form(form_data)
-                .header(ACCEPT, "*/*")
-                .header(ORIGIN, &self.base_url)
-                .header("X-Requested-With", "XMLHttpRequest"),
-        };
-        builder
+        self.client
+            .post(full_url)
+            .multipart(Self::multipart_form(form_data))
             .header(REFERER, &self.base_url)
             .build()
             .map_err(|e| format!("HTTP POST request failed: {}", e.without_url()))
@@ -521,11 +445,10 @@ impl RezkaSession {
         &self,
         full_url: &str,
         form_data: &[(&str, &str)],
-        shape: PostShape,
     ) -> Result<String, String> {
-        let request = self.post_request(full_url, form_data, shape)?;
+        let request = self.post_request(full_url, form_data)?;
         let resp = self
-            .client_for(shape)
+            .client
             .execute(request)
             .await
             .map_err(|e| format!("HTTP POST request failed: {}", e.without_url()))?;
@@ -549,9 +472,9 @@ impl RezkaSession {
             self.solve_anubis_challenge(&body, full_url).await?;
 
             // Retry original post after passing PoW
-            let retry_request = self.post_request(full_url, form_data, shape)?;
+            let retry_request = self.post_request(full_url, form_data)?;
             let retry_resp = self
-                .client_for(shape)
+                .client
                 .execute(retry_request)
                 .await
                 .map_err(|e| format!("Post-Anubis POST request failed: {}", e.without_url()))?;
