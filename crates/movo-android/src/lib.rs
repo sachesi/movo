@@ -225,8 +225,7 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
         }
         Command::History => Ok(json!(client.sync_history().await?)),
         Command::RemoveHistory { id } => {
-            client.remove_history(&id).await?;
-            Ok(Value::Null)
+            Ok(json!({"media_id": client.remove_history_with_media(&id).await?}))
         }
         Command::SetHistoryWatched { id, watched } => {
             client.set_history_watched(&id, watched).await?;
@@ -340,7 +339,11 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
     // A failed allocation here must not unwind out of an `extern "system"` function either,
     // so the conversion is fallible all the way down instead of relying on `caught` above it.
     env.new_string(response)
-        .or_else(|_| env.new_string(r#"{"error":"The request stopped unexpectedly","code":"other","rejected":false}"#))
+        .or_else(|_| {
+            env.new_string(
+                r#"{"error":"The request stopped unexpectedly","code":"other","rejected":false}"#,
+            )
+        })
         .map(|value| value.into_raw())
         .unwrap_or(std::ptr::null_mut())
 }

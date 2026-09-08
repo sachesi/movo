@@ -1,6 +1,6 @@
-use crate::api::{guarded, Guarded};
+use crate::api::{guarded_as, Guarded};
 use crate::i18n::tr;
-use crate::state::AppState;
+use crate::state::{account_of, Account, AppState};
 use crate::ui::content::{ContentStack, ContentState};
 use movo_core::client::models::{MediaItem, ServerHistoryEntry};
 use movo_core::client::SyncedHistory;
@@ -13,6 +13,10 @@ use std::rc::Rc;
 
 pub struct HistoryView {
     state: Rc<AppState>,
+    account: Option<Account>,
+    /// Set while the removal confirmation is up, so a second click on the row
+    /// button does not stack a second dialog behind the first.
+    confirming: bool,
     rows: FactoryVecDeque<HistoryRow>,
     content: ContentStack,
 }
@@ -23,6 +27,8 @@ pub enum HistoryMsg {
     Open(MediaItem),
     SetWatched(String, bool),
     Remove(String),
+    ConfirmationClosed,
+    Delete(String),
 }
 
 #[derive(Debug)]
@@ -77,9 +83,15 @@ impl Component for HistoryView {
             .build();
 
         let content = ContentStack::new(&scrolled, tr("History Did Not Load"));
+        content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(HistoryMsg::Reload)
+        });
 
         let model = HistoryView {
             state,
+            account: None,
+            confirming: false,
             rows,
             content,
         };
@@ -89,10 +101,11 @@ impl Component for HistoryView {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
         match message {
             HistoryMsg::Reload => {
                 if self.state.user().is_none() {
+                    self.account = None;
                     self.rows.guard().clear();
                     self.content
                         .set(ContentState::SignedOut(tr("Sign In to See Your History")));
@@ -100,21 +113,35 @@ impl Component for HistoryView {
                 }
                 self.content
                     .set(ContentState::Loading(tr("Loading History")));
+                self.account = account_of(&self.state.client);
+                let account = self.account.clone();
                 let client = self.state.client.clone();
                 sender.oneshot_command(async move {
                     HistoryCommand::Loaded(
-                        guarded(client, |client| async move { client.sync_history().await }).await,
+                        guarded_as(client, account, |client| async move {
+                            client.sync_history().await
+                        })
+                        .await,
                     )
                 });
             }
             HistoryMsg::Open(item) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(HistoryOutput::AccountInvalidated);
+                    return;
+                }
                 let _ = sender.output(HistoryOutput::Open(item));
             }
             HistoryMsg::SetWatched(id, watched) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(HistoryOutput::AccountInvalidated);
+                    return;
+                }
+                let account = self.account.clone();
                 let client = self.state.client.clone();
                 sender.oneshot_command(async move {
                     HistoryCommand::Changed(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             client.set_history_watched(&id, watched).await
                         })
                         .await,
@@ -122,10 +149,44 @@ impl Component for HistoryView {
                 });
             }
             HistoryMsg::Remove(id) => {
+                if self.confirming {
+                    return;
+                }
+                let Some(window) = root
+                    .root()
+                    .and_then(|root| root.downcast::<gtk::Window>().ok())
+                else {
+                    return;
+                };
+                self.confirming = true;
+                let dialog = adw::AlertDialog::builder()
+                    .heading(tr("Remove From History?"))
+                    .body(tr(
+                        "This removes the title from your account history and this device.",
+                    ))
+                    .close_response("cancel")
+                    .build();
+                dialog.add_responses(&[("cancel", tr("Cancel")), ("remove", tr("Remove"))]);
+                dialog.set_response_appearance("remove", adw::ResponseAppearance::Destructive);
+                relm4::spawn_local(async move {
+                    let response = dialog.choose_future(Some(&window)).await;
+                    sender.input(HistoryMsg::ConfirmationClosed);
+                    if response == "remove" {
+                        sender.input(HistoryMsg::Delete(id));
+                    }
+                });
+            }
+            HistoryMsg::ConfirmationClosed => self.confirming = false,
+            HistoryMsg::Delete(id) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(HistoryOutput::AccountInvalidated);
+                    return;
+                }
+                let account = self.account.clone();
                 let client = self.state.client.clone();
                 sender.oneshot_command(async move {
                     HistoryCommand::Changed(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             client.remove_history(&id).await
                         })
                         .await,
@@ -255,8 +316,7 @@ impl relm4::factory::FactoryComponent for HistoryRow {
                 set_tooltip_text: Some(tr("Remove from History")),
                 set_has_frame: false,
                 set_valign: gtk::Align::Center,
-                connect_clicked[sender, id = self.entry.id.clone()] => move |button| {
-                    button.set_sensitive(false);
+                connect_clicked[sender, id = self.entry.id.clone()] => move |_| {
                     sender.output(HistoryMsg::Remove(id.clone())).ok();
                 },
             },

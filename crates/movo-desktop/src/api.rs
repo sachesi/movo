@@ -22,7 +22,30 @@ where
     T: Send + 'static,
 {
     let account = account_of(&client);
-    let result = relm4::spawn(async move { request(client).await }).await;
+    guarded_as(client, account, request).await
+}
+
+/// Run a request only if the account captured by the caller is still current.
+/// This closes the gap between a widget scheduling work and the worker starting
+/// after a sign-in, sign-out, or account switch.
+pub async fn guarded_as<T, F, Fut>(
+    client: Arc<RezkaClient>,
+    account: Option<Account>,
+    request: F,
+) -> Guarded<T>
+where
+    F: FnOnce(Arc<RezkaClient>) -> Fut + Send + 'static,
+    Fut: Future<Output = Result<T, String>> + Send,
+    T: Send + 'static,
+{
+    let expected = account.clone();
+    let result = relm4::spawn(async move {
+        if expected.is_some() && account_of(&client) != expected {
+            return Err(tr("The account changed before the request started").to_string());
+        }
+        request(client).await
+    })
+    .await;
     Guarded {
         account,
         result: result.unwrap_or_else(|_| Err(tr("The request stopped unexpectedly").to_string())),

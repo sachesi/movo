@@ -1,6 +1,6 @@
-use crate::api::{guarded, Guarded};
+use crate::api::{guarded_as, Guarded};
 use crate::i18n::{tr, trf};
-use crate::state::AppState;
+use crate::state::{account_of, Account, AppState};
 use crate::ui::content::{ContentStack, ContentState};
 use crate::ui::image::{self, ImageToken};
 use crate::ui::poster_grid::{poster_row, PosterItem, PosterRow};
@@ -29,6 +29,7 @@ const POSTER_HEIGHT: i32 = 248;
 pub struct DetailsView {
     state: Rc<AppState>,
     url: String,
+    account: Option<Account>,
     details: Option<MediaDetails>,
     favorite_categories: Vec<FavoritesCollection>,
     translator: Option<Translator>,
@@ -84,7 +85,10 @@ type LoadedDetails = (
 #[derive(Debug)]
 pub enum DetailsCommand {
     Loaded(Box<Guarded<LoadedDetails>>),
-    Episodes(Guarded<Vec<Season>>),
+    Episodes {
+        translator_id: i64,
+        loaded: Guarded<Vec<Season>>,
+    },
     Trailer(Guarded<Option<String>>),
     /// A mutation that only needs a success or failure report.
     Changed(Guarded<()>, &'static str),
@@ -139,6 +143,7 @@ impl relm4::Component for DetailsView {
         let model = DetailsView {
             state,
             url,
+            account: None,
             details: None,
             favorite_categories: Vec::new(),
             translator: None,
@@ -168,6 +173,7 @@ impl relm4::Component for DetailsView {
         match message {
             DetailsMsg::Reload => {
                 self.content.set(ContentState::Loading(tr("Loading")));
+                self.account = account_of(&self.state.client);
 
                 // A saved page lets the layout be checked without provider
                 // access, which some networks refuse.
@@ -187,9 +193,10 @@ impl relm4::Component for DetailsView {
                 let client = self.state.client.clone();
                 let url = self.url.clone();
                 let user_id = self.state.user().map(|user| user.user_id);
+                let account = self.account.clone();
                 sender.oneshot_command(async move {
                     DetailsCommand::Loaded(Box::new(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             let details = client.fetch_details(&url).await?;
                             let Some(user_id) = user_id else {
                                 return Ok((details, Vec::new(), None));
@@ -200,11 +207,13 @@ impl relm4::Component for DetailsView {
                                 .unwrap_or_default();
                             let media_id = details.id;
                             let resume = relm4::spawn_blocking(move || {
-                                WatchHistory::load(&user_id).latest_for(media_id).cloned()
+                                WatchHistory::load(&user_id)
+                                    .map(|history| history.latest_for(media_id).cloned())
                             })
                             .await
-                            .ok()
-                            .flatten();
+                            .map_err(|_| {
+                                tr("Loading local history stopped unexpectedly").to_string()
+                            })??;
                             Ok((details, categories, resume))
                         })
                         .await,
@@ -222,13 +231,15 @@ impl relm4::Component for DetailsView {
                 if !details.seasons.is_empty() || details.media_type == MediaType::TVSeries {
                     let client = self.state.client.clone();
                     let post_id = details.id;
+                    let account = self.account.clone();
                     sender.oneshot_command(async move {
-                        DetailsCommand::Episodes(
-                            guarded(client, move |client| async move {
+                        DetailsCommand::Episodes {
+                            translator_id: translator.id,
+                            loaded: guarded_as(client, account, move |client| async move {
                                 client.fetch_episodes(post_id, translator.id).await
                             })
                             .await,
-                        )
+                        }
                     });
                 }
             }
@@ -258,6 +269,10 @@ impl relm4::Component for DetailsView {
                 let Some(details) = self.details.as_ref() else {
                     return;
                 };
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
                 if self.state.user().is_none() {
                     let _ = sender.output(DetailsOutput::Notify(
                         tr("Sign in to manage favorites").to_string(),
@@ -268,9 +283,10 @@ impl relm4::Component for DetailsView {
                 let client = self.state.client.clone();
                 let url = details.url.clone();
                 let post_id = details.id;
+                let account = self.account.clone();
                 sender.oneshot_command(async move {
                     DetailsCommand::Changed(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             client
                                 .set_favorite(&url, post_id, category_id, favorite)
                                 .await
@@ -281,10 +297,15 @@ impl relm4::Component for DetailsView {
                 });
             }
             DetailsMsg::ToggleScheduleWatched(id) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
                 let client = self.state.client.clone();
+                let account = self.account.clone();
                 sender.oneshot_command(async move {
                     DetailsCommand::Changed(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             client.toggle_schedule_watched(&id).await
                         })
                         .await,
@@ -296,11 +317,16 @@ impl relm4::Component for DetailsView {
                 let Some(details) = self.details.as_ref() else {
                     return;
                 };
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
                 let client = self.state.client.clone();
                 let post_id = details.id;
+                let account = self.account.clone();
                 sender.oneshot_command(async move {
                     DetailsCommand::Trailer(
-                        guarded(client, move |client| async move {
+                        guarded_as(client, account, move |client| async move {
                             client.fetch_trailer(post_id).await
                         })
                         .await,
@@ -317,11 +343,16 @@ impl relm4::Component for DetailsView {
                     ));
                     return;
                 }
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
                 let notify = sender.clone();
                 crate::dialogs::rating::present(
                     root,
                     self.state.clone(),
                     details.id,
+                    self.account.clone(),
                     move |result| {
                         let message = match result {
                             Ok(rating) => trf("Rated {} out of 10", &[&rating]),
@@ -335,11 +366,16 @@ impl relm4::Component for DetailsView {
                 let Some(details) = self.details.as_ref() else {
                     return;
                 };
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
                 let notify = sender.clone();
                 crate::dialogs::comments::present(
                     root,
                     self.state.clone(),
                     details.id,
+                    self.account.clone(),
                     move |error| notify.input(DetailsMsg::Notify(error)),
                 );
             }
@@ -374,10 +410,18 @@ impl relm4::Component for DetailsView {
     ) {
         match message {
             DetailsCommand::Loaded(loaded) => {
+                // Narrower than `accepts`, which lets any signed-out result
+                // through as public: the page reloads under the account as soon
+                // as one appears, and the anonymous reply landing after that one
+                // would put the thinner, favorite-less version back on screen.
+                if loaded.account.is_none() && self.state.account().is_some() {
+                    return;
+                }
                 if !self.state.accepts(&loaded.account) {
                     let _ = sender.output(DetailsOutput::AccountInvalidated);
                     return;
                 }
+                self.account = loaded.account.clone();
                 match loaded.result {
                     Ok((details, categories, resume)) => {
                         self.favorite_categories = categories;
@@ -386,9 +430,22 @@ impl relm4::Component for DetailsView {
                     Err(error) => self.content.set(ContentState::Error(&error)),
                 }
             }
-            DetailsCommand::Episodes(loaded) => {
+            DetailsCommand::Episodes {
+                translator_id,
+                loaded,
+            } => {
+                // Narrower than `accepts`, which lets any signed-out result
+                // through as public: the page reloads under the account as soon
+                // as one appears, and the anonymous reply landing after that one
+                // would put the thinner, favorite-less version back on screen.
+                if loaded.account.is_none() && self.state.account().is_some() {
+                    return;
+                }
                 if !self.state.accepts(&loaded.account) {
                     let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
+                if self.translator.as_ref().map(|translator| translator.id) != Some(translator_id) {
                     return;
                 }
                 match loaded.result {
@@ -409,24 +466,30 @@ impl relm4::Component for DetailsView {
                     }
                 }
             }
-            DetailsCommand::Trailer(loaded) => match loaded.result {
-                Ok(Some(url)) => {
-                    if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
-                        &url,
-                        None::<&gtk::gio::AppLaunchContext>,
-                    ) {
-                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
+            DetailsCommand::Trailer(loaded) => {
+                if !self.state.accepts(&loaded.account) {
+                    let _ = sender.output(DetailsOutput::AccountInvalidated);
+                    return;
+                }
+                match loaded.result {
+                    Ok(Some(url)) => {
+                        if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
+                            &url,
+                            None::<&gtk::gio::AppLaunchContext>,
+                        ) {
+                            let _ = sender.output(DetailsOutput::Notify(error.to_string()));
+                        }
+                    }
+                    Ok(None) => {
+                        let _ = sender.output(DetailsOutput::Notify(
+                            tr("No trailer is available for this title").to_string(),
+                        ));
+                    }
+                    Err(error) => {
+                        let _ = sender.output(DetailsOutput::Notify(error));
                     }
                 }
-                Ok(None) => {
-                    let _ = sender.output(DetailsOutput::Notify(
-                        tr("No trailer is available for this title").to_string(),
-                    ));
-                }
-                Err(error) => {
-                    let _ = sender.output(DetailsOutput::Notify(error));
-                }
-            },
+            }
             DetailsCommand::Changed(changed, kind) => {
                 if !self.state.accepts(&changed.account) {
                     let _ = sender.output(DetailsOutput::AccountInvalidated);
@@ -434,12 +497,13 @@ impl relm4::Component for DetailsView {
                 }
                 match changed.result {
                     Ok(()) => {
-                        if kind == "favorite" {
+                        if matches!(kind, "favorite" | "schedule") {
                             sender.input(DetailsMsg::Reload);
                         }
                     }
                     Err(error) => {
                         let _ = sender.output(DetailsOutput::Notify(error));
+                        sender.input(DetailsMsg::Reload);
                     }
                 }
             }

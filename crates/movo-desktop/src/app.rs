@@ -3,7 +3,7 @@ use crate::playback::launcher::{Launcher, LauncherMsg, LauncherOutput, PlayReque
 use crate::state::AppState;
 use crate::views::catalog::{CatalogMsg, CatalogOutput, CatalogView};
 use crate::views::collections::{CollectionsOutput, CollectionsView};
-use crate::views::details::{DetailsOutput, DetailsView};
+use crate::views::details::{DetailsMsg, DetailsOutput, DetailsView};
 use crate::views::favorites::{FavoritesMsg, FavoritesOutput, FavoritesView};
 use crate::views::history::{HistoryMsg, HistoryOutput, HistoryView};
 use crate::views::home::{HomeMsg, HomeOutput, HomeView};
@@ -383,6 +383,9 @@ impl App {
         self.favorites.emit(FavoritesMsg::Reload);
         self.history.emit(HistoryMsg::Reload);
         self.notifications.emit(NotificationsMsg::Reload);
+        for details in &self.details {
+            details.emit(DetailsMsg::Reload);
+        }
     }
 
     /// A tab keeps what it loaded; only account-scoped tabs are refreshed, and

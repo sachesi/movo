@@ -244,7 +244,7 @@ class TvNavigationTest {
             HomeSection(id, listOf(MediaItem(1, "Film", url = "/$id")))
         }
         compose.setTvContent {
-            if (loading) TvHomeSkeleton() else TvHomeScreen(sections, false) { _, _ -> }
+            if (loading) TvHomeSkeleton() else TvHomeScreen(sections, null) { _, _ -> }
         }
         val placeholders = compose.onNodeWithTag("tv-home-placeholder-list")
         repeat(5) { rail ->

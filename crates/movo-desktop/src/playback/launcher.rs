@@ -1,7 +1,7 @@
-use crate::api::{guarded, Guarded};
+use crate::api::{guarded_as, Guarded};
 use crate::i18n::{tr, trf};
 use crate::playback::mpv::{self, HistorySeed, LaunchRequest, PlaybackEvent, PlayerKind};
-use crate::state::AppState;
+use crate::state::{account_of, Account, AppState};
 use movo_core::client::models::{MediaDetails, StreamBundle, SubtitleTrack};
 use movo_core::storage::history::{WatchHistory, WatchHistoryEntry};
 use relm4::adw;
@@ -26,14 +26,16 @@ pub struct PlayRequest {
 pub struct Launcher {
     state: Rc<AppState>,
     window: gtk::Window,
-    current: Option<PlayRequest>,
 }
 
 #[derive(Debug)]
 pub enum LauncherMsg {
     Play(Box<PlayRequest>),
     /// The player is running, so the title belongs in the account's history.
-    Started,
+    Started {
+        request: Box<PlayRequest>,
+        account: Account,
+    },
 }
 
 #[derive(Debug)]
@@ -49,7 +51,7 @@ pub enum LauncherOutput {
 #[derive(Debug)]
 pub enum LauncherCommand {
     Stream(Box<PlayRequest>, Box<Guarded<StreamBundle>>),
-    Event(PlaybackEvent),
+    Event(Box<PlaybackEvent>),
     /// The provider was told the title finished.
     Marked(Guarded<()>),
 }
@@ -75,11 +77,7 @@ impl Component for Launcher {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         ComponentParts {
-            model: Launcher {
-                state,
-                window,
-                current: None,
-            },
+            model: Launcher { state, window },
             widgets: (),
         }
     }
@@ -87,7 +85,9 @@ impl Component for Launcher {
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         let request = match message {
             LauncherMsg::Play(request) => request,
-            LauncherMsg::Started => return self.sync(&sender, false),
+            LauncherMsg::Started { request, account } => {
+                return self.sync(&sender, *request, account, false)
+            }
         };
 
         // The provider refuses anonymous stream requests, so say so here
@@ -99,15 +99,15 @@ impl Component for Launcher {
             return;
         }
 
-        self.current = Some((*request).clone());
         let client = self.state.client.clone();
+        let account = account_of(&client);
         let details = request.details.clone();
         let translator_id = request.translator_id;
         let season = request.season;
         let episode = request.episode;
 
         sender.oneshot_command(async move {
-            let loaded = guarded(client, move |client| async move {
+            let loaded = guarded_as(client, account, move |client| async move {
                 match (season, episode) {
                     (Some(season), Some(episode)) => {
                         client
@@ -147,55 +147,67 @@ impl Component for Launcher {
                             tr("No streams are available for the selected voice-over.").to_string(),
                         ));
                     }
-                    Ok(bundle) => self.start(*request, bundle, &sender),
+                    Ok(bundle) => {
+                        let Some(account) = loaded.account else {
+                            let _ = sender.output(LauncherOutput::AccountInvalidated);
+                            return;
+                        };
+                        self.start(*request, bundle, account, &sender);
+                    }
                     Err(error) => {
                         let _ = sender.output(LauncherOutput::Notify(error));
                     }
                 }
             }
-            LauncherCommand::Event(event) => match event {
-                PlaybackEvent::Ended => {
+            LauncherCommand::Event(event) => match *event {
+                PlaybackEvent::Ended(history) => {
+                    let request = request_from_history(&history);
                     let _ = sender.output(LauncherOutput::HistoryChanged);
-                    self.sync(&sender, true);
-                    self.play_next(&sender);
+                    self.sync(&sender, request.clone(), history.account.clone(), true);
+                    self.play_next(&request, &history.account, &sender);
                 }
-                PlaybackEvent::TrackingLost(message) => {
+                PlaybackEvent::TrackingLost(_, message) => {
                     let _ = sender.output(LauncherOutput::HistoryChanged);
                     let _ = sender.output(LauncherOutput::Notify(message));
                 }
-                PlaybackEvent::Failed(message) => {
+                PlaybackEvent::Failed(_, message) => {
+                    let _ = sender.output(LauncherOutput::HistoryChanged);
                     let _ = sender.output(LauncherOutput::Notify(message));
                 }
             },
-            LauncherCommand::Marked(marked) => match marked.result {
-                Ok(()) => {
-                    let _ = sender.output(LauncherOutput::HistoryChanged);
+            LauncherCommand::Marked(marked) => {
+                if !self.state.accepts(&marked.account) {
+                    let _ = sender.output(LauncherOutput::AccountInvalidated);
+                    return;
                 }
-                Err(error) => {
-                    let _ = sender.output(LauncherOutput::Notify(error));
+                match marked.result {
+                    Ok(()) => {
+                        let _ = sender.output(LauncherOutput::HistoryChanged);
+                    }
+                    Err(error) => {
+                        let _ = sender.output(LauncherOutput::Notify(error));
+                    }
                 }
-            },
+            }
         }
     }
 }
 
 impl Launcher {
     fn start(
-        &mut self,
+        &self,
         request: PlayRequest,
         bundle: StreamBundle,
+        account: Account,
         sender: &ComponentSender<Self>,
     ) {
-        let settings = self.state.settings();
-        let Some(user) = self.state.user() else {
-            let _ = sender.output(LauncherOutput::Notify(
-                tr("Sign in to play this title").to_string(),
-            ));
+        if !self.state.accepts(&Some(account.clone())) {
+            let _ = sender.output(LauncherOutput::AccountInvalidated);
             return;
-        };
+        }
+        let settings = self.state.settings();
 
         let default_index = default_stream_index(&bundle, &settings.default_quality);
-        let user_id = user.user_id;
         let player = settings.external_player.trim().to_string();
 
         if settings.ask_quality_before_play && bundle.streams.len() > 1 {
@@ -207,7 +219,7 @@ impl Launcher {
                 quality_labels(&bundle),
                 default_index,
                 move |index| {
-                    launch(sender, &window, &request, &bundle, index, &user_id, player);
+                    launch(sender, &window, &request, &bundle, index, &account, player);
                 },
             );
         } else {
@@ -217,17 +229,25 @@ impl Launcher {
                 &request,
                 &bundle,
                 default_index,
-                &user_id,
+                &account,
                 player,
             );
         }
     }
 
     /// Tell the provider the current title started, or finished.
-    fn sync(&self, sender: &ComponentSender<Self>, finished: bool) {
-        let Some(request) = self.current.clone() else {
+    fn sync(
+        &self,
+        sender: &ComponentSender<Self>,
+        request: PlayRequest,
+        account: Account,
+        finished: bool,
+    ) {
+        let account = Some(account);
+        if !self.state.accepts(&account) {
+            let _ = sender.output(LauncherOutput::AccountInvalidated);
             return;
-        };
+        }
         let client = self.state.client.clone();
         let (id, translator, season, episode) = (
             request.details.id,
@@ -237,7 +257,7 @@ impl Launcher {
         );
         sender.oneshot_command(async move {
             LauncherCommand::Marked(
-                guarded(client, move |client| async move {
+                guarded_as(client, account, move |client| async move {
                     if finished {
                         client.mark_watched(id, translator, season, episode).await
                     } else {
@@ -250,13 +270,14 @@ impl Launcher {
     }
 
     /// Continue with the next episode of the current season, if there is one.
-    fn play_next(&mut self, sender: &ComponentSender<Self>) {
+    fn play_next(&self, current: &PlayRequest, account: &Account, sender: &ComponentSender<Self>) {
         if !self.state.settings().auto_next_episode {
             return;
         }
-        let Some(current) = self.current.clone() else {
+        if !self.state.accepts(&Some(account.clone())) {
+            let _ = sender.output(LauncherOutput::AccountInvalidated);
             return;
-        };
+        }
         let (Some(season_id), Some(episode_id)) = (current.season, current.episode) else {
             return;
         };
@@ -288,13 +309,22 @@ impl Launcher {
     }
 }
 
+fn request_from_history(history: &HistorySeed) -> PlayRequest {
+    PlayRequest {
+        details: history.details.clone(),
+        translator_id: history.translator_id,
+        season: history.season,
+        episode: history.episode,
+    }
+}
+
 fn launch(
     sender: ComponentSender<Launcher>,
     window: &gtk::Window,
     request: &PlayRequest,
     bundle: &StreamBundle,
     index: usize,
-    user_id: &str,
+    account: &Account,
     command: String,
 ) {
     let Some(url) = bundle
@@ -312,14 +342,29 @@ fn launch(
     let request = request.clone();
     let bundle = bundle.clone();
     let url = url.to_string();
-    let user_id = user_id.to_string();
+    let account = account.clone();
     let events = sender.command_sender().clone();
     let window = window.clone();
 
     relm4::spawn_local(async move {
-        let launch_request = build_request(&request, &bundle, url, &user_id).await;
+        let launch_request = match build_request(&request, &bundle, url, &account).await {
+            Ok(request) => request,
+            Err(error) => {
+                let _ = sender.output(LauncherOutput::Notify(error));
+                return;
+            }
+        };
         match start_player(command, window, launch_request, events).await {
-            Ok(()) => sender.input(LauncherMsg::Started),
+            Ok(Launched::Cancelled) => {}
+            Ok(launched) => {
+                if let Launched::Untracked(notice) = launched {
+                    let _ = sender.output(LauncherOutput::Notify(notice));
+                }
+                sender.input(LauncherMsg::Started {
+                    request: Box::new(request),
+                    account,
+                });
+            }
             Err(error) => {
                 let _ = sender.output(LauncherOutput::Notify(error));
             }
@@ -345,22 +390,20 @@ async fn build_request(
     request: &PlayRequest,
     bundle: &StreamBundle,
     url: String,
-    user_id: &str,
-) -> LaunchRequest {
-    let lookup_user_id = user_id.to_string();
+    account: &Account,
+) -> Result<LaunchRequest, String> {
+    let lookup_user_id = account.user_id.clone();
     let media_id = request.details.id;
     let season = request.season;
     let episode = request.episode;
     let previous = relm4::spawn_blocking(move || {
         WatchHistory::load(&lookup_user_id)
-            .get_entry(media_id, season, episode)
-            .cloned()
+            .map(|history| history.get_entry(media_id, season, episode).cloned())
     })
     .await
-    .ok()
-    .flatten();
+    .map_err(|_| tr("Loading local history stopped unexpectedly").to_string())??;
 
-    LaunchRequest {
+    Ok(LaunchRequest {
         url,
         subtitle: default_subtitle(&bundle.subtitles),
         title: match (request.season, request.episode) {
@@ -381,12 +424,27 @@ async fn build_request(
             .unwrap_or(0.0),
         history: HistorySeed {
             details: request.details.clone(),
-            user_id: user_id.to_string(),
+            account: account.clone(),
             translator_id: request.translator_id,
             season: request.season,
             episode: request.episode,
         },
-    }
+    })
+}
+
+/// What a launch attempt produced.
+///
+/// Telling the provider that a title was started is a plain request; only the
+/// resume position needs the player to report back. Keeping "running, but
+/// nothing will report progress" apart from "did not start" is what lets the
+/// account history be written for every player.
+enum Launched {
+    /// Running, and progress is followed over the IPC socket.
+    Tracked,
+    /// Running, but no progress will come back. Carries what to tell the user.
+    Untracked(String),
+    /// The "Open With" prompt was closed without picking anything.
+    Cancelled,
 }
 
 async fn start_player(
@@ -394,7 +452,7 @@ async fn start_player(
     window: gtk::Window,
     request: LaunchRequest,
     events: relm4::Sender<LauncherCommand>,
-) -> Result<(), String> {
+) -> Result<Launched, String> {
     let playback_events = ForwardEvents(events);
 
     match mpv::player_kind(&command) {
@@ -421,7 +479,7 @@ async fn start_player(
                         request.duration_secs,
                         playback_events.into_sender(),
                     ));
-                    Ok(())
+                    Ok(Launched::Tracked)
                 }
                 None => {
                     let spawn_request = request.clone();
@@ -432,10 +490,10 @@ async fn start_player(
                     .await
                     .map_err(|_| tr("Starting MPV stopped unexpectedly").to_string())?
                     .map_err(|error| trf("Could not start {}: {}", &[&command, &error]))?;
-                    Err(tr(
-                        "MPV opened, but the XDG runtime directory is unavailable; progress is not tracked.",
-                    )
-                    .to_string())
+                    Ok(Launched::Untracked(
+                        tr("MPV opened, but the XDG runtime directory is unavailable; progress is not tracked.")
+                            .to_string(),
+                    ))
                 }
             }
         }
@@ -446,7 +504,9 @@ async fn start_player(
                 .await
                 .map_err(|_| tr("Starting VLC stopped unexpectedly").to_string())?
                 .map_err(|error| trf("Could not start {}: {}", &[&command, &error]))?;
-            Err(tr("VLC does not report progress; history is not updated.").to_string())
+            Ok(Launched::Untracked(
+                tr("VLC does not report progress; the resume position is not updated.").to_string(),
+            ))
         }
         PlayerKind::Other => {
             let url = request.url.clone();
@@ -459,7 +519,10 @@ async fn start_player(
             .await
             .map_err(|_| tr("Starting the player stopped unexpectedly").to_string())?
             .map_err(|error| trf("Could not start {}: {}", &[&command, &error]))?;
-            Err(tr("This player does not report progress; history is not updated.").to_string())
+            Ok(Launched::Untracked(
+                tr("This player does not report progress; the resume position is not updated.")
+                    .to_string(),
+            ))
         }
         PlayerKind::Ask => ask_application(&window, &request.url).await,
         PlayerKind::Default => {
@@ -470,21 +533,23 @@ async fn start_player(
                 None::<&gtk::gio::AppLaunchContext>,
             )
             .map_err(|error| error.to_string())?;
-            Err(tr("Opened with the system player; set mpv in Settings for progress.").to_string())
+            Ok(Launched::Untracked(
+                tr("Opened with the system player; set mpv in Settings for progress.").to_string(),
+            ))
         }
     }
 }
 
 /// Hand the stream to the application the user picks from the desktop's
 /// "Open With" prompt. The chosen application receives only the URL, so the
-/// provider may refuse it and nothing is written to history.
+/// provider may refuse it, and it reports no progress back.
 ///
 /// `GtkFileLauncher` would be the modern way to ask, but it asks the portal
 /// about the URI, and a remote URI is matched by its scheme: the prompt then
 /// lists web browsers and no media player at all. Asking by content type is
 /// what puts the installed players in front of the user, and only the
 /// deprecated dialog can do that.
-async fn ask_application(window: &gtk::Window, url: &str) -> Result<(), String> {
+async fn ask_application(window: &gtk::Window, url: &str) -> Result<Launched, String> {
     let path = reqwest::Url::parse(url)
         .ok()
         .map(|parsed| parsed.path().to_string())
@@ -518,11 +583,13 @@ async fn ask_application(window: &gtk::Window, url: &str) -> Result<(), String> 
 
     // Closing the prompt without choosing is not a failure.
     let Some(Some(app)) = receiver.recv().await else {
-        return Ok(());
+        return Ok(Launched::Cancelled);
     };
     app.launch_uris(&[url], None::<&gtk::gio::AppLaunchContext>)
         .map_err(|error| error.to_string())?;
-    Ok(())
+    Ok(Launched::Untracked(
+        tr("This player does not report progress; the resume position is not updated.").to_string(),
+    ))
 }
 
 /// Adapts playback events into launcher commands.
@@ -534,7 +601,10 @@ impl ForwardEvents {
         let commands = self.0;
         relm4::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                if commands.send(LauncherCommand::Event(event)).is_err() {
+                if commands
+                    .send(LauncherCommand::Event(Box::new(event)))
+                    .is_err()
+                {
                     break;
                 }
             }

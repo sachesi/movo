@@ -1,6 +1,6 @@
-use crate::api::{guarded, Guarded};
+use crate::api::{guarded_as, Guarded};
 use crate::i18n::tr;
-use crate::state::AppState;
+use crate::state::{account_of, Account, AppState};
 use crate::ui::content::{ContentStack, ContentState};
 use movo_core::client::models::{AccountData, NotificationGroup};
 use movo_core::storage::seen_notifications::SeenNotifications;
@@ -12,6 +12,7 @@ use std::rc::Rc;
 
 pub struct NotificationsView {
     state: Rc<AppState>,
+    account: Option<Account>,
     groups: gtk::Box,
     content: ContentStack,
     seen: SeenNotifications,
@@ -73,6 +74,7 @@ impl Component for NotificationsView {
 
         let model = NotificationsView {
             state,
+            account: None,
             groups,
             content,
             seen: SeenNotifications::default(),
@@ -88,12 +90,15 @@ impl Component for NotificationsView {
         match message {
             NotificationsMsg::Reload => {
                 let Some(user) = self.state.user() else {
+                    self.account = None;
                     self.clear();
                     self.content
                         .set(ContentState::SignedOut(tr("Sign In to See Notifications")));
                     let _ = sender.output(NotificationsOutput::UnreadCount(0));
                     return;
                 };
+                self.account = account_of(&self.state.client);
+                let account = self.account.clone();
                 self.content
                     .set(ContentState::Loading(tr("Loading Notifications")));
                 let client = self.state.client.clone();
@@ -102,13 +107,18 @@ impl Component for NotificationsView {
                     let seen = relm4::spawn_blocking(move || SeenNotifications::load(&user_id))
                         .await
                         .unwrap_or_default();
-                    let data =
-                        guarded(client, |client| async move { client.account_data().await })
-                            .await;
+                    let data = guarded_as(client, account, |client| async move {
+                        client.account_data().await
+                    })
+                    .await;
                     (seen, data)
                 });
             }
             NotificationsMsg::Open(title, url) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(NotificationsOutput::AccountInvalidated);
+                    return;
+                }
                 if let Some(user) = self.state.user() {
                     let listed = self.listed.clone();
                     self.seen.urls.insert(url.clone());

@@ -14,19 +14,20 @@ impl SearchHistory {
         super::account_file(user_id, "search_history.json")
     }
 
-    pub fn load(user_id: &str) -> Self {
-        super::load_json(&Self::file_path(user_id)).unwrap_or_default()
+    pub fn load(user_id: &str) -> Result<Self, String> {
+        let path = Self::file_path(user_id);
+        super::load_json_checked::<SearchHistory>(&path).map(|history| history.unwrap_or_default())
     }
 
     pub fn add_for(user_id: &str, query: &str) -> Result<Vec<String>, String> {
         let query = query.trim();
         if query.is_empty() {
-            return Ok(Self::load(user_id).values);
+            return Ok(Self::load(user_id)?.values);
         }
         let _write = SEARCH_HISTORY_WRITE
             .lock()
             .map_err(|_| "Search history is unavailable".to_string())?;
-        let mut history = Self::load(user_id);
+        let mut history = Self::load(user_id)?;
         history.values = with_query(history.values, query);
         super::save_json(&Self::file_path(user_id), &history)?;
         Ok(history.values)

@@ -17,7 +17,8 @@ async fn bounded(
 }
 
 pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
-    let hot = bounded(session.post_ajax("engine/ajax/get_newest_slider_content.php", &[("id", "0")]));
+    let hot =
+        bounded(session.post_ajax("engine/ajax/get_newest_slider_content.php", &[("id", "0")]));
     let new = bounded(session.get_html("new"));
     let watching = bounded(session.get_html("new?filter=watching"));
     let popular = bounded(session.get_html("new?filter=popular"));

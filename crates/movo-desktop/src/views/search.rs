@@ -1,6 +1,6 @@
 use crate::api::{guarded, Guarded};
 use crate::i18n::tr;
-use crate::state::AppState;
+use crate::state::{account_of, AppState};
 use crate::ui::paged_grid::PagedGrid;
 use movo_core::client::models::{MediaItem, SearchFilter};
 use movo_core::storage::search_history::SearchHistory;
@@ -56,14 +56,15 @@ pub enum SearchCommand {
     },
     Suggestions {
         id: u64,
-        values: Vec<String>,
+        loaded: Guarded<Vec<String>>,
     },
     Page {
         page: usize,
         loaded: Guarded<Vec<MediaItem>>,
     },
     Filters(Guarded<Vec<SearchFilter>>),
-    Recent(Vec<String>),
+    Recent(Guarded<Vec<String>>),
+    RecentCleared(Guarded<()>),
 }
 
 #[relm4::component(pub)]
@@ -238,12 +239,21 @@ impl Component for SearchView {
                 });
             }
             SearchMsg::ClearRecent => {
-                if let Some(user) = self.state.user() {
-                    if let Err(error) = SearchHistory::clear_for(&user.user_id) {
-                        let _ = sender.output(SearchOutput::Warning(error));
-                    }
-                }
-                self.show_recent(&[]);
+                let Some(user) = self.state.user() else {
+                    self.show_recent(&[]);
+                    return;
+                };
+                self.recent_section.set_visible(false);
+                let account = account_of(&self.state.client);
+                let user_id = user.user_id;
+                sender.oneshot_command(async move {
+                    let result = relm4::spawn_blocking(move || SearchHistory::clear_for(&user_id))
+                        .await
+                        .unwrap_or_else(|_| {
+                            Err(tr("Clearing search history stopped unexpectedly").to_string())
+                        });
+                    SearchCommand::RecentCleared(Guarded { account, result })
+                });
             }
         }
     }
@@ -260,9 +270,13 @@ impl Component for SearchView {
                     self.start_search(query, &sender);
                 }
             }
-            SearchCommand::Suggestions { id, values } => {
+            SearchCommand::Suggestions { id, loaded } => {
+                if !self.state.accepts(&loaded.account) {
+                    let _ = sender.output(SearchOutput::AccountInvalidated);
+                    return;
+                }
                 if id == self.query_id {
-                    self.show_suggestions(&values, &sender);
+                    self.show_suggestions(&loaded.result.unwrap_or_default(), &sender);
                 }
             }
             SearchCommand::Page { page, loaded } => {
@@ -274,13 +288,44 @@ impl Component for SearchView {
                     let _ = sender.output(SearchOutput::Warning(message));
                 }
             }
-            SearchCommand::Filters(loaded) => match loaded.result {
-                Ok(filters) => show_filters(root, filters, &sender),
-                Err(error) => {
-                    let _ = sender.output(SearchOutput::Warning(error));
+            SearchCommand::Filters(loaded) => {
+                if !self.state.accepts(&loaded.account) {
+                    let _ = sender.output(SearchOutput::AccountInvalidated);
+                    return;
                 }
-            },
-            SearchCommand::Recent(values) => self.show_recent(&values),
+                match loaded.result {
+                    Ok(filters) => show_filters(root, filters, &sender),
+                    Err(error) => {
+                        let _ = sender.output(SearchOutput::Warning(error));
+                    }
+                }
+            }
+            SearchCommand::Recent(loaded) => {
+                if !self.state.accepts(&loaded.account) {
+                    let _ = sender.output(SearchOutput::AccountInvalidated);
+                    return;
+                }
+                match loaded.result {
+                    Ok(values) => self.show_recent(&values),
+                    Err(error) => {
+                        self.recent_section.set_visible(false);
+                        let _ = sender.output(SearchOutput::Warning(error));
+                    }
+                }
+            }
+            SearchCommand::RecentCleared(cleared) => {
+                if !self.state.accepts(&cleared.account) {
+                    let _ = sender.output(SearchOutput::AccountInvalidated);
+                    return;
+                }
+                match cleared.result {
+                    Ok(()) => self.show_recent(&[]),
+                    Err(error) => {
+                        let _ = sender.output(SearchOutput::Warning(error));
+                        self.load_recent(&sender);
+                    }
+                }
+            }
         }
     }
 }
@@ -313,10 +358,7 @@ impl SearchView {
                     client.search_suggestions(&suggestion_query).await
                 })
                 .await;
-                SearchCommand::Suggestions {
-                    id,
-                    values: loaded.result.unwrap_or_default(),
-                }
+                SearchCommand::Suggestions { id, loaded }
             });
         } else {
             self.suggestions.set_visible(false);
@@ -353,11 +395,15 @@ impl SearchView {
             self.recent_section.set_visible(false);
             return;
         };
+        let account = account_of(&self.state.client);
+        let user_id = user.user_id;
         sender.oneshot_command(async move {
-            let values = relm4::spawn_blocking(move || SearchHistory::load(&user.user_id).values)
-                .await
-                .unwrap_or_default();
-            SearchCommand::Recent(values)
+            let result = relm4::spawn_blocking(move || {
+                SearchHistory::load(&user_id).map(|history| history.values)
+            })
+            .await
+            .unwrap_or_else(|_| Err(tr("Loading search history stopped unexpectedly").to_string()));
+            SearchCommand::Recent(Guarded { account, result })
         });
     }
 

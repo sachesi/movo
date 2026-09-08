@@ -96,7 +96,18 @@ macro_rules! country {
 
 pub static COUNTRIES: &[Country] = &[
     country!("us", "USA", "США", "США", "united states", "america"),
-    country!("gb", "United Kingdom", "Великобритания", "Великобританія", "uk", "great britain", "britain", "england", "англия", "англія"),
+    country!(
+        "gb",
+        "United Kingdom",
+        "Великобритания",
+        "Великобританія",
+        "uk",
+        "great britain",
+        "britain",
+        "england",
+        "англия",
+        "англія"
+    ),
     country!("ru", "Russia", "Россия", "Росія", "russian federation"),
     country!("ua", "Ukraine", "Украина", "Україна"),
     country!("fr", "France", "Франция", "Франція"),
@@ -104,7 +115,16 @@ pub static COUNTRIES: &[Country] = &[
     country!("it", "Italy", "Италия", "Італія"),
     country!("es", "Spain", "Испания", "Іспанія"),
     country!("jp", "Japan", "Япония", "Японія"),
-    country!("kr", "South Korea", "Корея Южная", "Південна Корея", "korea", "южная корея", "корея", "корея південна"),
+    country!(
+        "kr",
+        "South Korea",
+        "Корея Южная",
+        "Південна Корея",
+        "korea",
+        "южная корея",
+        "корея",
+        "корея південна"
+    ),
     country!("cn", "China", "Китай", "Китай"),
     country!("in", "India", "Индия", "Індія"),
     country!("tr", "Turkey", "Турция", "Туреччина", "türkiye"),
@@ -140,9 +160,21 @@ pub static COUNTRIES: &[Country] = &[
     country!("il", "Israel", "Израиль", "Ізраїль"),
     country!("ir", "Iran", "Иран", "Іран"),
     country!("eg", "Egypt", "Египет", "Єгипет"),
-    country!("za", "South Africa", "ЮАР", "ПАР", "южная африка", "південна африка"),
+    country!(
+        "za",
+        "South Africa",
+        "ЮАР",
+        "ПАР",
+        "южная африка",
+        "південна африка"
+    ),
     country!("ae", "United Arab Emirates", "ОАЭ", "ОАЕ", "uae"),
-    country!("sa", "Saudi Arabia", "Саудовская Аравия", "Саудівська Аравія"),
+    country!(
+        "sa",
+        "Saudi Arabia",
+        "Саудовская Аравия",
+        "Саудівська Аравія"
+    ),
     country!("pk", "Pakistan", "Пакистан", "Пакистан"),
     country!("ng", "Nigeria", "Нигерия", "Нігерія"),
     country!("at", "Austria", "Австрия", "Австрія"),
@@ -191,7 +223,10 @@ mod tests {
         for country in COUNTRIES {
             assert!(codes.insert(country.code), "code {} twice", country.code);
             for name in country.names() {
-                assert!(names.insert(name.clone()), "name {name} under two countries");
+                assert!(
+                    names.insert(name.clone()),
+                    "name {name} under two countries"
+                );
             }
         }
         assert_eq!(entries().len(), COUNTRIES.len());

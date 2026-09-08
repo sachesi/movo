@@ -56,4 +56,16 @@ class SessionStoreTest {
 
         assertEquals(Triple(null, null, 56L), store.lastWatchedEpisode("u1", 8))
     }
+
+    @Test
+    fun removingAHistoryTitleClearsOnlyItsResumePoints() = runTest {
+        val store = SessionStore(context, store("account-remove-history-test"))
+        store.saveProgress("u1:7:1:2", 42_000L)
+        store.saveProgress("u1:8:1:2", 84_000L)
+
+        store.clearProgressForMedia("u1", 7)
+
+        assertEquals(0L, store.progress("u1:7:1:2"))
+        assertEquals(84_000L, store.progress("u1:8:1:2"))
+    }
 }

@@ -1,4 +1,5 @@
 use crate::i18n::{tr, trf};
+use crate::state::Account;
 use movo_core::client::models::{MediaDetails, SubtitleTrack};
 use movo_core::storage::history::{WatchHistory, WatchHistoryEntry};
 use std::path::{Path, PathBuf};
@@ -32,7 +33,8 @@ pub struct LaunchRequest {
 #[derive(Clone, Debug)]
 pub struct HistorySeed {
     pub details: MediaDetails,
-    pub user_id: String,
+    /// Who the row belongs to, so a sign-out during playback is noticed.
+    pub account: Account,
     pub translator_id: i64,
     pub season: Option<i64>,
     pub episode: Option<i64>,
@@ -41,10 +43,10 @@ pub struct HistorySeed {
 #[derive(Debug)]
 pub enum PlaybackEvent {
     /// Playback reached the end of the title.
-    Ended,
+    Ended(HistorySeed),
     /// The player is running but progress is no longer being recorded.
-    TrackingLost(String),
-    Failed(String),
+    TrackingLost(HistorySeed, String),
+    Failed(HistorySeed, String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +182,7 @@ pub async fn monitor(
     };
     let Some(stream) = stream else {
         events.emit(PlaybackEvent::TrackingLost(
+            history,
             tr("MPV opened, but the history connection was not established.").to_string(),
         ));
         let _ = std::fs::remove_file(socket);
@@ -193,6 +196,7 @@ pub async fn monitor(
     );
     if writer.write_all(commands.as_bytes()).await.is_err() {
         events.emit(PlaybackEvent::TrackingLost(
+            history,
             tr("MPV opened, but progress tracking did not start.").to_string(),
         ));
         let _ = std::fs::remove_file(socket);
@@ -211,8 +215,8 @@ pub async fn monitor(
                     position = duration;
                 }
                 match persist(history.clone(), position, duration).await {
-                    Ok(()) => events.emit(PlaybackEvent::Ended),
-                    Err(error) => events.emit(PlaybackEvent::TrackingLost(error)),
+                    Ok(()) => events.emit(PlaybackEvent::Ended(history.clone())),
+                    Err(error) => events.emit(PlaybackEvent::TrackingLost(history.clone(), error)),
                 }
                 reported = true;
                 break;
@@ -220,9 +224,15 @@ pub async fn monitor(
             Some(MpvEvent::Failed(error)) => {
                 let event = persist(history.clone(), position, duration)
                     .await
-                    .map_or_else(PlaybackEvent::TrackingLost, |()| {
-                        PlaybackEvent::Failed(trf("MPV could not play the stream: {}", &[&error]))
-                    });
+                    .map_or_else(
+                        |error| PlaybackEvent::TrackingLost(history.clone(), error),
+                        |()| {
+                            PlaybackEvent::Failed(
+                                history.clone(),
+                                trf("MPV could not play the stream: {}", &[&error]),
+                            )
+                        },
+                    );
                 events.emit(event);
                 reported = true;
                 break;
@@ -231,7 +241,7 @@ pub async fn monitor(
         }
         if last_saved.elapsed() >= SAVE_INTERVAL {
             if let Err(error) = persist(history.clone(), position, duration).await {
-                events.emit(PlaybackEvent::TrackingLost(error));
+                events.emit(PlaybackEvent::TrackingLost(history.clone(), error));
                 reported = true;
                 break;
             }
@@ -241,7 +251,7 @@ pub async fn monitor(
     if !reported {
         // mpv exited without an end-file event: the window was closed.
         if let Err(error) = persist(history.clone(), position, duration).await {
-            events.emit(PlaybackEvent::TrackingLost(error));
+            events.emit(PlaybackEvent::TrackingLost(history, error));
         }
     }
     let _ = std::fs::remove_file(socket);
@@ -291,7 +301,7 @@ async fn persist(history: HistorySeed, position: f64, duration: f64) -> Result<(
 
 fn persist_blocking(history: &HistorySeed, position: f64, duration: f64) -> Result<(), String> {
     WatchHistory::update_entry_for(
-        &history.user_id,
+        &history.account.user_id,
         WatchHistoryEntry {
             media_id: history.details.id,
             title: history.details.title.clone(),
@@ -313,7 +323,7 @@ fn persist_blocking(history: &HistorySeed, position: f64, duration: f64) -> Resu
 
 #[cfg(test)]
 mod tests {
-    use super::{mpv_command, LaunchRequest};
+    use super::{mpv_command, Account, LaunchRequest};
 
     fn request() -> LaunchRequest {
         LaunchRequest {
@@ -326,7 +336,10 @@ mod tests {
             duration_secs: 0.0,
             history: super::HistorySeed {
                 details: serde_json::from_str(FIXTURE).expect("fixture"),
-                user_id: String::new(),
+                account: Account {
+                    generation: 0,
+                    user_id: String::new(),
+                },
                 translator_id: 1,
                 season: None,
                 episode: None,

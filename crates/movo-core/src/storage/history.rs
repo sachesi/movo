@@ -63,9 +63,9 @@ impl WatchHistory {
         super::account_file(user_id, "watch_history.json")
     }
 
-    pub fn load(user_id: &str) -> Self {
+    pub fn load(user_id: &str) -> Result<Self, String> {
         let path = Self::file_path(user_id);
-        super::load_json::<WatchHistory>(&path).unwrap_or_default()
+        super::load_json_checked::<WatchHistory>(&path).map(|history| history.unwrap_or_default())
     }
 
     fn save(&self, user_id: &str) -> Result<(), String> {
@@ -92,14 +92,14 @@ impl WatchHistory {
         let _write = HISTORY_WRITE
             .lock()
             .map_err(|_| "Watch history is unavailable".to_string())?;
-        Self::load(user_id).update_entry(user_id, entry)
+        Self::load(user_id)?.update_entry(user_id, entry)
     }
 
     pub fn remove_media_for(user_id: &str, media_id: i64) -> Result<(), String> {
         let _write = HISTORY_WRITE
             .lock()
             .map_err(|_| "Watch history is unavailable".to_string())?;
-        Self::load(user_id).remove_media(user_id, media_id)
+        Self::load(user_id)?.remove_media(user_id, media_id)
     }
 
     pub fn reconcile_media(
@@ -110,7 +110,7 @@ impl WatchHistory {
         let _write = HISTORY_WRITE
             .lock()
             .map_err(|_| "Watch history is unavailable".to_string())?;
-        let mut history = Self::load(user_id);
+        let mut history = Self::load(user_id)?;
         history.retain_media_since(user_id, media_ids, protect_since)?;
         Ok(history)
     }

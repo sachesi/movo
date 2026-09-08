@@ -114,6 +114,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var playbackJob: Job? = null
     private var progressJob: Job? = null
     private var syncJob: Job? = null
+    private var completionJob: Job? = null
+    private var markedWatchedKey: String? = null
     private val detailsBackStack = ArrayDeque<String>()
     private var pendingDetailsUrl: String? = null
     private var detailsBackLoading = false
@@ -511,8 +513,10 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadHistory() {
         contentJob?.cancel()
+        val userId = state.value.user?.userId
         contentJob = run {
             val history = NativeBridge.decode<HistoryResult>("history")
+            if (state.value.user?.userId != userId) return@run
             if (state.value.tab == Tab.History) {
                 _state.update { it.copy(history = history.entries) }
             }
@@ -697,20 +701,22 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleSchedule(item: ScheduleItem) {
         if (item.id.isBlank()) return
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         detailsJob?.cancel()
         detailsJob = run {
             NativeBridge.call("toggle_schedule_watched", buildJsonObject { put("id", item.id) })
-            loadDetails(details.url)
+            if (state.value.user?.userId == userId) loadDetails(details.url)
         }
     }
 
     fun loadEpisodes(translator: Translator) {
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         episodesJob?.cancel()
         episodesJob = run {
             val seasons = NativeBridge.decode<List<Season>>("episodes", buildJsonObject { put("post_id", details.id); put("translator_id", translator.id) })
-            if (state.value.details?.url == details.url) {
+            if (state.value.user?.userId == userId && state.value.details?.url == details.url) {
                 _state.update { it.copy(
                     details = state.value.details?.copy(seasons = seasons),
                     episodesTranslatorId = translator.id,
@@ -759,12 +765,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun preparePlayback(translator: Translator, season: Long? = null, episode: Long? = null) {
+        val userId = state.value.user?.userId ?: return
         playbackJob?.cancel()
         _state.update { it.copy(preparedStream = null, playbackQuality = null) }
         playbackJob = run {
             val details = state.value.details ?: return@run
             val stream = fetchStream(details, translator, season, episode)
-            if (state.value.details?.url == details.url) {
+            if (state.value.user?.userId == userId && state.value.details?.url == details.url) {
                 _state.update { it.copy(preparedStream = stream) }
             }
         }
@@ -777,6 +784,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         season: Long? = null,
         episode: Long? = null,
     ) {
+        val userId = state.value.user?.userId ?: return
         playbackJob?.cancel()
         playbackJob = run {
             val details = state.value.details ?: return@run
@@ -789,8 +797,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 notify(text(R.string.quality_unavailable))
                 return@run
             }
-            if (state.value.details?.url == details.url) {
-                val positionMs = store.progress(progressKey(details.id, stream))
+            if (state.value.user?.userId == userId && state.value.details?.url == details.url) {
+                val positionMs = store.progress(progressKey(userId, details.id, stream))
                 _state.update { it.copy(
                     preparedStream = null,
                     stream = stream,
@@ -806,25 +814,38 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(preparedStream = null, playbackQuality = null) }
     }
 
-    fun playbackStarted() {
+    fun playbackStarted(onResult: (Boolean) -> Unit) {
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
+        // A rewatch of the same episode has to reach the provider again.
+        markedWatchedKey = null
         syncJob?.cancel()
         syncJob = run {
-            rememberLastPlayed(details.id, stream.season, stream.episode, stream.translatorId)
-            NativeBridge.call("save_watch", buildJsonObject {
-                put("post_id", details.id)
-                put("translator_id", stream.translatorId)
-                stream.season?.let { put("season", it) }
-                stream.episode?.let { put("episode", it) }
-            })
+            try {
+                rememberLastPlayed(userId, details.id, stream.season, stream.episode, stream.translatorId)
+                NativeBridge.call("save_watch", buildJsonObject {
+                    put("post_id", details.id)
+                    put("translator_id", stream.translatorId)
+                    stream.season?.let { put("season", it) }
+                    stream.episode?.let { put("episode", it) }
+                })
+                if (state.value.user?.userId == userId) onResult(true)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                // Retried when playback resumes. Banner-ing it on every resume would
+                // say nothing the user can act on while the title is already playing.
+                onResult(false)
+            }
         }
     }
 
     fun saveProgress(positionMs: Long) {
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
-        val key = progressKey(details.id, stream)
+        val key = progressKey(userId, details.id, stream)
         // Kept on the state as well as on disk: the player screen is rebuilt from scratch on a
         // configuration change while this view model survives it, so a stale value here is what
         // the rebuilt screen resumes from.
@@ -833,9 +854,22 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         progressJob = viewModelScope.launch { store.saveProgress(key, positionMs) }
     }
 
-    /** Keep what the details page reopens on, in the store and on the state it is already showing. */
-    private suspend fun rememberLastPlayed(postId: Long, season: Long?, episode: Long?, translatorId: Long) {
+    fun playbackCompleted() {
         val userId = state.value.user?.userId ?: return
+        val details = state.value.details ?: return
+        val stream = state.value.stream ?: return
+        completionJob?.cancel()
+        completionJob = run {
+            if (state.value.user?.userId != userId) return@run
+            markWatched(userId, details, stream)
+            if (state.value.user?.userId != userId) return@run
+            store.clearProgress(progressKey(userId, details.id, stream))
+            if (state.value.tab == Tab.History) refreshHistory()
+        }
+    }
+
+    /** Keep what the details page reopens on, in the store and on the state it is already showing. */
+    private suspend fun rememberLastPlayed(userId: String, postId: Long, season: Long?, episode: Long?, translatorId: Long) {
         store.saveLastEpisode(userId, postId, season, episode, translatorId)
         if (state.value.details?.id == postId) {
             _state.update { it.copy(resumeSeasonId = season, resumeEpisodeId = episode, resumeTranslatorId = translatorId) }
@@ -855,7 +889,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         return adjacentEpisode(details, stream, offset) != null
     }
 
-    fun previousEpisode() = playAdjacentEpisode(-1, completed = false)
+    fun previousEpisode(completed: Boolean) = playAdjacentEpisode(-1, completed)
     fun nextEpisode(completed: Boolean) = playAdjacentEpisode(1, completed)
 
     /** [fallback] is set when the player dropped to [quality] on its own after a failure. */
@@ -864,25 +898,31 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         if (fallback) notify(getApplication<Application>().getString(R.string.quality_fallback, quality))
     }
 
-    fun playEpisode(season: Long, episode: Long) {
+    fun playEpisode(season: Long, episode: Long, completed: Boolean = false) {
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         val current = state.value.stream ?: return
         val translator = details.translators.firstOrNull { it.id == current.translatorId } ?: return
         playbackJob?.cancel()
         playbackJob = run {
+            if (completed) {
+                markWatched(userId, details, current)
+                store.clearProgress(progressKey(userId, details.id, current))
+            }
             val next = fetchStream(details, translator, season, episode)
-            if (state.value.details?.url != details.url || state.value.stream != current) return@run
+            if (state.value.user?.userId != userId || state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
                 notify(text(R.string.quality_unavailable))
             } else {
-                val positionMs = store.progress(progressKey(details.id, next))
+                val positionMs = store.progress(progressKey(userId, details.id, next))
                 _state.update { it.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = positionMs) }
             }
         }
     }
 
     private fun playAdjacentEpisode(offset: Int, completed: Boolean) {
+        val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         val current = state.value.stream ?: return
         val (season, episode) = adjacentEpisode(details, current, offset) ?: return
@@ -890,21 +930,16 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         playbackJob = run {
             if (completed) {
-                store.clearProgress(progressKey(details.id, current))
-                runCatching {
-                    NativeBridge.call("mark_watched", buildJsonObject {
-                        put("post_id", details.id); put("translator_id", current.translatorId)
-                        current.season?.let { put("season", it) }; current.episode?.let { put("episode", it) }
-                    })
-                }
+                markWatched(userId, details, current)
+                store.clearProgress(progressKey(userId, details.id, current))
             }
             val next = fetchStream(details, translator, season, episode)
-            if (state.value.details?.url != details.url || state.value.stream != current) return@run
+            if (state.value.user?.userId != userId || state.value.details?.url != details.url || state.value.stream != current) return@run
             val selected = selectStream(next, QualityMode.Max, state.value.playbackQuality)
             if (selected == null) {
                 notify(text(R.string.quality_unavailable))
             } else {
-                val positionMs = store.progress(progressKey(details.id, next))
+                val positionMs = store.progress(progressKey(userId, details.id, next))
                 _state.update { it.copy(
                     stream = next,
                     playbackQuality = selected.quality,
@@ -918,42 +953,56 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         val details = state.value.details
         val stream = state.value.stream
+        val userId = state.value.user?.userId
         progressJob?.cancel()
         // The error slot is shared by every operation, so a playback message left in it would be
         // banner-ed over whatever screen the user lands on next.
         _state.update { it.copy(stream = null, playbackQuality = null, error = null) }
-        if (details == null || stream == null) return
+        if (details == null || stream == null || userId == null) return
         // Shown as watched at once where the list is already up: the account's history lags the
         // sync by a moment, and the list fetched right after it still said otherwise.
         if (completed) _state.update { state ->
             state.copy(history = state.history.map { if (it.url == details.url) it.copy(watched = true) else it })
         }
         run {
+            if (state.value.user?.userId != userId) return@run
             if (completed) {
-                store.clearProgress(progressKey(details.id, stream))
-                // Best-effort: marking watched depends on the server surfacing the save in time.
-                // Never let a transient "history item not found yet" / network hiccup wipe the
-                // completed state, surface an error banner, or drop the cleared progress. A
-                // finished playback is finalized locally first.
-                runCatching {
-                    NativeBridge.call("mark_watched", buildJsonObject {
-                        put("post_id", details.id)
-                        put("translator_id", stream.translatorId)
-                        stream.season?.let { put("season", it) }
-                        stream.episode?.let { put("episode", it) }
-                    })
-                }
+                markWatched(userId, details, stream)
+                if (state.value.user?.userId != userId) return@run
+                store.clearProgress(progressKey(userId, details.id, stream))
                 // A finished episode is not the one to reopen on; offer the next one instead.
                 adjacentEpisode(details, stream, 1)?.let { (season, episode) ->
-                    rememberLastPlayed(details.id, season, episode, stream.translatorId)
+                    rememberLastPlayed(userId, details.id, season, episode, stream.translatorId)
                 }
             } else {
-                store.saveProgress(progressKey(details.id, stream), positionMs)
+                store.saveProgress(progressKey(userId, details.id, stream), positionMs)
             }
             // The account's history moved either way, watched or not: the entry carries where
             // the title was left. Reflected in an open History list without the global spinner.
             if (state.value.tab == Tab.History) refreshHistory()
         }
+    }
+
+    /**
+     * Best-effort: marking watched depends on the server surfacing the save in time.
+     * Never let a transient "history item not found yet" / network hiccup wipe the
+     * completed state, surface an error banner, or drop the cleared progress. A
+     * finished playback is finalized locally first.
+     *
+     * Playback that ends and is then closed reports the same title twice; the key
+     * of the last accepted call keeps the second one off the network.
+     */
+    private suspend fun markWatched(userId: String, details: MediaDetails, stream: StreamBundle) {
+        val key = progressKey(userId, details.id, stream)
+        if (markedWatchedKey == key) return
+        runCatching {
+            NativeBridge.call("mark_watched", buildJsonObject {
+                put("post_id", details.id)
+                put("translator_id", stream.translatorId)
+                stream.season?.let { put("season", it) }
+                stream.episode?.let { put("episode", it) }
+            })
+        }.onSuccess { markedWatchedKey = key }
     }
 
     /** Quiet re-fetch of history (no loading/error mutation) so a freshly watched item
@@ -962,15 +1011,17 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         contentJob?.cancel()
         contentJob = viewModelScope.launch {
             runCatching {
+                val userId = state.value.user?.userId ?: return@launch
                 val result = NativeBridge.decode<HistoryResult>("history")
-                if (state.value.tab == Tab.History && state.value.user != null) {
+                if (state.value.user?.userId != userId) return@launch
+                if (state.value.tab == Tab.History) {
                     _state.update { it.copy(history = result.entries) }
                 }
             }
         }
     }
 
-    private fun progressKey(mediaId: Long, stream: StreamBundle) = "${state.value.user?.userId}:$mediaId:${stream.season ?: 0}:${stream.episode ?: 0}"
+    private fun progressKey(userId: String, mediaId: Long, stream: StreamBundle) = "$userId:$mediaId:${stream.season ?: 0}:${stream.episode ?: 0}"
 
     private fun cancelRequests() {
         contentJob?.cancel()
@@ -980,23 +1031,32 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         progressJob?.cancel()
         syncJob?.cancel()
+        completionJob?.cancel()
     }
 
     fun toggleHistory(entry: HistoryEntry) {
         contentJob?.cancel()
+        val userId = state.value.user?.userId ?: return
         contentJob = run {
             NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", !entry.watched) })
             val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.tab == Tab.History) _state.update { it.copy(history = history.entries) }
+            if (state.value.user?.userId == userId && state.value.tab == Tab.History) {
+                _state.update { it.copy(history = history.entries) }
+            }
         }
     }
 
     fun removeHistory(entry: HistoryEntry) {
         contentJob?.cancel()
+        val userId = state.value.user?.userId ?: return
         contentJob = run {
-            NativeBridge.call("remove_history", buildJsonObject { put("id", entry.id) })
+            val removed = NativeBridge.decode<RemovedHistory>("remove_history", buildJsonObject { put("id", entry.id) })
+            if (state.value.user?.userId != userId) return@run
+            store.clearProgressForMedia(userId, removed.mediaId)
             val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.tab == Tab.History) _state.update { it.copy(history = history.entries) }
+            if (state.value.user?.userId == userId && state.value.tab == Tab.History) {
+                _state.update { it.copy(history = history.entries) }
+            }
         }
     }
 

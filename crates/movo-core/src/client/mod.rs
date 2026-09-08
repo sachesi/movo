@@ -19,6 +19,51 @@ use std::collections::HashSet;
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 
+fn history_entry_matches(
+    entry: &ServerHistoryEntry,
+    post_id: i64,
+    season: Option<i64>,
+    episode: Option<i64>,
+) -> bool {
+    if entry.media_id() != Some(post_id) {
+        return false;
+    }
+    let (Some(season), Some(episode)) = (season, episode) else {
+        return true;
+    };
+    let details = format!(
+        "{} {}",
+        entry.info.as_deref().unwrap_or_default(),
+        entry.additional_info.as_deref().unwrap_or_default()
+    )
+    .to_lowercase();
+    if details.trim().is_empty() {
+        return true;
+    }
+    let tokens = details
+        .split(|character: char| !character.is_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .collect::<Vec<_>>();
+    let season_labels = ["season", "сезон"];
+    let episode_labels = ["episode", "серия", "серія", "эпизод", "епізод"];
+    let has_season_labels = tokens.iter().any(|token| season_labels.contains(token));
+    let has_episode_labels = tokens.iter().any(|token| episode_labels.contains(token));
+    if !has_season_labels && !has_episode_labels {
+        return true;
+    }
+    let season = season.to_string();
+    let episode = episode.to_string();
+    let number_for = |labels: &[&str], wanted: &str| {
+        tokens.windows(2).any(|pair| {
+            (labels.contains(&pair[0]) && pair[1] == wanted)
+                || (pair[0] == wanted && labels.contains(&pair[1]))
+        })
+    };
+    let season_match = number_for(&season_labels, &season);
+    let episode_match = number_for(&episode_labels, &episode);
+    (season_match || !has_season_labels) && (episode_match || !has_episode_labels)
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct SyncedHistory {
     pub entries: Vec<ServerHistoryEntry>,
@@ -435,10 +480,16 @@ impl RezkaClient {
             return Err("Cannot sync history without valid media and voice-over IDs".to_string());
         }
         auth::save_watch(&self.session, post_id, translator_id, season, episode).await?;
-        self.wait_for_history_entry(post_id).await.map(|_| ())
+        self.wait_for_history_entry(post_id, season, episode)
+            .await
+            .map(|_| ())
     }
 
     pub async fn remove_history(&self, id: &str) -> Result<(), String> {
+        self.remove_history_with_media(id).await.map(|_| ())
+    }
+
+    pub async fn remove_history_with_media(&self, id: &str) -> Result<i64, String> {
         self.ensure_signed_in()?;
         let user_id = self
             .user()
@@ -451,7 +502,12 @@ impl RezkaClient {
             .and_then(|entry| entry.media_id())
             .ok_or_else(|| "History item was not found".to_string())?;
         auth::remove_history(&self.session, id).await?;
-        WatchHistory::remove_media_for(&user_id, media_id)
+        // Best-effort: the caller re-reads the list right after, and the provider
+        // needs a moment to drop the row. A slow confirmation is not a failed
+        // removal, and reporting one would leave the local copy behind.
+        let _ = self.wait_for_history_absence(id).await;
+        WatchHistory::remove_media_for(&user_id, media_id)?;
+        Ok(media_id)
     }
 
     pub async fn set_history_watched(&self, id: &str, watched: bool) -> Result<(), String> {
@@ -464,7 +520,7 @@ impl RezkaClient {
         if entry.is_watched == watched {
             return Ok(());
         }
-        auth::toggle_history_watched(&self.session, id).await?;
+        let toggle_error = auth::toggle_history_watched(&self.session, id).await.err();
         // The endpoint flips the flag rather than setting it, so the request is
         // never retried. Read the state back instead: a toggle whose reply was
         // lost still landed, and reporting failure for it would be wrong.
@@ -475,6 +531,8 @@ impl RezkaClient {
             .ok_or_else(|| "History item was not found".to_string())?;
         if confirmed.is_watched == watched {
             Ok(())
+        } else if let Some(error) = toggle_error {
+            Err(error)
         } else {
             Err("The account did not confirm the watched state".to_string())
         }
@@ -488,9 +546,19 @@ impl RezkaClient {
         episode: Option<i64>,
     ) -> Result<(), String> {
         self.ensure_signed_in()?;
-        let entry = self.wait_for_history_entry(post_id).await?;
+        let entry = self
+            .wait_for_history_entry(post_id, season, episode)
+            .await?;
         if !entry.is_watched {
             auth::toggle_history_watched(&self.session, &entry.id).await?;
+        }
+        let confirmed = auth::fetch_history(&self.session)
+            .await?
+            .into_iter()
+            .find(|candidate| candidate.id == entry.id)
+            .ok_or_else(|| "History item disappeared while marking watched".to_string())?;
+        if !confirmed.is_watched {
+            return Err("The account did not confirm the watched state".to_string());
         }
         if let (Some(season), Some(episode)) = (season, episode) {
             let seasons = self.fetch_episodes(post_id, translator_id).await?;
@@ -506,16 +574,39 @@ impl RezkaClient {
                     .ok_or_else(|| "Finished episode has no watched-state ID".to_string())?;
                 auth::toggle_schedule_watched(&self.session, watch_id).await?;
             }
+            let confirmed = self.fetch_episodes(post_id, translator_id).await?;
+            let item = confirmed
+                .iter()
+                .find(|item| item.id == season)
+                .and_then(|item| item.episodes.iter().find(|item| item.id == episode))
+                .ok_or_else(|| "Finished episode was not found".to_string())?;
+            if !item.is_watched {
+                return Err("The account did not confirm the episode watched state".to_string());
+            }
         }
         Ok(())
     }
 
-    async fn wait_for_history_entry(&self, post_id: i64) -> Result<ServerHistoryEntry, String> {
+    async fn wait_for_history_entry(
+        &self,
+        post_id: i64,
+        season: Option<i64>,
+        episode: Option<i64>,
+    ) -> Result<ServerHistoryEntry, String> {
         for attempt in 0..10 {
-            if let Some(entry) = auth::fetch_history(&self.session)
-                .await?
+            let entries = auth::fetch_history(&self.session).await?;
+            log::debug!(
+                "history readback {attempt}: {} rows, looking for {post_id} S{season:?}E{episode:?}; first rows: {:?}",
+                entries.len(),
+                entries
+                    .iter()
+                    .take(3)
+                    .map(|entry| (entry.url.as_str(), entry.info.as_deref()))
+                    .collect::<Vec<_>>()
+            );
+            if let Some(entry) = entries
                 .into_iter()
-                .find(|entry| entry.media_id() == Some(post_id))
+                .find(|entry| history_entry_matches(entry, post_id, season, episode))
             {
                 return Ok(entry);
             }
@@ -524,6 +615,22 @@ impl RezkaClient {
             }
         }
         Err("Saved history item was not found".to_string())
+    }
+
+    async fn wait_for_history_absence(&self, id: &str) -> Result<(), String> {
+        for attempt in 0..10 {
+            if !auth::fetch_history(&self.session)
+                .await?
+                .iter()
+                .any(|entry| entry.id == id)
+            {
+                return Ok(());
+            }
+            if attempt < 9 {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+        }
+        Err("The account did not confirm history removal".to_string())
     }
 
     fn ensure_signed_in(&self) -> Result<(), String> {
@@ -669,6 +776,26 @@ mod tests {
         )
     }
 
+    #[test]
+    fn episode_history_matching_does_not_accept_a_different_labelled_episode() {
+        let mut entry = auth::parse_history(&history_row(false)).pop().unwrap();
+        entry.info = Some("Season 1 - Episode 2".to_string());
+        assert!(history_entry_matches(&entry, 7, Some(1), Some(2)));
+        assert!(!history_entry_matches(&entry, 7, Some(1), Some(3)));
+    }
+
+    #[test]
+    fn episode_history_matching_accepts_provider_label_order() {
+        let mut entry = auth::parse_history(&history_row(false)).pop().unwrap();
+        entry.info = Some("1 сезон, 2 серия".to_string());
+        assert!(history_entry_matches(&entry, 7, Some(1), Some(2)));
+        assert!(!history_entry_matches(&entry, 7, Some(1), Some(3)));
+
+        entry.info = Some("Сезон 1, эпизод 2".to_string());
+        assert!(history_entry_matches(&entry, 7, Some(1), Some(2)));
+        assert!(!history_entry_matches(&entry, 7, Some(1), Some(3)));
+    }
+
     /// The toggle endpoint is posted once and never retried, so success is
     /// decided by reading the account back rather than by the reply alone.
     #[tokio::test]
@@ -745,6 +872,9 @@ mod tests {
             let (mut toggle, _) = listener.accept().unwrap();
             assert!(read_request(&mut toggle).starts_with("POST /engine/ajax/cdn_saves_view.php"));
             respond(&mut toggle, "application/json", r#"{"success":true}"#);
+            let (mut confirmed, _) = listener.accept().unwrap();
+            read_request(&mut confirmed);
+            respond(&mut confirmed, "text/html", &history_row(true));
         });
 
         authenticated_test_client(&base_url)

@@ -1,5 +1,6 @@
+use crate::api::guarded_as;
 use crate::i18n::tr;
-use crate::state::AppState;
+use crate::state::{Account, AppState};
 use relm4::adw;
 use relm4::adw::prelude::*;
 use relm4::gtk::{self, prelude::WidgetExt};
@@ -12,6 +13,7 @@ pub fn present(
     parent: &impl IsA<gtk::Widget>,
     state: Rc<AppState>,
     post_id: i64,
+    account: Option<Account>,
     on_done: impl Fn(Result<u8, String>) + 'static,
 ) {
     let dialog = adw::AlertDialog::builder()
@@ -39,9 +41,16 @@ pub fn present(
         }
         let rating = scale.value().round().clamp(1.0, 10.0) as u8;
         let client = state.client.clone();
-        let result = relm4::spawn(async move { client.post_rating(post_id, rating).await })
-            .await
-            .unwrap_or_else(|_| Err(tr("Sending the rating stopped unexpectedly").to_string()));
-        on_done(result.map(|()| rating));
+        let loaded = guarded_as(client, account.clone(), move |client| async move {
+            client.post_rating(post_id, rating).await
+        })
+        .await;
+        if !state.accepts(&account) {
+            on_done(Err(
+                tr("The account changed before the rating was sent").to_string()
+            ));
+        } else {
+            on_done(loaded.result.map(|()| rating));
+        }
     });
 }

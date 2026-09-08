@@ -224,6 +224,15 @@ class SessionStore(
         store.edit { it.remove(progressKeyOf(key)) }
     }
 
+    suspend fun clearProgressForMedia(userId: String, mediaId: Long) {
+        val prefix = "progress:$userId:$mediaId:"
+        store.edit { preferences ->
+            preferences.asMap().keys
+                .filter { it.name.startsWith(prefix) }
+                .forEach { preferences.remove(it) }
+        }
+    }
+
     /**
      * What a title was last played as (season, episode, translatorId), for resume-on-reopen. A
      * movie has no season or episode and keeps only its voice-over.

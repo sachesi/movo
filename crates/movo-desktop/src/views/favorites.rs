@@ -1,6 +1,6 @@
-use crate::api::{guarded, Guarded};
+use crate::api::{guarded_as, Guarded};
 use crate::i18n::tr;
-use crate::state::AppState;
+use crate::state::{account_of, Account, AppState};
 use crate::ui::paged_grid::PagedGrid;
 use movo_core::client::models::{FavoritesCollection, MediaItem};
 use relm4::gtk::{self, prelude::*};
@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 pub struct FavoritesView {
     state: Rc<AppState>,
+    account: Option<Account>,
     categories: gtk::DropDown,
     category_ids: Vec<Option<i64>>,
     selected: Option<i64>,
@@ -90,6 +91,7 @@ impl Component for FavoritesView {
 
         let model = FavoritesView {
             state,
+            account: None,
             categories: categories.clone(),
             category_ids: Vec::new(),
             selected: None,
@@ -106,16 +108,19 @@ impl Component for FavoritesView {
         match message {
             FavoritesMsg::Reload => {
                 if self.state.user().is_none() {
+                    self.account = None;
                     self.categories.set_visible(false);
                     self.grid
                         .set_signed_out(tr("Sign In to See Your Favorites"));
                     return;
                 }
+                self.account = account_of(&self.state.client);
+                let account = self.account.clone();
                 self.grid.set_loading_state();
                 let client = self.state.client.clone();
                 sender.oneshot_command(async move {
                     FavoritesCommand::Categories(
-                        guarded(client, |client| async move {
+                        guarded_as(client, account, |client| async move {
                             client.fetch_favorites_categories().await
                         })
                         .await,
@@ -123,6 +128,10 @@ impl Component for FavoritesView {
                 });
             }
             FavoritesMsg::SelectCategory(index) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(FavoritesOutput::AccountInvalidated);
+                    return;
+                }
                 let selected = self.category_ids.get(index as usize).copied().flatten();
                 if selected != self.selected {
                     self.selected = selected;
@@ -131,11 +140,19 @@ impl Component for FavoritesView {
                 }
             }
             FavoritesMsg::LoadNextPage => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(FavoritesOutput::AccountInvalidated);
+                    return;
+                }
                 if let Some(page) = self.grid.begin_next_page() {
                     self.request_page(page, &sender);
                 }
             }
             FavoritesMsg::Open(item) => {
+                if !self.state.accepts(&self.account) {
+                    let _ = sender.output(FavoritesOutput::AccountInvalidated);
+                    return;
+                }
                 let _ = sender.output(FavoritesOutput::Open(item));
             }
         }
@@ -201,8 +218,9 @@ impl FavoritesView {
     fn request_page(&mut self, page: usize, sender: &ComponentSender<Self>) {
         let client = self.state.client.clone();
         let category = self.selected;
+        let account = self.account.clone();
         sender.oneshot_command(async move {
-            let loaded = guarded(client, move |client| async move {
+            let loaded = guarded_as(client, account, move |client| async move {
                 client.fetch_favorites_page(category, page).await
             })
             .await;

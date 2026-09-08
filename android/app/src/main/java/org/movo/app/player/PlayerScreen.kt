@@ -185,11 +185,12 @@ private val EPISODE_MENU_WIDTH = 320.dp
 @Stable
 interface PlayerActions {
     fun saveProgress(positionMs: Long)
-    fun playbackStarted()
+    fun playbackStarted(onResult: (Boolean) -> Unit)
+    fun playbackCompleted()
     fun close(completed: Boolean, positionMs: Long)
-    fun previousEpisode()
+    fun previousEpisode(completed: Boolean)
     fun nextEpisode(completed: Boolean)
-    fun playEpisode(season: Long, episode: Long)
+    fun playEpisode(season: Long, episode: Long, completed: Boolean)
     fun openRating(positionMs: Long)
 
     /** [persist] is set when the user picked the quality, rather than a fallback choosing it. */
@@ -303,6 +304,7 @@ fun PlayerScreen(
                             content.completed = true
                             ui.controlsVisible = true
                             if (latestAutoNext) latestActions.nextEpisode(true)
+                            else latestActions.playbackCompleted()
                         }
                     }
 
@@ -311,8 +313,9 @@ fun PlayerScreen(
                             ui.controlsVisible = true
                         }
                         if (playing && !content.historySynced) {
-                            content.historySynced = true
-                            latestActions.playbackStarted()
+                            latestActions.playbackStarted { synced ->
+                                if (synced) content.historySynced = true
+                            }
                         }
                     }
 
@@ -557,7 +560,7 @@ fun PlayerScreen(
     fun previousEpisode() {
         player.pause()
         actions.saveProgress(player.currentPosition)
-        actions.previousEpisode()
+        actions.previousEpisode(finished())
     }
 
     fun nextEpisode() {
@@ -956,7 +959,7 @@ fun PlayerScreen(
                     playEpisode = { season, episode ->
                         player.pause()
                         actions.saveProgress(player.currentPosition)
-                        actions.playEpisode(season, episode)
+                        actions.playEpisode(season, episode, finished())
                     },
                     openRating = { actions.openRating(player.currentPosition) },
                     onMenuOpenChange = { ui.menuOpen = it },

@@ -364,21 +364,22 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
     val actions = remember(model, settings.saveQuality, scope, context) {
         object : PlayerActions {
             override fun saveProgress(positionMs: Long) = model.saveProgress(positionMs)
-            override fun playbackStarted() = model.playbackStarted()
+            override fun playbackStarted(onResult: (Boolean) -> Unit) = model.playbackStarted(onResult)
+            override fun playbackCompleted() = model.playbackCompleted()
             override fun close(completed: Boolean, positionMs: Long) {
                 model.closePlayer(completed, positionMs)
             }
 
-            override fun previousEpisode() {
-                model.previousEpisode()
+            override fun previousEpisode(completed: Boolean) {
+                model.previousEpisode(completed)
             }
 
             override fun nextEpisode(completed: Boolean) {
                 model.nextEpisode(completed)
             }
 
-            override fun playEpisode(season: Long, episode: Long) {
-                model.playEpisode(season, episode)
+            override fun playEpisode(season: Long, episode: Long, completed: Boolean) {
+                model.playEpisode(season, episode, completed)
             }
 
             override fun openRating(positionMs: Long) =

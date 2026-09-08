@@ -1,5 +1,6 @@
+use crate::api::guarded_as;
 use crate::i18n::{tr, trf};
-use crate::state::AppState;
+use crate::state::{Account, AppState};
 use movo_core::client::models::{Comment, CommentsPage};
 use relm4::adw;
 use relm4::adw::prelude::*;
@@ -15,6 +16,7 @@ pub fn present(
     parent: &impl IsA<gtk::Widget>,
     state: Rc<AppState>,
     post_id: i64,
+    account: Option<Account>,
     on_error: impl Fn(String) + 'static,
 ) {
     let dialog = adw::Dialog::builder()
@@ -76,24 +78,38 @@ pub fn present(
 
     {
         let state = state.clone();
+        let account = account.clone();
         let widgets = widgets.clone();
         let on_error = on_error.clone();
         previous.connect_clicked(move |_| {
             let target = widgets.page.get().saturating_sub(1).max(1);
-            load(state.clone(), widgets.clone(), target, on_error.clone());
+            load(
+                state.clone(),
+                account.clone(),
+                widgets.clone(),
+                target,
+                on_error.clone(),
+            );
         });
     }
     {
         let state = state.clone();
+        let account = account.clone();
         let widgets = widgets.clone();
         let on_error = on_error.clone();
         next.connect_clicked(move |_| {
             let target = (widgets.page.get() + 1).min(widgets.pages.get().max(1));
-            load(state.clone(), widgets.clone(), target, on_error.clone());
+            load(
+                state.clone(),
+                account.clone(),
+                widgets.clone(),
+                target,
+                on_error.clone(),
+            );
         });
     }
 
-    load(state, widgets, 1, on_error);
+    load(state, account, widgets, 1, on_error);
 }
 
 /// The comment list and its pager, cloned into the page callbacks.
@@ -110,6 +126,7 @@ struct Pager {
 
 fn load<F: Fn(String) + 'static>(
     state: Rc<AppState>,
+    account: Option<Account>,
     widgets: Pager,
     page: usize,
     on_error: Rc<F>,
@@ -118,12 +135,22 @@ fn load<F: Fn(String) + 'static>(
     widgets.next.set_sensitive(false);
 
     let client = state.client.clone();
+    let account_state = state.clone();
     let post_id = widgets.post_id;
     relm4::spawn_local(async move {
-        let loaded = relm4::spawn(async move { client.fetch_comments(post_id, page).await })
-            .await
-            .unwrap_or_else(|_| Err(tr("Loading comments stopped unexpectedly").to_string()));
-        match loaded {
+        let loaded = guarded_as(client, account.clone(), move |client| async move {
+            client.fetch_comments(post_id, page).await
+        })
+        .await;
+        if !account_state.accepts(&account) {
+            widgets.previous.set_sensitive(widgets.page.get() > 1);
+            widgets
+                .next
+                .set_sensitive(widgets.page.get() < widgets.pages.get());
+            on_error(tr("The account changed while comments were loading").to_string());
+            return;
+        }
+        match loaded.result {
             Ok(comments) => {
                 render(&widgets.list, &comments, state, on_error);
                 widgets.page.set(comments.page);
@@ -221,17 +248,26 @@ fn comment_card<F: Fn(String) + 'static>(
 
     let id = comment.id.clone();
     let likes = comment.likes;
+    let account = state.account();
     like.connect_clicked(move |button| {
         button.set_sensitive(false);
         let client = state.client.clone();
         let id = id.clone();
         let button = button.clone();
         let on_error = on_error.clone();
+        let state_for_result = state.clone();
+        let account = account.clone();
         relm4::spawn_local(async move {
-            let result = relm4::spawn(async move { client.like_comment(&id).await })
-                .await
-                .unwrap_or_else(|_| Err(tr("Liking the comment stopped unexpectedly").to_string()));
-            match result {
+            let loaded = guarded_as(client, account.clone(), move |client| async move {
+                client.like_comment(&id).await
+            })
+            .await;
+            if !state_for_result.accepts(&account) {
+                button.set_sensitive(true);
+                on_error(tr("The account changed while the comment was being liked").to_string());
+                return;
+            }
+            match loaded.result {
                 Ok(()) => button.set_label(&format!("♥ {}", likes + 1)),
                 Err(error) => {
                     button.set_sensitive(true);

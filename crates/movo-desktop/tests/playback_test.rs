@@ -16,6 +16,7 @@
 //! ```
 
 use movo::playback::mpv::{self, HistorySeed, LaunchRequest, PlaybackEvent};
+use movo::state::Account;
 use movo_core::client::models::MediaDetails;
 use movo_core::storage::history::WatchHistory;
 use std::path::PathBuf;
@@ -85,7 +86,10 @@ async fn mpv_plays_a_stream_and_its_progress_reaches_the_history() {
         duration_secs: 0.0,
         history: HistorySeed {
             details: details(),
-            user_id: TEST_USER.to_string(),
+            account: Account {
+                generation: 0,
+                user_id: TEST_USER.to_string(),
+            },
             translator_id: 7,
             season: None,
             episode: None,
@@ -111,8 +115,8 @@ async fn mpv_plays_a_stream_and_its_progress_reaches_the_history() {
         .await
         .expect("mpv finished within a minute");
     let (ended, failure) = match first {
-        Some(PlaybackEvent::Ended) => (true, None),
-        Some(PlaybackEvent::Failed(message)) | Some(PlaybackEvent::TrackingLost(message)) => {
+        Some(PlaybackEvent::Ended(_)) => (true, None),
+        Some(PlaybackEvent::Failed(_, message)) | Some(PlaybackEvent::TrackingLost(_, message)) => {
             (false, Some(message))
         }
         None => (
@@ -126,6 +130,7 @@ async fn mpv_plays_a_stream_and_its_progress_reaches_the_history() {
     assert!(ended, "mpv never reported the end of the clip");
 
     let entry = WatchHistory::load(TEST_USER)
+        .expect("the played title history was readable")
         .get_entry(424242, None, None)
         .cloned()
         .expect("the played title reached the history");

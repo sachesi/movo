@@ -65,12 +65,18 @@ fn create_private_file(path: &Path) -> std::io::Result<fs::File> {
 static SAVE_ID: AtomicU64 = AtomicU64::new(0);
 
 pub fn load_json<T: DeserializeOwned>(path: &Path) -> Option<T> {
-    if path.exists() {
-        let content = fs::read_to_string(path).ok()?;
-        serde_json::from_str(&content).ok()
-    } else {
-        None
+    load_json_checked(path).ok().flatten()
+}
+
+pub fn load_json_checked<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
+    if !path.exists() {
+        return Ok(None);
     }
+    let content = fs::read_to_string(path)
+        .map_err(|error| format!("Failed to read {:?}: {}", path, error))?;
+    serde_json::from_str(&content)
+        .map(Some)
+        .map_err(|error| format!("Failed to parse {:?}: {}", path, error))
 }
 
 pub fn save_json<T: Serialize>(path: &Path, data: &T) -> Result<(), String> {
@@ -110,6 +116,24 @@ mod tests {
 
         let mode = fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o700, "directory created as {mode:o}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A half-written account file has to be reported rather than read as an
+    /// empty one: silently defaulting would overwrite the rest of it on save.
+    #[test]
+    fn a_corrupt_file_is_reported_instead_of_defaulted() {
+        let dir = std::env::temp_dir().join(format!("movo-corrupt-{}", std::process::id()));
+        let path = dir.join("search_history.json");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(&path, "{").unwrap();
+
+        assert!(load_json_checked::<Vec<String>>(&path).is_err());
+        assert!(load_json::<Vec<String>>(&path).is_none());
+        assert!(load_json_checked::<Vec<String>>(&dir.join("absent.json"))
+            .unwrap()
+            .is_none());
 
         let _ = fs::remove_dir_all(&dir);
     }

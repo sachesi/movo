@@ -17,6 +17,8 @@ pub fn present(
     state: Rc<AppState>,
     on_signed_in: impl Fn(String) + 'static,
 ) {
+    let warning_parent = parent.clone().upcast::<gtk::Widget>();
+
     let dialog = adw::PreferencesDialog::builder()
         .title(tr("Sign In to HDRezka"))
         .build();
@@ -112,6 +114,7 @@ pub fn present(
         let error = error.clone();
         let spinner = spinner.clone();
         let on_signed_in = on_signed_in.clone();
+        let warning_parent = warning_parent.clone();
         relm4::spawn_local(async move {
             let result = relm4::spawn(async move { client.login(&name, &secret).await })
                 .await
@@ -121,8 +124,23 @@ pub fn present(
             button.set_sensitive(true);
             match result {
                 Ok(user) => {
+                    let kept = user.is_session_persistent;
                     on_signed_in(user.username);
                     dialog.close();
+                    // The provider accepted the sign-in, but without a system
+                    // keyring there is nowhere to keep it: say so now rather
+                    // than let the next launch look like an unexplained
+                    // sign-out.
+                    if !kept {
+                        adw::AlertDialog::builder()
+                            .heading(tr("Signed in for this session only"))
+                            .body(tr(
+                                "The system keyring is unavailable, so this session cannot be \
+                                 stored. You will have to sign in again the next time Movo starts.",
+                            ))
+                            .build()
+                            .present(Some(&warning_parent));
+                    }
                 }
                 Err(message) => {
                     error.set_label(&message);

@@ -38,3 +38,4 @@ import kotlinx.serialization.Serializable
 @Serializable data class CountryName(val en: String, val ru: String, val uk: String)
 @Serializable data class LoginResult(val user: UserProfile, val secret: String)
 @Serializable data class HistoryResult(val entries: List<HistoryEntry>)
+@Serializable data class RemovedHistory(@SerialName("media_id") val mediaId: Long)

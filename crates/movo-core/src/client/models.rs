@@ -386,6 +386,7 @@ impl ServerHistoryEntry {
             .next()?
             .parse()
             .ok()
+            .filter(|id| *id > 0)
     }
 }
 
@@ -407,7 +408,7 @@ pub struct UserProfile {
 
 #[cfg(test)]
 mod tests {
-    use super::{Comment, UserProfile};
+    use super::{Comment, ServerHistoryEntry, UserProfile};
 
     /// The Android client reads these keys, so the wire names have to survive a
     /// rename of the Rust fields behind them.
@@ -441,5 +442,22 @@ mod tests {
         let profile = serde_json::to_value(&profile).unwrap();
         assert_eq!(profile["session_persistent"], true);
         assert!(profile.get("is_session_persistent").is_none());
+    }
+
+    #[test]
+    fn history_media_ids_must_be_positive() {
+        let entry = |url: &str| ServerHistoryEntry {
+            id: "save".to_string(),
+            title: String::new(),
+            url: url.to_string(),
+            poster_url: None,
+            info: None,
+            additional_info: None,
+            date: None,
+            is_watched: false,
+        };
+        assert_eq!(entry("/films/42-title.html").media_id(), Some(42));
+        assert_eq!(entry("/films/0-title.html").media_id(), None);
+        assert_eq!(entry("/films/no-id.html").media_id(), None);
     }
 }

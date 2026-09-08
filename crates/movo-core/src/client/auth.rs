@@ -349,15 +349,18 @@ pub async fn save_watch(
     let translator_id = translator_id.to_string();
     let season = season.unwrap_or(0).to_string();
     let episode = episode.unwrap_or(0).to_string();
+    // Sent the way the site's player sends it at playback start. The reply
+    // is `success: false` for the site as well, so it is never inspected.
     let response = session
-        .post_ajax(
+        .post_ajax_as_site(
             "ajax/send_save/",
             &[
                 ("post_id", &post_id),
                 ("translator_id", &translator_id),
                 ("season", &season),
                 ("episode", &episode),
-                ("current_time", "1"),
+                ("current_time", "0"),
+                ("duration", "0"),
             ],
         )
         .await?;
@@ -525,7 +528,14 @@ mod tests {
             let (mut request, _) = listener.accept().unwrap();
             let request_text = read_request(&mut request);
             assert!(request_text.starts_with("POST /ajax/send_save/"));
-            assert!(request_text.contains("name=\"post_id\""));
+            // The site accepts the save only in its own page script's shape.
+            let lower = request_text.to_ascii_lowercase();
+            assert!(lower.contains("content-type: application/x-www-form-urlencoded"));
+            assert!(lower.contains("x-requested-with: xmlhttprequest"));
+            assert!(!lower.contains("x-hdrezka-android-app"));
+            assert!(request_text.ends_with(
+                "post_id=7&translator_id=8&season=1&episode=2&current_time=0&duration=0"
+            ));
             respond(
                 &mut request,
                 "Content-Type: application/json\r\n",
