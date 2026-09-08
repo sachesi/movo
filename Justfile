@@ -33,8 +33,15 @@ apk-release:
     test -x "$build_tools/apksigner" || { echo "apksigner not found: $build_tools" >&2; exit 1; }
     command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
     test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
+    # The build file falls back to versionCode 4 when nothing is passed in, which would ship
+    # every release built here as the same version forever. Derive both from git instead of
+    # relying on that fallback: the commit count is monotonic, so it always outgrows the last
+    # release even if a tag is missing a bump.
+    version_name="$(git describe --tags --abbrev=0 2>/dev/null)" || { echo "No git tag reachable for the release version; tag the commit first (e.g. git tag v0.4.0)" >&2; exit 1; }
+    version_name="${version_name#v}"
+    version_code="$(git rev-list --count HEAD 2>/dev/null)" || { echo "Unable to read the git commit count for the release version code" >&2; exit 1; }
     cd android
-    ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew assembleRelease
+    ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew assembleRelease -Pmovo.versionCode="$version_code" -Pmovo.versionName="$version_name"
     unsigned="$PWD/app/build/outputs/apk/release/app-release-unsigned.apk"
     output="$PWD/app/build/outputs/apk/release/movo-release.apk"
     test -f "$unsigned" || { echo "Unsigned release APK not found: $unsigned" >&2; exit 1; }

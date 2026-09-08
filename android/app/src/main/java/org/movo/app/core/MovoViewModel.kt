@@ -587,6 +587,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             detailsJob = run {
                 try {
                     loadDetails(previousUrl)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (error: Exception) {
                     detailsBackStack.addLast(previousUrl)
                     throw error
@@ -788,11 +790,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
                 return@run
             }
             if (state.value.details?.url == details.url) {
+                val positionMs = store.progress(progressKey(details.id, stream))
                 _state.update { it.copy(
                     preparedStream = null,
                     stream = stream,
                     playbackQuality = selected.quality,
-                    playbackPositionMs = store.progress(progressKey(details.id, stream)),
+                    playbackPositionMs = positionMs,
                 ) }
             }
         }
@@ -873,7 +876,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (selected == null) {
                 notify(text(R.string.quality_unavailable))
             } else {
-                _state.update { it.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = store.progress(progressKey(details.id, next))) }
+                val positionMs = store.progress(progressKey(details.id, next))
+                _state.update { it.copy(stream = next, playbackQuality = selected.quality, playbackPositionMs = positionMs) }
             }
         }
     }
@@ -900,10 +904,11 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             if (selected == null) {
                 notify(text(R.string.quality_unavailable))
             } else {
+                val positionMs = store.progress(progressKey(details.id, next))
                 _state.update { it.copy(
                     stream = next,
                     playbackQuality = selected.quality,
-                    playbackPositionMs = store.progress(progressKey(details.id, next)),
+                    playbackPositionMs = positionMs,
                 ) }
             }
         }

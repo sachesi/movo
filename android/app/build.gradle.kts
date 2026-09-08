@@ -1,21 +1,11 @@
-import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
-
-/**
- * Release signing, read from a `keystore.properties` next to this build file that is never
- * committed. Absent it the release build stays unsigned rather than quietly falling back to the
- * debug key, which would ship a build anyone can re-sign over.
- */
-val releaseKeystore = rootProject.file("keystore.properties")
-    .takeIf { it.exists() }
-    ?.let { file -> Properties().apply { file.inputStream().use(::load) } }
 
 android {
     namespace = "org.movo.app"
@@ -28,20 +18,15 @@ android {
         versionCode = (findProperty("movo.versionCode") as String?)?.toInt() ?: 4
         versionName = findProperty("movo.versionName") as String? ?: "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-    signingConfigs {
-        releaseKeystore?.let { properties ->
-            create("release") {
-                storeFile = rootProject.file(properties.getProperty("storeFile"))
-                storePassword = properties.getProperty("storePassword")
-                keyAlias = properties.getProperty("keyAlias")
-                keyPassword = properties.getProperty("keyPassword")
-            }
-        }
+        // Matches the ABIs buildRust actually compiles; without this, transitive AndroidX
+        // prebuilts pull an x86 lib/ dir into the APK with no native library in it, and a
+        // 32-bit x86 device installs the app only to crash on System.loadLibrary.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release")
+            // Left unsigned here on purpose: `just apk-release` builds this, then zipaligns,
+            // signs and verifies it itself, so there is exactly one signing path.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -89,39 +74,41 @@ val buildRust by tasks.registering(Exec::class) {
     outputs.dir(project.layout.buildDirectory.dir("generated/jniLibs"))
     commandLine("cargo", "ndk", "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64", "-o", project.layout.buildDirectory.dir("generated/jniLibs").get().asFile, "build", "--release", "-p", "movo-android")
 }
-tasks.named("preBuild").configure { dependsOn(buildRust) }
+// Only the tasks that package native libs need the Rust build; wiring it to preBuild made
+// lint and unit tests each pay for three cross-compiles they never load the library for.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach { dependsOn(buildRust) }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
+    val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
-    implementation("androidx.activity:activity-compose:1.12.3")
-    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.tv:tv-material:1.1.0")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.animation:animation")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.media3:media3-exoplayer:1.11.0")
-    implementation("androidx.media3:media3-exoplayer-hls:1.11.0")
-    implementation("androidx.media3:media3-ui:1.11.0")
-    implementation("androidx.media3:media3-session:1.11.0")
-    implementation("androidx.datastore:datastore-preferences:1.1.0")
-    implementation("androidx.compose.material3:material3-window-size-class")
-    implementation("androidx.window:window:1.5.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-    testImplementation("androidx.arch.core:core-testing:2.2.0")
-    testImplementation("org.robolectric:robolectric:4.16")
-    testImplementation("androidx.test:core:1.7.0")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.tv.material)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.compose.material3.window.size)
+    implementation(libs.androidx.window)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.arch.core.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     testImplementation(composeBom)
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

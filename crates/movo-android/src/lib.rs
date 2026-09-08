@@ -337,7 +337,12 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
             })
             .to_string()
     });
-    env.new_string(response).expect("JNI response").into_raw()
+    // A failed allocation here must not unwind out of an `extern "system"` function either,
+    // so the conversion is fallible all the way down instead of relying on `caught` above it.
+    env.new_string(response)
+        .or_else(|_| env.new_string(r#"{"error":"The request stopped unexpectedly","code":"other","rejected":false}"#))
+        .map(|value| value.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }
 
 #[cfg(test)]
