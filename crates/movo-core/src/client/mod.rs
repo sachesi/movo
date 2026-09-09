@@ -8,7 +8,7 @@ pub mod search;
 pub mod session;
 pub mod stream;
 
-use crate::error::ClientError;
+use crate::error::{ClientError, ErrorKind};
 use crate::storage::history::WatchHistory;
 use models::{
     AccountData, ActorDetails, CatalogCategory, Collection, CommentsPage, FavoritesCollection,
@@ -19,6 +19,21 @@ use session::RezkaSession;
 use std::collections::HashSet;
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
+
+/// Runs `work` on the blocking thread pool. The keyring and file operations
+/// this wraps are synchronous, and calling them straight from an async method
+/// would stall every other task on the runtime for as long as they take.
+async fn blocking<T: Send + 'static>(
+    description: &'static str,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, ClientError> {
+    tokio::task::spawn_blocking(work).await.map_err(|_| {
+        ClientError::new(
+            ErrorKind::Other,
+            format!("{description} stopped unexpectedly"),
+        )
+    })
+}
 
 fn history_entry_matches(
     entry: &ServerHistoryEntry,
@@ -310,9 +325,17 @@ impl RezkaClient {
         password: &str,
     ) -> Result<UserProfile, ClientError> {
         let mut profile = auth::login(&self.session, email_or_login, password).await?;
-        let mut settings = crate::storage::settings::AppSettings::load();
+        let mut settings = blocking(
+            "Loading settings",
+            crate::storage::settings::AppSettings::load,
+        )
+        .await?;
         settings.user_id = Some(profile.user_id.clone());
-        if settings.save().is_err() {
+        let saved = settings.clone();
+        let save_ok = blocking("Saving settings", move || saved.save())
+            .await
+            .is_ok_and(|result| result.is_ok());
+        if !save_ok {
             profile.is_session_persistent = false;
         }
         self.set_account(Some(profile.clone()));
@@ -320,28 +343,51 @@ impl RezkaClient {
     }
 
     pub async fn restore_session(&self) -> Result<Option<UserProfile>, ClientError> {
-        let mut settings = crate::storage::settings::AppSettings::load();
+        let mut settings = blocking(
+            "Loading settings",
+            crate::storage::settings::AppSettings::load,
+        )
+        .await?;
         if let Some(user_id) = settings.user_id.clone() {
-            match self.session.restore_session(&user_id) {
+            let session = self.session.clone();
+            let lookup_id = user_id.clone();
+            let restored = blocking("Restoring the session", move || {
+                session.restore_session(&lookup_id)
+            })
+            .await?;
+            match restored {
                 Ok(true) => return self.verify_restored_session(&mut settings, false).await,
                 Ok(false) => {}
                 Err(error) if !RezkaSession::cookie_file_path().exists() => return Err(error),
                 Err(_) => {}
             }
-            if self.session.load_legacy_session(Some(&user_id))?.is_some() {
+            let session = self.session.clone();
+            let legacy_id = user_id.clone();
+            let legacy = blocking("Restoring the session", move || {
+                session.load_legacy_session(Some(&legacy_id))
+            })
+            .await??;
+            if legacy.is_some() {
                 return self.verify_restored_session(&mut settings, true).await;
             }
             settings.user_id = None;
-            settings.save()?;
+            let saved = settings.clone();
+            blocking("Saving settings", move || saved.save()).await??;
             self.set_account(None);
             return Ok(None);
         }
 
-        let Some(user_id) = self.session.load_legacy_session(None)? else {
+        let session = self.session.clone();
+        let Some(user_id) = blocking("Restoring the session", move || {
+            session.load_legacy_session(None)
+        })
+        .await??
+        else {
             return Ok(None);
         };
         settings.user_id = Some(user_id);
-        settings.save()?;
+        let saved = settings.clone();
+        blocking("Saving settings", move || saved.save()).await??;
         self.verify_restored_session(&mut settings, true).await
     }
 
@@ -353,9 +399,18 @@ impl RezkaClient {
         match auth::check_profile(&self.session).await {
             Ok(Some(mut profile)) => {
                 if legacy {
-                    profile.is_session_persistent =
-                        self.session.persist_session(&profile.user_id).is_ok();
-                    RezkaSession::remove_legacy_cookie_file()?;
+                    let session = self.session.clone();
+                    let user_id = profile.user_id.clone();
+                    profile.is_session_persistent = blocking("Persisting the session", move || {
+                        session.persist_session(&user_id)
+                    })
+                    .await
+                    .is_ok_and(|result| result.is_ok());
+                    blocking(
+                        "Removing the legacy session",
+                        RezkaSession::remove_legacy_cookie_file,
+                    )
+                    .await??;
                 }
                 self.set_account(Some(profile.clone()));
                 Ok(Some(profile))
@@ -363,15 +418,25 @@ impl RezkaClient {
             Ok(None) => {
                 self.set_account(None);
                 let user_id = settings.user_id.take();
-                let _ = self.session.clear_session(user_id.as_deref());
-                settings.save()?;
+                let session = self.session.clone();
+                let _ = blocking("Clearing the session", move || {
+                    session.clear_session(user_id.as_deref())
+                })
+                .await;
+                let saved = settings.clone();
+                blocking("Saving settings", move || saved.save()).await??;
                 Ok(None)
             }
             Err(error) => {
                 self.set_account(None);
                 let user_id = settings.user_id.take();
-                let _ = self.session.clear_session(user_id.as_deref());
-                settings.save()?;
+                let session = self.session.clone();
+                let _ = blocking("Clearing the session", move || {
+                    session.clear_session(user_id.as_deref())
+                })
+                .await;
+                let saved = settings.clone();
+                blocking("Saving settings", move || saved.save()).await??;
                 Err(ClientError::from(error))
             }
         }
@@ -385,14 +450,27 @@ impl RezkaClient {
             .user
             .as_ref()
             .map(|user| user.user_id.clone());
-        let result = auth::logout(&self.session, user_id.as_deref());
+        let session = self.session.clone();
+        let logout_id = user_id.clone();
+        let result = blocking("Signing out", move || {
+            auth::logout(&session, logout_id.as_deref())
+        })
+        .await
+        .and_then(|inner| inner.map_err(ClientError::from));
         self.set_account(None);
-        let mut settings = crate::storage::settings::AppSettings::load();
+        let mut settings = blocking(
+            "Loading settings",
+            crate::storage::settings::AppSettings::load,
+        )
+        .await?;
         settings.user_id = None;
-        let settings_cleared = settings.save().is_ok();
+        let saved = settings.clone();
+        let settings_cleared = blocking("Saving settings", move || saved.save())
+            .await
+            .is_ok_and(|inner| inner.is_ok());
         match (result, settings_cleared) {
             (Ok(()), true) => Ok(()),
-            (Err(error), true) => Err(ClientError::from(error)),
+            (Err(error), true) => Err(error),
             (Ok(()), false) => Err(ClientError::from(
                 "Account selection could not be cleared".to_string(),
             )),
@@ -457,11 +535,11 @@ impl RezkaClient {
             .iter()
             .filter_map(ServerHistoryEntry::media_id)
             .collect::<HashSet<_>>();
-        let local = WatchHistory::reconcile_media(
-            &user_id,
-            &media_ids,
-            chrono::Utc::now() - chrono::Duration::minutes(5),
-        )?;
+        let protect_since = chrono::Utc::now() - chrono::Duration::minutes(5);
+        let local = blocking("Syncing history", move || {
+            WatchHistory::reconcile_media(&user_id, &media_ids, protect_since)
+        })
+        .await??;
         Ok(SyncedHistory { entries, local })
     }
 
@@ -506,7 +584,10 @@ impl RezkaClient {
         // needs a moment to drop the row. A slow confirmation is not a failed
         // removal, and reporting one would leave the local copy behind.
         let _ = self.wait_for_history_absence(id).await;
-        WatchHistory::remove_media_for(&user_id, media_id)?;
+        blocking("Removing the history item", move || {
+            WatchHistory::remove_media_for(&user_id, media_id)
+        })
+        .await??;
         Ok(media_id)
     }
 
