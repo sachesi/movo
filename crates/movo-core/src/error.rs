@@ -51,7 +51,8 @@ pub fn classify(message: &str) -> ErrorKind {
         || has("http response exceeded")
     {
         ErrorKind::Network
-    } else if has("session") && (has("rejected") || has("expired") || has("no longer valid") || has("invalid"))
+    } else if has("session")
+        && (has("rejected") || has("expired") || has("no longer valid") || has("invalid"))
     {
         ErrorKind::Session
     } else if has("malformed") || has("failed to parse") || has("invalid history page") {
@@ -85,23 +86,40 @@ mod tests {
     #[test]
     fn names_what_the_provider_said() {
         assert_eq!(
-            classify("catalog request failed: HTTP 503; content-type text/html; HTML body (120 bytes)"),
+            classify(
+                "catalog request failed: HTTP 503; content-type text/html; HTML body (120 bytes)"
+            ),
             ErrorKind::Provider
         );
         assert_eq!(
             classify("Anubis clearance cookie not obtained after solving for https://x"),
             ErrorKind::Provider
         );
-        assert_eq!(classify("Comments response was malformed"), ErrorKind::Malformed);
-        assert_eq!(classify("Failed to parse stream JSON: eof"), ErrorKind::Malformed);
+        assert_eq!(
+            classify("Comments response was malformed"),
+            ErrorKind::Malformed
+        );
+        assert_eq!(
+            classify("Failed to parse stream JSON: eof"),
+            ErrorKind::Malformed
+        );
     }
 
     #[test]
     fn names_a_dead_session_and_leaves_the_rest() {
         assert_eq!(classify("Stored session has expired"), ErrorKind::Session);
-        assert_eq!(classify("Authenticated session is no longer valid"), ErrorKind::Session);
-        assert_eq!(classify("Authenticated session was rejected by the official provider"), ErrorKind::Session);
-        assert_eq!(classify("Rating must be between 1 and 10"), ErrorKind::Other);
+        assert_eq!(
+            classify("Authenticated session is no longer valid"),
+            ErrorKind::Session
+        );
+        assert_eq!(
+            classify("Authenticated session was rejected by the official provider"),
+            ErrorKind::Session
+        );
+        assert_eq!(
+            classify("Rating must be between 1 and 10"),
+            ErrorKind::Other
+        );
         assert_eq!(ErrorKind::Other.code(), "other");
     }
 }

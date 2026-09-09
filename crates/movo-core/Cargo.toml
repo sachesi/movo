@@ -2,9 +2,13 @@
 name = "movo-core"
 version = "0.3.0"
 edition = "2021"
+rust-version = "1.85"
 authors = ["sachesi <xsachesi@pm.me>"]
 description = "Headless core engine for HDRezka client"
 license = "GPL-3.0-only"
+
+[lints]
+workspace = true
 
 [dependencies]
 # Async runtime & Networking

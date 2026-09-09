@@ -5,3 +5,8 @@ members = [
     "crates/movo-android",
 ]
 resolver = "2"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[workspace.lints.clippy]

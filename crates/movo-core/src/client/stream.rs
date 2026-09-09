@@ -305,7 +305,7 @@ pub fn decrypt_streams(encrypted: &str) -> String {
         }
     }
 
-    while !cleaned.len().is_multiple_of(4) {
+    while cleaned.len() % 4 != 0 {
         cleaned.push(b'=');
     }
     match BASE64_STANDARD.decode(&cleaned) {
