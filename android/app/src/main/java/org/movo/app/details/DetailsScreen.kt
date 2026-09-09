@@ -306,14 +306,14 @@ internal fun DetailsScreen(
                 val leftPane = fold?.let { hinge ->
                     rowLeft?.let { left -> with(density) { (hinge.bounds.left - left).toDp() } }
                 }?.takeIf { it > posterWidth + 18.dp }
-                Row(
+                Column(
                     Modifier
                         .onGloballyPositioned { rowLeft = it.positionInWindow().x }
                         .then(
                             if (isTv) {
-                                // The header holds the poster, the title and the action row; giving
-                                // it the highlight from anywhere below scrolls the page back so none
-                                // of the three is left hidden under the (now removed) app bar band.
+                                // The header holds the back arrow, the title, the poster and the
+                                // action row; giving it the highlight from anywhere below scrolls
+                                // the page back so none of them is left above the top edge.
                                 Modifier.onFocusChanged {
                                     if (it.hasFocus && listState.canScrollBackward) {
                                         scope.launch {
@@ -325,13 +325,27 @@ internal fun DetailsScreen(
                                 Modifier
                             },
                         ),
-                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    if (isTv) {
+                // The title heads the page: beside the back arrow on a television, in the app bar
+                // on a phone. Neither layout repeats it next to the poster.
+                if (isTv) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
                         TvIconButton(model::closeDetails, Modifier.tvFocusMemory("details:back")) {
                             TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
+                        Text(
+                            details.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Box(if (leftPane != null) Modifier.width(leftPane - 18.dp) else Modifier) {
                         val tile = placeholderTile()
                         AsyncImage(
@@ -371,16 +385,6 @@ internal fun DetailsScreen(
                         Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(
-                            details.title,
-                            style = if (wideContent || isTv) {
-                                MaterialTheme.typography.headlineMedium
-                            } else {
-                                MaterialTheme.typography.titleLarge
-                            },
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
                         details.originalTitle?.let {
                             Text(
                                 it,
@@ -516,6 +520,7 @@ internal fun DetailsScreen(
                             )
                         }
                     }
+                }
                 }
             }
             item {
