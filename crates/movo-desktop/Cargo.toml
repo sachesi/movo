@@ -20,7 +20,7 @@ relm4 = { version = "0.11", features = ["libadwaita", "gnome_50"] }
 
 # Async runtime & Networking
 tokio = { version = "1.43", features = ["full"] }
-reqwest = "0.12"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
 # System, logging & misc
 gettext-rs = { version = "0.8", features = ["gettext-system"] }
