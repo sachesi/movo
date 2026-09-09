@@ -10,7 +10,6 @@ apk:
     ndk="${ANDROID_NDK_HOME:-$sdk/ndk/29.0.14206865}"
     test -d "$ndk" || { echo "Android NDK 29.0.14206865 not found: $ndk" >&2; exit 1; }
     command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
-    test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
     cd android
     ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew assembleDebug
     echo "APK: $PWD/app/build/outputs/apk/debug/app-debug.apk"
@@ -32,7 +31,6 @@ apk-release:
     test -x "$build_tools/zipalign" || { echo "zipalign not found: $build_tools" >&2; exit 1; }
     test -x "$build_tools/apksigner" || { echo "apksigner not found: $build_tools" >&2; exit 1; }
     command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
-    test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
     # The build file falls back to versionCode 4 when nothing is passed in, which would ship
     # every release built here as the same version forever. Derive both from git instead of
     # relying on that fallback: the commit count is monotonic, so it always outgrows the last
@@ -73,7 +71,6 @@ apk-check:
     ndk="${ANDROID_NDK_HOME:-$sdk/ndk/29.0.14206865}"
     test -d "$ndk" || { echo "Android NDK 29.0.14206865 not found: $ndk" >&2; exit 1; }
     command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
-    test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
     cd android
     ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
     echo "APK: $PWD/app/build/outputs/apk/debug/app-debug.apk"
@@ -88,7 +85,6 @@ apk-test-device:
     ndk="${ANDROID_NDK_HOME:-$sdk/ndk/29.0.14206865}"
     test -d "$ndk" || { echo "Android NDK 29.0.14206865 not found: $ndk" >&2; exit 1; }
     command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
-    test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
     cd android
     ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew connectedDebugAndroidTest
     echo "Report: $PWD/app/build/reports/androidTests/connected/"

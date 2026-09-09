@@ -51,7 +51,7 @@ Android:
 - `cargo-ndk`, and the `aarch64-linux-android`, `armv7-linux-androideabi` and
   `x86_64-linux-android` Rust targets
 
-Android 6.0 (API 23) is the minimum supported release.
+Android 6.0 (API 23) is the minimum supported release. Set `JAVA_HOME` if the JDK is not the default one.
 
 ## Build and run
 
