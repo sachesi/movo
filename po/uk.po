@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 10:03+0300\n"
+"POT-Creation-Date: 2026-09-09 10:17+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -23,63 +23,74 @@ msgid "The request stopped unexpectedly"
 msgstr "Запит несподівано перервався"
 
 #: crates/movo-desktop/src/app.rs:113
-#: crates/movo-desktop/src/dialogs/settings.rs:45
-msgid "Settings"
-msgstr "Налаштування"
+msgid "Main Menu"
+msgstr "Головне меню"
 
-#: crates/movo-desktop/src/app.rs:119
-msgid "About Movo"
-msgstr "Про застосунок Movo"
-
-#: crates/movo-desktop/src/app.rs:228
+#: crates/movo-desktop/src/app.rs:255
 #: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr "Головна"
 
-#: crates/movo-desktop/src/app.rs:235
+#: crates/movo-desktop/src/app.rs:262
 #: crates/movo-desktop/src/dialogs/settings.rs:119
 #: crates/movo-desktop/src/views/home.rs:206
 msgid "Catalog"
 msgstr "Каталог"
 
-#: crates/movo-desktop/src/app.rs:242
+#: crates/movo-desktop/src/app.rs:269
 #: crates/movo-desktop/src/dialogs/settings.rs:120
 #: crates/movo-desktop/src/views/search.rs:500
 msgid "Search"
 msgstr "Пошук"
 
-#: crates/movo-desktop/src/app.rs:249
+#: crates/movo-desktop/src/app.rs:276
 #: crates/movo-desktop/src/dialogs/settings.rs:121
 #: crates/movo-desktop/src/views/details.rs:600
 msgid "Collections"
 msgstr "Колекції"
 
-#: crates/movo-desktop/src/app.rs:256
+#: crates/movo-desktop/src/app.rs:283
 #: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr "Сповіщення"
 
-#: crates/movo-desktop/src/app.rs:263
+#: crates/movo-desktop/src/app.rs:290
 #: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr "Обране"
 
-#: crates/movo-desktop/src/app.rs:270
+#: crates/movo-desktop/src/app.rs:297
 #: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr "Історія"
 
-#: crates/movo-desktop/src/app.rs:300
+#: crates/movo-desktop/src/app.rs:327
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Відновлення сеансу несподівано перервалося"
 
-#: crates/movo-desktop/src/app.rs:341
+#: crates/movo-desktop/src/app.rs:368
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
 
-#: crates/movo-desktop/src/app.rs:367
+#: crates/movo-desktop/src/app.rs:394
 msgid "Signed in as {}"
 msgstr "Ви увійшли як {}"
+
+#: crates/movo-desktop/src/app.rs:527 crates/movo-desktop/src/app.rs:538
+msgid "Preferences"
+msgstr "Налаштування"
+
+#: crates/movo-desktop/src/app.rs:528 crates/movo-desktop/src/app.rs:542
+msgid "Keyboard Shortcuts"
+msgstr "Комбінації клавіш"
+
+#: crates/movo-desktop/src/app.rs:529
+msgid "About Movo"
+msgstr "Про застосунок Movo"
+
+#: crates/movo-desktop/src/app.rs:530 crates/movo-desktop/src/app.rs:545
+msgid "Quit"
+msgstr "Вийти"
 
 #: crates/movo-desktop/src/dialogs/actor.rs:23
 #: crates/movo-desktop/src/dialogs/settings.rs:393
@@ -170,7 +181,9 @@ msgstr "Вхід виконано лише для цього сеансу"
 msgid ""
 "The system keyring is unavailable, so this session cannot be stored. You "
 "will have to sign in again the next time Movo starts."
-msgstr "Системне сховище ключів недоступне, тому сеанс не вдасться зберегти. Під час наступного запуску Movo доведеться увійти знову."
+msgstr ""
+"Системне сховище ключів недоступне, тому сеанс не вдасться зберегти. Під час "
+"наступного запуску Movo доведеться увійти знову."
 
 #: crates/movo-desktop/src/dialogs/rating.rs:20
 msgid "Rate This Title"
@@ -195,6 +208,10 @@ msgstr "Оцінити"
 #: crates/movo-desktop/src/dialogs/rating.rs:50
 msgid "The account changed before the rating was sent"
 msgstr "Обліковий запис змінився до надсилання оцінки"
+
+#: crates/movo-desktop/src/dialogs/settings.rs:45
+msgid "Settings"
+msgstr "Налаштування"
 
 #: crates/movo-desktop/src/dialogs/settings.rs:83
 msgid "Appearance"
@@ -468,7 +485,8 @@ msgstr "Запуск програвача несподівано перерва�
 #: crates/movo-desktop/src/playback/launcher.rs:592
 msgid ""
 "This player does not report progress; the resume position is not updated."
-msgstr "Цей програвач не повідомляє прогрес; позиція відновлення не оновлюється."
+msgstr ""
+"Цей програвач не повідомляє прогрес; позиція відновлення не оновлюється."
 
 #: crates/movo-desktop/src/playback/launcher.rs:538
 msgid "Opened with the system player; set mpv in Settings for progress."

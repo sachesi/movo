@@ -108,16 +108,11 @@ impl Component for App {
                                     },
                                 },
 
-                                pack_end = &gtk::Button {
+                                pack_end = &gtk::MenuButton {
                                     set_icon_name: "open-menu-symbolic",
-                                    set_tooltip_text: Some(tr("Settings")),
-                                    connect_clicked => AppMsg::ShowSettings,
-                                },
-
-                                pack_end = &gtk::Button {
-                                    set_icon_name: "help-about-symbolic",
-                                    set_tooltip_text: Some(tr("About Movo")),
-                                    connect_clicked => AppMsg::ShowAbout,
+                                    set_tooltip_text: Some(tr("Main Menu")),
+                                    set_primary: true,
+                                    set_menu_model: Some(&primary_menu()),
                                 },
                             },
 
@@ -159,6 +154,38 @@ impl Component for App {
         }
         actions.add_action(&sign_in);
         root.insert_action_group("win", Some(&actions));
+
+        // The primary menu and its accelerators need actions on the application itself,
+        // since the menu is built once and is not tied to a particular window.
+        let application = relm4::main_application();
+        let preferences = relm4::gtk::gio::SimpleAction::new("preferences", None);
+        {
+            let sender = sender.clone();
+            preferences.connect_activate(move |_, _| sender.input(AppMsg::ShowSettings));
+        }
+        application.add_action(&preferences);
+
+        let about = relm4::gtk::gio::SimpleAction::new("about", None);
+        {
+            let sender = sender.clone();
+            about.connect_activate(move |_, _| sender.input(AppMsg::ShowAbout));
+        }
+        application.add_action(&about);
+
+        let shortcuts = relm4::gtk::gio::SimpleAction::new("shortcuts", None);
+        {
+            let root = root.clone();
+            shortcuts.connect_activate(move |_, _| show_shortcuts(&root));
+        }
+        application.add_action(&shortcuts);
+
+        let quit = relm4::gtk::gio::SimpleAction::new("quit", None);
+        quit.connect_activate(|_, _| relm4::main_application().quit());
+        application.add_action(&quit);
+
+        application.set_accels_for_action("app.preferences", &["<Control>comma"]);
+        application.set_accels_for_action("app.shortcuts", &["<Control>question"]);
+        application.set_accels_for_action("app.quit", &["<Control>q"]);
 
         let home =
             HomeView::builder()
@@ -493,6 +520,31 @@ fn notification_media(title: String, url: String) -> MediaItem {
         rating: None,
         info: None,
     }
+}
+
+fn primary_menu() -> relm4::gtk::gio::Menu {
+    let menu = relm4::gtk::gio::Menu::new();
+    menu.append(Some(tr("Preferences")), Some("app.preferences"));
+    menu.append(Some(tr("Keyboard Shortcuts")), Some("app.shortcuts"));
+    menu.append(Some(tr("About Movo")), Some("app.about"));
+    menu.append(Some(tr("Quit")), Some("app.quit"));
+    menu
+}
+
+fn show_shortcuts(root: &adw::ApplicationWindow) {
+    let dialog = adw::ShortcutsDialog::new();
+    let section = adw::ShortcutsSection::new(None);
+    section.add(adw::ShortcutsItem::from_action(
+        tr("Preferences"),
+        "app.preferences",
+    ));
+    section.add(adw::ShortcutsItem::from_action(
+        tr("Keyboard Shortcuts"),
+        "app.shortcuts",
+    ));
+    section.add(adw::ShortcutsItem::from_action(tr("Quit"), "app.quit"));
+    dialog.add(section);
+    dialog.present(Some(root));
 }
 
 fn show_about(root: &adw::ApplicationWindow) {
