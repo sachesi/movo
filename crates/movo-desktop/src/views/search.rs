@@ -96,7 +96,7 @@ impl Component for SearchView {
 
                     #[local_ref]
                     entry -> gtk::SearchEntry {
-                        set_placeholder_text: Some(tr("Search movies, series, cartoons...")),
+                        set_placeholder_text: Some(tr("Search movies, series, cartoons…")),
                         set_hexpand: true,
                         connect_search_changed[sender] => move |entry| {
                             sender.input(SearchMsg::QueryChanged(entry.text().to_string()));

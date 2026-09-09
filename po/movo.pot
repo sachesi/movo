@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo 0.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 10:22+0300\n"
+"POT-Creation-Date: 2026-09-09 11:12+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,81 +19,81 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: crates/movo-desktop/src/api.rs:44
+#: crates/movo-desktop/src/api.rs:46
 msgid "The account changed before the request started"
 msgstr ""
 
-#: crates/movo-desktop/src/api.rs:51
+#: crates/movo-desktop/src/api.rs:56
 msgid "The request stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:113
+#: crates/movo-desktop/src/app.rs:114 crates/movo-desktop/src/app.rs:354
 msgid "Main Menu"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:255
+#: crates/movo-desktop/src/app.rs:256
 #: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:262
+#: crates/movo-desktop/src/app.rs:263
 #: crates/movo-desktop/src/dialogs/settings.rs:119
 #: crates/movo-desktop/src/views/home.rs:206
 msgid "Catalog"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:269
+#: crates/movo-desktop/src/app.rs:270
 #: crates/movo-desktop/src/dialogs/settings.rs:120
-#: crates/movo-desktop/src/views/search.rs:500
+#: crates/movo-desktop/src/views/search.rs:503
 msgid "Search"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:276
+#: crates/movo-desktop/src/app.rs:277
 #: crates/movo-desktop/src/dialogs/settings.rs:121
 #: crates/movo-desktop/src/views/details.rs:600
 msgid "Collections"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:283
+#: crates/movo-desktop/src/app.rs:284
 #: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:290
+#: crates/movo-desktop/src/app.rs:291
 #: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:297
+#: crates/movo-desktop/src/app.rs:298
 #: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:327
+#: crates/movo-desktop/src/app.rs:329
 msgid "Restoring the session stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:368
+#: crates/movo-desktop/src/app.rs:375
 msgid "Your session has ended. Sign in again to continue."
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:394
+#: crates/movo-desktop/src/app.rs:401
 msgid "Signed in as {}"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:527 crates/movo-desktop/src/app.rs:538
+#: crates/movo-desktop/src/app.rs:534 crates/movo-desktop/src/app.rs:545
 msgid "Preferences"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:528 crates/movo-desktop/src/app.rs:542
+#: crates/movo-desktop/src/app.rs:535 crates/movo-desktop/src/app.rs:549
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:529
+#: crates/movo-desktop/src/app.rs:536
 msgid "About Movo"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:530 crates/movo-desktop/src/app.rs:545
+#: crates/movo-desktop/src/app.rs:537 crates/movo-desktop/src/app.rs:552
 msgid "Quit"
 msgstr ""
 
@@ -102,20 +102,20 @@ msgstr ""
 msgid "Profile"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/actor.rs:41
+#: crates/movo-desktop/src/dialogs/actor.rs:42
 msgid "Loading the profile stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/actor.rs:118
+#: crates/movo-desktop/src/dialogs/actor.rs:122
 msgid "Roles"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/actor.rs:133
+#: crates/movo-desktop/src/dialogs/actor.rs:137
 msgid "Filmography"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/comments.rs:23
-#: crates/movo-desktop/src/views/details.rs:916
+#: crates/movo-desktop/src/views/details.rs:917
 msgid "Comments"
 msgstr ""
 
@@ -173,15 +173,15 @@ msgstr ""
 msgid "Enter your username and password"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/login.rs:121
+#: crates/movo-desktop/src/dialogs/login.rs:122
 msgid "Signing in stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/login.rs:136
+#: crates/movo-desktop/src/dialogs/login.rs:138
 msgid "Signed in for this session only"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/login.rs:138
+#: crates/movo-desktop/src/dialogs/login.rs:140
 msgid ""
 "The system keyring is unavailable, so this session cannot be stored. You "
 "will have to sign in again the next time Movo starts."
@@ -203,7 +203,7 @@ msgid "Cancel"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
-#: crates/movo-desktop/src/views/details.rs:908
+#: crates/movo-desktop/src/views/details.rs:909
 msgid "Rate"
 msgstr ""
 
@@ -240,7 +240,7 @@ msgid "Initial Screen"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/settings.rs:149
-#: crates/movo-desktop/src/views/details.rs:843
+#: crates/movo-desktop/src/views/details.rs:844
 msgid "Playback"
 msgstr ""
 
@@ -303,7 +303,7 @@ msgid "Removes saved covers and posters from disk"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/settings.rs:261
-#: crates/movo-desktop/src/views/search.rs:145
+#: crates/movo-desktop/src/views/search.rs:146
 msgid "Clear"
 msgstr ""
 
@@ -398,11 +398,11 @@ msgstr ""
 msgid "Local session data will be removed from this device."
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/settings.rs:476
+#: crates/movo-desktop/src/dialogs/settings.rs:477
 msgid "Signing out stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/dialogs/settings.rs:481
+#: crates/movo-desktop/src/dialogs/settings.rs:483
 msgid "Signed out, but the stored session was not removed"
 msgstr ""
 
@@ -501,7 +501,7 @@ msgid "Choose Quality"
 msgstr ""
 
 #: crates/movo-desktop/src/playback/launcher.rs:701
-#: crates/movo-desktop/src/views/details.rs:889
+#: crates/movo-desktop/src/views/details.rs:890
 msgid "Watch"
 msgstr ""
 
@@ -530,7 +530,7 @@ msgid "Try Again"
 msgstr ""
 
 #: crates/movo-desktop/src/views/catalog.rs:65
-#: crates/movo-desktop/src/views/search.rs:460
+#: crates/movo-desktop/src/views/search.rs:463
 msgid "Category"
 msgstr ""
 
@@ -671,35 +671,38 @@ msgid "Favorites Group"
 msgstr ""
 
 #: crates/movo-desktop/src/views/details.rs:812
+#: crates/movo-desktop/src/views/details.rs:816
 msgid "Favorite"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:853
+#: crates/movo-desktop/src/views/details.rs:854
 msgid "Voice-over"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:869
+#: crates/movo-desktop/src/views/details.rs:870
 msgid "Season"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:898
+#: crates/movo-desktop/src/views/details.rs:899
 msgid "Trailer"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:906
+#: crates/movo-desktop/src/views/details.rs:907
 msgid "Rated"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:933
+#: crates/movo-desktop/src/views/details.rs:934
 msgid "Episode Schedule"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:964
+#: crates/movo-desktop/src/views/details.rs:965
+#: crates/movo-desktop/src/views/details.rs:970
 #: crates/movo-desktop/src/views/history.rs:305
+#: crates/movo-desktop/src/views/history.rs:308
 msgid "Toggle Watched Status"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:1064
+#: crates/movo-desktop/src/views/details.rs:1068
 msgid "Continue"
 msgstr ""
 
@@ -751,7 +754,8 @@ msgstr ""
 msgid "History Is Empty"
 msgstr ""
 
-#: crates/movo-desktop/src/views/history.rs:316
+#: crates/movo-desktop/src/views/history.rs:317
+#: crates/movo-desktop/src/views/history.rs:320
 msgid "Remove from History"
 msgstr ""
 
@@ -792,15 +796,16 @@ msgid "Loading Notifications"
 msgstr ""
 
 #: crates/movo-desktop/src/views/notifications.rs:206
+#: crates/movo-desktop/src/views/notifications.rs:208
 msgid "Not opened yet"
 msgstr ""
 
-#: crates/movo-desktop/src/views/notifications.rs:227
+#: crates/movo-desktop/src/views/notifications.rs:229
 msgid "No Notifications"
 msgstr ""
 
 #: crates/movo-desktop/src/views/path.rs:62
-#: crates/movo-desktop/src/views/search.rs:180
+#: crates/movo-desktop/src/views/search.rs:181
 msgid "Nothing Found"
 msgstr ""
 
@@ -808,48 +813,48 @@ msgstr ""
 msgid "This List Did Not Load"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:98
-msgid "Search movies, series, cartoons..."
-msgstr ""
-
-#: crates/movo-desktop/src/views/search.rs:109
-msgid "Filters"
+#: crates/movo-desktop/src/views/search.rs:99
+msgid "Search movies, series, cartoons…"
 msgstr ""
 
 #: crates/movo-desktop/src/views/search.rs:110
-#: crates/movo-desktop/src/views/search.rs:450
+msgid "Filters"
+msgstr ""
+
+#: crates/movo-desktop/src/views/search.rs:111
+#: crates/movo-desktop/src/views/search.rs:453
 msgid "Advanced Search"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:138
+#: crates/movo-desktop/src/views/search.rs:139
 msgid "Recent Searches"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:178
+#: crates/movo-desktop/src/views/search.rs:179
 msgid "Searching"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:181
+#: crates/movo-desktop/src/views/search.rs:182
 msgid "Search Did Not Finish"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:202
-#: crates/movo-desktop/src/views/search.rs:344
+#: crates/movo-desktop/src/views/search.rs:203
+#: crates/movo-desktop/src/views/search.rs:346
 msgid "Search for Something"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:253
+#: crates/movo-desktop/src/views/search.rs:254
 msgid "Clearing search history stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:405
+#: crates/movo-desktop/src/views/search.rs:407
 msgid "Loading search history stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:463
+#: crates/movo-desktop/src/views/search.rs:466
 msgid "Genre"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:464
+#: crates/movo-desktop/src/views/search.rs:467
 msgid "Year"
 msgstr ""
