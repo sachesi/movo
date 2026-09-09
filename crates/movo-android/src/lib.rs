@@ -164,7 +164,9 @@ impl From<ClientError> for Failure {
 
 async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Failure> {
     match command {
-        Command::Login { .. } | Command::Restore { .. } | Command::Logout => unreachable!(),
+        Command::Login { .. } | Command::Restore { .. } | Command::Logout => Err(Failure::from(
+            "Account commands are handled before dispatch".to_string(),
+        )),
         Command::Catalog {
             category,
             filter,
