@@ -114,9 +114,13 @@ mo:
 pot:
     #!/usr/bin/env bash
     set -euo pipefail
-    xgettext --from-code=UTF-8 --language=C --keyword=tr --keyword=trf \
+    # xgettext has no Rust mode; C mode is close enough but reads a Rust lifetime such as
+    # 'static as an unterminated character constant on every occurrence, which drowns out
+    # any warning that would matter. Filter that one message out; nothing else is silenced.
+    xgettext --from-code=UTF-8 --language=C --keyword=tr --keyword=trf --keyword=trn:1,2 \
         --package-name=Movo --package-version=0.3.0 \
-        --output=po/movo.pot $(find crates/movo-desktop/src -name '*.rs' | sort)
+        --output=po/movo.pot $(find crates/movo-desktop/src -name '*.rs' | sort) \
+        2> >(grep -v 'unterminated character constant' >&2)
     for language in ru uk; do
         msgmerge --quiet --no-fuzzy-matching --update --backup=none \
             "po/$language.po" po/movo.pot

@@ -1,4 +1,4 @@
-use crate::i18n::{tr, trf};
+use crate::i18n::{tr, trf, trn};
 use crate::state::AppState;
 use crate::ui::image;
 use movo_core::client::models::parse_country_list;
@@ -421,7 +421,7 @@ fn account_group(
                     details.push(email.to_string());
                 }
                 details.push(match user.premium_days {
-                    Some(days) => trf("Premium: {} days", &[&days]),
+                    Some(days) => trn("Premium: {} day", "Premium: {} days", days as u64),
                     None if user.is_vip => tr("VIP / Premium").to_string(),
                     None => tr("Standard").to_string(),
                 });

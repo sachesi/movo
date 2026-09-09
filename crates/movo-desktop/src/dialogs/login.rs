@@ -135,8 +135,7 @@ pub fn present(
                         adw::AlertDialog::builder()
                             .heading(tr("Signed in for this session only"))
                             .body(tr(
-                                "The system keyring is unavailable, so this session cannot be \
-                                 stored. You will have to sign in again the next time Movo starts.",
+                                "The system keyring is unavailable, so this session cannot be stored. You will have to sign in again the next time Movo starts.",
                             ))
                             .build()
                             .present(Some(&warning_parent));

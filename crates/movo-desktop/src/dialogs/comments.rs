@@ -156,7 +156,7 @@ fn load<F: Fn(String) + 'static>(
                 widgets.page.set(comments.page);
                 widgets.pages.set(comments.total_pages.max(1));
                 widgets.position.set_label(&trf(
-                    "Page {} of {}",
+                    "Page {0} of {1}",
                     &[&comments.page, &widgets.pages.get()],
                 ));
                 widgets.previous.set_sensitive(comments.page > 1);

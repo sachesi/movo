@@ -1,5 +1,5 @@
 use crate::api::{guarded, Guarded};
-use crate::i18n::{tr, trf};
+use crate::i18n::{tr, trn};
 use crate::state::AppState;
 use crate::ui::paged_grid::PagedGrid;
 use movo_core::client::models::{Collection, MediaItem};
@@ -134,6 +134,6 @@ fn as_media(collection: &Collection) -> MediaItem {
         year: None,
         category: None,
         rating: None,
-        info: Some(trf("{} titles", &[&collection.count])),
+        info: Some(trn("{} title", "{} titles", collection.count as u64)),
     }
 }
