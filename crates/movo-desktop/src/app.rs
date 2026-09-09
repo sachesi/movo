@@ -500,6 +500,7 @@ fn show_about(root: &adw::ApplicationWindow) {
         .application_name("Movo")
         .application_icon(crate::APP_ID)
         .developer_name("sachesi")
+        .version(env!("CARGO_PKG_VERSION"))
         .website("https://github.com/sachesi/movo")
         .license_type(gtk::License::Gpl30)
         .build()

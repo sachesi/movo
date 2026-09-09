@@ -165,11 +165,15 @@ install-desktop:
     # runs without one until these land where the theme can see them.
     share="${XDG_DATA_HOME:-$HOME/.local/share}"
     data=crates/movo-desktop/data
-    install -Dm644 "$data/org.gnome.Movo.desktop" "$share/applications/org.gnome.Movo.desktop"
-    install -Dm644 "$data/icons/hicolor/scalable/apps/org.gnome.Movo.svg" \
-        "$share/icons/hicolor/scalable/apps/org.gnome.Movo.svg"
-    install -Dm644 "$data/icons/hicolor/512x512/apps/org.gnome.Movo.png" \
-        "$share/icons/hicolor/512x512/apps/org.gnome.Movo.png"
+    install -Dm644 "$data/io.github.sachesi.Movo.desktop" "$share/applications/io.github.sachesi.Movo.desktop"
+    install -Dm644 "$data/io.github.sachesi.Movo.metainfo.xml" \
+        "$share/metainfo/io.github.sachesi.Movo.metainfo.xml"
+    install -Dm644 "$data/icons/hicolor/scalable/apps/io.github.sachesi.Movo.svg" \
+        "$share/icons/hicolor/scalable/apps/io.github.sachesi.Movo.svg"
+    install -Dm644 "$data/icons/hicolor/symbolic/apps/io.github.sachesi.Movo-symbolic.svg" \
+        "$share/icons/hicolor/symbolic/apps/io.github.sachesi.Movo-symbolic.svg"
+    install -Dm644 "$data/icons/hicolor/512x512/apps/io.github.sachesi.Movo.png" \
+        "$share/icons/hicolor/512x512/apps/io.github.sachesi.Movo.png"
     if command -v gtk-update-icon-cache >/dev/null; then
         gtk-update-icon-cache -qtf "$share/icons/hicolor" || true
     fi

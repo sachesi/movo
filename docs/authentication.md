@@ -49,7 +49,7 @@ Verify:
 ### 2. Move persistence to the system keyring
 
 - Add the smallest maintained Rust integration for the platform keyring/Secret Service after confirming its current API.
-- Store one serialized official-session secret under service `org.gnome.Movo`, keyed by provider and user ID.
+- Store one serialized official-session secret under service `io.github.sachesi.Movo`, keyed by provider and user ID.
 - Store cookie names, values, expiry, path, domain, Secure, and HttpOnly metadata needed to reconstruct the jar safely.
 - Keep the active non-secret user ID in normal settings only if needed to locate the keyring entry.
 - On keyring write failure, keep the verified session in memory and tell the user that login will not survive restart.

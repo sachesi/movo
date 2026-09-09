@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering;
 use url::Url;
 
 #[cfg(not(target_os = "android"))]
-const KEYRING_SERVICE: &str = "org.gnome.Movo";
+const KEYRING_SERVICE: &str = "io.github.sachesi.Movo";
 const SESSION_VERSION: u8 = 1;
 
 #[derive(Serialize, Deserialize)]

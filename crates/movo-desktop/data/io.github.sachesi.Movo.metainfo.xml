@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.sachesi.Movo</id>
+  <name>Movo</name>
+  <summary>Watch movies and series</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <developer id="io.github.sachesi">
+    <name>sachesi</name>
+  </developer>
+  <description>
+    <p>
+      Movo is an unofficial client for the HDRezka streaming site. Browse the
+      catalog, collections and genre listings with search, filters and search
+      suggestions, and open a title for its description, ratings, cast,
+      comments, translator list and episode list.
+    </p>
+    <p>
+      Sign in to read and write favorites, watch history and episode
+      notifications through the account rather than a local copy, and play a
+      stream at a chosen quality with subtitles through mpv or another
+      desktop player. Playback resumes where it stopped, and the interface
+      follows the system language, with Russian and Ukrainian translations
+      included.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.sachesi.Movo.desktop</launchable>
+  <url type="homepage">https://github.com/sachesi/movo</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.3.0" date="2026-09-05" />
+  </releases>
+</component>
