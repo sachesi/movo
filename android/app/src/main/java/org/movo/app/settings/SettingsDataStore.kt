@@ -3,6 +3,7 @@ package org.movo.app.settings
 import org.movo.app.R
 import org.movo.app.core.Tab
 import android.content.Context
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -41,7 +42,13 @@ enum class QualityMode(val label: Int, val targetHeight: Int? = null) {
 
 private const val SETTINGS_NAME = "movo_settings"
 
-private val Context.settingsDataStore by preferencesDataStore(name = SETTINGS_NAME)
+// A truncated preferences file otherwise fails every write with no read ever having thrown
+// (reads already fall back to defaults), and Settings writes are launched from composables with
+// nothing to catch it.
+private val Context.settingsDataStore by preferencesDataStore(
+    name = SETTINGS_NAME,
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /** Preference keys; `internal` because callers name them when saving. */
 internal object Keys {

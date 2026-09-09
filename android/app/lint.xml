@@ -21,4 +21,17 @@
     <issue id="IconDensities">
         <ignore regexp="tv_banner" />
     </issue>
+
+    <!-- The dependency versions come from a pinned catalog reviewed on its own schedule, not
+         from whatever lint thinks is newest today. -->
+    <issue id="GradleDependency" severity="informational" />
+    <issue id="NewerVersionAvailable" severity="informational" />
+
+    <!-- The target SDK level is a deliberate per-release decision, not something to bump because
+         a newer platform exists. -->
+    <issue id="OldTargetApi" severity="informational" />
+
+    <!-- The manifest comment on the deep link already explains why: a third-party client cannot
+         publish assetlinks.json for a site it does not run. -->
+    <issue id="AppLinkWarning" severity="informational" />
 </lint>

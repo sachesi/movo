@@ -4,6 +4,7 @@ import org.movo.app.settings.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -126,6 +127,10 @@ suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.wa
  */
 private val Context.accountDataStore by preferencesDataStore(
     name = ACCOUNT_STORE_NAME,
+    // A truncated preferences file otherwise fails every write with no read ever having thrown
+    // (reads already fall back to defaults), and the session and progress writes here run from
+    // coroutines with nothing to catch it.
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
     produceMigrations = { context -> accountMigrations(context, ACCOUNT_STORE_NAME) },
 )
 

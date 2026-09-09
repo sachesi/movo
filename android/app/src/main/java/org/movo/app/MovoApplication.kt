@@ -3,7 +3,9 @@ package org.movo.app
 import android.app.Application
 import android.app.UiModeManager
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
+import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -20,6 +22,17 @@ import coil3.request.crossfade
  * cards already show a placeholder tile, so without the fade the poster simply replaces it.
  */
 class MovoApplication : Application(), SingletonImageLoader.Factory {
+    override fun onCreate() {
+        super.onCreate()
+        // The app claims the keystore cipher and DataStore reads never touch the main thread;
+        // logging-only StrictMode is what actually holds it to that, and it never ships in a
+        // release build, which has FLAG_DEBUGGABLE unset.
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build())
+            StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build())
+        }
+    }
+
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .crossfade(!isTelevision())

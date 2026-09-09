@@ -312,6 +312,11 @@ fn invoke(command: Command) -> Result<Value, Failure> {
 /// A panic left to unwind out of an `extern "system"` function aborts the
 /// process, so one malformed page from the provider would take the app down
 /// instead of failing the request that asked for it.
+///
+/// This relies on the default `panic = "unwind"`. A release profile added to
+/// the workspace that sets `panic = "abort"` turns every failure this
+/// function catches into a process abort instead, so any such profile must
+/// leave unwinding on for this crate.
 fn caught(run: impl FnOnce() -> String) -> String {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(run))
         .unwrap_or_else(|_| json!({"error": "The request stopped unexpectedly"}).to_string())

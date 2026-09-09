@@ -77,7 +77,8 @@ just apk-install  # build and install on a connected device
 ```
 
 `just apk-release` produces a signed release APK and expects `MOVO_KEYSTORE`,
-`MOVO_KEY_ALIAS` and `MOVO_KEYSTORE_PASSWORD` in the environment.
+`MOVO_KEY_ALIAS` and `MOVO_KEYSTORE_PASSWORD` in the environment, and it copies the R8 mapping
+file alongside the APK so a crash from that build can be retraced later.
 
 ## Layout
 

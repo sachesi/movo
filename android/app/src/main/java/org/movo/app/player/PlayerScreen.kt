@@ -223,6 +223,7 @@ fun PlayerScreen(
     seasons: List<Season>,
     settings: AppSettings,
     actions: PlayerActions,
+    lockLandscape: Boolean,
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -483,10 +484,12 @@ fun PlayerScreen(
     val insetsController = remember(activity) {
         activity?.let { WindowCompat.getInsetsController(it.window, it.window.decorView) }
     }
-    DisposableEffect(activity, insetsController) {
+    DisposableEffect(activity, insetsController, lockLandscape) {
         val types = WindowInsetsCompat.Type.systemBars()
-        val previousOrientation = activity?.requestedOrientation
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        // A tablet or an unfolded foldable shows the video in the window it already has instead
+        // of rotating the whole activity; only a phone still turns.
+        val previousOrientation = if (lockLandscape) activity?.requestedOrientation else null
+        if (lockLandscape) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         insetsController?.hide(types)
         insetsController?.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE)
         onDispose {
@@ -734,7 +737,10 @@ fun PlayerScreen(
             },
             update = {
                 it.player = player
-                it.keepScreenOn = ui.isPlaying
+                // Not `ui.isPlaying`: Media3 reports that false while buffering, so a stall
+                // longer than the screen timeout turned the display off, and the ON_STOP
+                // observer above then paused playback out from under a still-loading title.
+                it.keepScreenOn = content.playWhenReady && !content.completed
                 it.resizeMode = when (settings.videoFit) {
                     VideoFit.Contain -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     VideoFit.Cover -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM

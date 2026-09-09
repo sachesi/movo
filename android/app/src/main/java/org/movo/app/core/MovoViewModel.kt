@@ -225,7 +225,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(user = user) }
             // Notifications and premium days are decoration: they load beside the restored
             // session, not ahead of it, so the splash does not wait on them.
-            viewModelScope.launch { runCatching { refreshAccountData(false) } }
+            viewModelScope.launch { attempt { refreshAccountData(false) } }
         } catch (error: BridgeException) {
             // Only forget the session the provider actually turned down. Clearing it on any
             // failure signed the account out whenever restore happened to hit a dead network.
@@ -244,7 +244,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             store.saveSecret(result.secret)
             store.saveProfile(result.user)
             _state.update { it.copy(user = result.user) }
-            runCatching { refreshAccountData(false) }
+            attempt { refreshAccountData(false) }
         }
     }
 
@@ -552,7 +552,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun loadDetails(url: String) = coroutineScope {
         // Fetched beside the title, and optional: a slow or failed folder list must not hold the
         // page back or turn a title that loaded into an error.
-        val groups = async { runCatching { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") }.getOrNull() }
+        val groups = async { attempt { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") } }
         val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
         val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
         _state.update { it.copy(
@@ -1093,6 +1093,19 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+}
+
+/**
+ * Runs a best-effort suspend call, returning null on failure. `runCatching` around a suspend
+ * body would also catch [CancellationException], which a coroutine's own cancellation relies on
+ * propagating rather than being swallowed as an ordinary failure.
+ */
+private suspend inline fun <T> attempt(block: () -> T): T? = try {
+    block()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    null
 }
 
 /** Rails the core assembles for the home page; fewer means one of them failed. */

@@ -9,6 +9,10 @@ plugins {
 android {
     namespace = "org.movo.app"
     compileSdk = 37
+    // AGP strips debug symbols from the native libs with the NDK it resolves for itself, not the
+    // one buildRust used; left unpinned it looks for its own default NDK, does not find it
+    // installed, and ships the .so files unstripped instead of failing loudly.
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "org.movo.app"
@@ -43,6 +47,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // A new warning is either worth fixing or worth a documented entry in lint.xml; either way it
+    // should stop the build rather than sit unread in a report nobody opens.
+    lint { warningsAsErrors = true }
 }
 
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
@@ -66,10 +73,14 @@ tasks.withType<Test>().configureEach {
 
 val buildRust = tasks.register<Exec>("buildRust") {
     workingDir = rustRoot
-    // Declared so Gradle can skip the cargo invocation when nothing in the core changed.
-    inputs.dir(File(rustRoot, "crates")).withPathSensitivity(PathSensitivity.RELATIVE)
+    // Declared so Gradle can skip the cargo invocation when nothing this library depends on
+    // changed. The workspace also has a GTK-only desktop crate; watching all of `crates` made
+    // every edit there trigger three cross-compiles this app never loads the result of.
+    inputs.dir(File(rustRoot, "crates/movo-core")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(File(rustRoot, "crates/movo-android")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(File(rustRoot, "Cargo.toml"))
     inputs.file(File(rustRoot, "Cargo.lock"))
+    inputs.property("ndk", providers.environmentVariable("ANDROID_NDK_HOME").orElse(""))
     outputs.dir(project.layout.buildDirectory.dir("generated/jniLibs"))
     commandLine("cargo", "ndk", "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64", "-o", project.layout.buildDirectory.dir("generated/jniLibs").get().asFile, "build", "--release", "-p", "movo-android")
 }
@@ -110,4 +121,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Watches for leaked Activities/Fragments/ViewModels in debug builds only; it has no effect
+    // on a release build and is never linked into one.
+    debugImplementation(libs.leakcanary.android)
 }

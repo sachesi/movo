@@ -292,7 +292,10 @@ private fun MovoApp(
                         when (screen) {
                             Screen.Restoring -> Splash { Loading(stringResource(R.string.restoring_session)) }
                             Screen.Login -> LoginRoute(model, isTv)
-                            Screen.Player -> PlayerRoute(model, settings, isTv)
+                            // Keyed on the smallest width, not the current one: the current width
+                            // changes with the very rotation the lock imposes, which on a phone
+                            // opened in landscape flipped the lock on and off with every turn.
+                            Screen.Player -> PlayerRoute(model, settings, isTv, lockLandscape = !isBigScreen)
                             Screen.Trailer -> TrailerRoute(model, isTv)
                             Screen.Details -> DetailsRoute(
                                 model,
@@ -348,7 +351,7 @@ private fun LoginRoute(model: MovoViewModel, isTv: Boolean) {
 }
 
 @Composable
-private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boolean) {
+private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boolean, lockLandscape: Boolean) {
     val state by model.state.collectAsStateWithLifecycle()
     val stream = state.stream ?: return
     val context = LocalContext.current
@@ -403,6 +406,7 @@ private fun PlayerRoute(model: MovoViewModel, settings: AppSettings, isTv: Boole
         seasons = state.details?.seasons.orEmpty(),
         settings = settings,
         actions = actions,
+        lockLandscape = lockLandscape,
     )
 }
 
@@ -452,15 +456,17 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            webView.stopLoading()
-            webView.destroy()
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     BackHandler { model.clearTrailer() }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+        // destroy() has to run after the view has left the composition's hierarchy, which
+        // onRelease guarantees and DisposableEffect's onDispose does not.
+        AndroidView(
+            factory = { webView },
+            onRelease = { it.stopLoading(); it.destroy() },
+            modifier = Modifier.fillMaxSize(),
+        )
         if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
         val backModifier = Modifier
             .align(Alignment.TopStart)

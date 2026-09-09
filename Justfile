@@ -55,7 +55,14 @@ apk-release:
         "$output"
     "$build_tools/zipalign" -c -P 16 4 "$output"
     "$build_tools/apksigner" verify --verbose --print-certs "$output"
+    # Kept alongside the APK it belongs to: retrace needs the exact mapping for a release build to
+    # turn an obfuscated stack trace back into real names, and R8 overwrites this file on every run.
+    mapping="app/build/outputs/mapping/release/mapping.txt"
+    test -f "$mapping" || { echo "R8 mapping file not found: $PWD/$mapping" >&2; exit 1; }
+    mapping_output="$(dirname "$output")/movo-release-$version_name-mapping.txt"
+    cp "$mapping" "$mapping_output"
     echo "APK: $output"
+    echo "Mapping: $mapping_output"
 
 # Run tests and lint, then build the debug APK.
 apk-check:
@@ -70,6 +77,21 @@ apk-check:
     cd android
     ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
     echo "APK: $PWD/app/build/outputs/apk/debug/app-debug.apk"
+
+# Run the instrumentation tests on a connected device or emulator; the television suite expects
+# a TV profile (Android TV/Google TV emulator image or hardware) to run against.
+apk-test-device:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+    test -d "$sdk" || { echo "Android SDK not found: $sdk" >&2; exit 1; }
+    ndk="${ANDROID_NDK_HOME:-$sdk/ndk/29.0.14206865}"
+    test -d "$ndk" || { echo "Android NDK 29.0.14206865 not found: $ndk" >&2; exit 1; }
+    command -v cargo-ndk >/dev/null || { echo "Install cargo-ndk: cargo install cargo-ndk --locked" >&2; exit 1; }
+    test -n "${JAVA_HOME:-}" || test ! -d /tmp/movo-jdk21 || export JAVA_HOME=/tmp/movo-jdk21
+    cd android
+    ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew connectedDebugAndroidTest
+    echo "Report: $PWD/app/build/reports/androidTests/connected/"
 
 # Build and install the debug APK on a connected device.
 apk-install: apk

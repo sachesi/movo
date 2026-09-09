@@ -16,7 +16,7 @@ Set `ANDROID_HOME` and `ANDROID_NDK_HOME`, then build:
 just apk
 ```
 
-Use `just apk-check` for tests and lint, or `just apk-install` to build and install on a connected device.
+Use `just apk-check` for tests and lint, `just apk-test-device` to run the instrumentation tests on a connected device or emulator, or `just apk-install` to build and install on a connected device.
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 
