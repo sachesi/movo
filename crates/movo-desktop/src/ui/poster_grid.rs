@@ -140,6 +140,7 @@ fn build_card() -> (gtk::Box, PosterWidgets) {
 fn bind_card(media: &MediaItem, widgets: &mut PosterWidgets, root: &mut gtk::Box) {
     root.set_tooltip_text(Some(&media.title));
     widgets.title.set_label(&media.title);
+    widgets.picture.set_alternative_text(Some(&media.title));
 
     widgets.subtitle.set_label(&subtitle_text(media));
     widgets

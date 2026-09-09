@@ -813,6 +813,7 @@ impl DetailsView {
             .valign(gtk::Align::Center)
             .build();
         button.set_sensitive(!ids.is_empty());
+        button.update_property(&[gtk::accessible::Property::Label(tr("Favorite"))]);
 
         let sender = sender.clone();
         let categories_for_click = categories.clone();
@@ -965,6 +966,9 @@ impl DetailsView {
                         .has_frame(false)
                         .valign(gtk::Align::Center)
                         .build();
+                    watched.update_property(&[gtk::accessible::Property::Label(tr(
+                        "Toggle Watched Status",
+                    ))]);
                     let sender = sender.clone();
                     let id = item.id.clone();
                     watched.connect_clicked(move |button| {

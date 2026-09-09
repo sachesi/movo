@@ -204,6 +204,8 @@ impl NotificationsView {
                     let unread = gtk::Image::from_icon_name("media-record-symbolic");
                     unread.add_css_class("accent");
                     unread.set_tooltip_text(Some(tr("Not opened yet")));
+                    unread
+                        .update_property(&[gtk::accessible::Property::Label(tr("Not opened yet"))]);
                     row.add_suffix(&unread);
                 }
                 row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));

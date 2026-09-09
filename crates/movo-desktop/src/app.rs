@@ -108,6 +108,7 @@ impl Component for App {
                                     },
                                 },
 
+                                #[name = "menu_button"]
                                 pack_end = &gtk::MenuButton {
                                     set_icon_name: "open-menu-symbolic",
                                     set_tooltip_text: Some(tr("Main Menu")),
@@ -346,6 +347,11 @@ impl Component for App {
             toasts: toasts.clone(),
         };
         let widgets = view_output!();
+
+        // The tooltip is not read by a screen reader; the icon-only button needs its own label.
+        widgets
+            .menu_button
+            .update_property(&[gtk::accessible::Property::Label(tr("Main Menu"))]);
 
         // Seven destinations do not fit a header switcher on a narrow window,
         // so hand them to the bottom bar below the breakpoint.

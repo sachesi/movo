@@ -305,6 +305,7 @@ impl relm4::factory::FactoryComponent for HistoryRow {
                 set_tooltip_text: Some(tr("Toggle Watched Status")),
                 set_has_frame: false,
                 set_valign: gtk::Align::Center,
+                update_property: &[gtk::accessible::Property::Label(tr("Toggle Watched Status"))],
                 connect_clicked[sender, id = self.entry.id.clone(), watched = self.entry.is_watched] => move |button| {
                     button.set_sensitive(false);
                     sender.output(HistoryMsg::SetWatched(id.clone(), !watched)).ok();
@@ -316,6 +317,7 @@ impl relm4::factory::FactoryComponent for HistoryRow {
                 set_tooltip_text: Some(tr("Remove from History")),
                 set_has_frame: false,
                 set_valign: gtk::Align::Center,
+                update_property: &[gtk::accessible::Property::Label(tr("Remove from History"))],
                 connect_clicked[sender, id = self.entry.id.clone()] => move |_| {
                     sender.output(HistoryMsg::Remove(id.clone())).ok();
                 },
