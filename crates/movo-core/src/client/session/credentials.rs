@@ -1,5 +1,6 @@
 use super::cookies::{HostCookies, PersistedCookies, StoredCookie};
 use super::{RezkaSession, OFFICIAL_MIRROR};
+use crate::error::{ClientError, ErrorKind};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -19,7 +20,7 @@ pub(crate) struct SessionSecret {
 }
 
 impl RezkaSession {
-    pub fn export_session(&self) -> Result<String, String> {
+    pub fn export_session(&self) -> Result<String, ClientError> {
         let user_id = self
             .authenticated_user_id()
             .ok_or_else(|| "Authentication required".to_string())?;
@@ -29,18 +30,26 @@ impl RezkaSession {
             user_id,
             cookies: self.cookie_jar.snapshot(),
         })
-        .map_err(|error| format!("Could not serialize session: {error}"))
+        .map_err(|error| {
+            ClientError::new(
+                ErrorKind::Other,
+                format!("Could not serialize session: {error}"),
+            )
+        })
     }
 
-    pub fn import_session(&self, secret: &str) -> Result<String, String> {
-        let secret: SessionSecret =
-            serde_json::from_str(secret).map_err(|_| "Stored session is invalid".to_string())?;
+    pub fn import_session(&self, secret: &str) -> Result<String, ClientError> {
+        let secret: SessionSecret = serde_json::from_str(secret)
+            .map_err(|_| ClientError::new(ErrorKind::Session, "Stored session is invalid"))?;
         if secret.version != SESSION_VERSION
             || secret.provider != OFFICIAL_MIRROR
             || secret.user_id.is_empty()
             || secret.cookies.is_empty()
         {
-            return Err("Stored session is invalid".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Stored session is invalid",
+            ));
         }
         self.cookie_jar.replace(&secret.cookies);
         if self.authenticated_user_id().as_deref() == Some(secret.user_id.as_str()) {
@@ -48,7 +57,10 @@ impl RezkaSession {
             Ok(secret.user_id)
         } else {
             self.cookie_jar.clear();
-            Err("Stored session is invalid".to_string())
+            Err(ClientError::new(
+                ErrorKind::Session,
+                "Stored session is invalid",
+            ))
         }
     }
 
@@ -60,7 +72,7 @@ impl RezkaSession {
         }
     }
 
-    pub fn remove_legacy_cookie_file() -> Result<(), String> {
+    pub fn remove_legacy_cookie_file() -> Result<(), ClientError> {
         let path = Self::cookie_file_path();
         if path.exists() {
             fs::remove_file(path)
@@ -70,12 +82,18 @@ impl RezkaSession {
     }
 
     #[cfg(not(target_os = "android"))]
-    pub fn persist_session(&self, user_id: &str) -> Result<(), String> {
+    pub fn persist_session(&self, user_id: &str) -> Result<(), ClientError> {
         if self.base_url != OFFICIAL_MIRROR {
-            return Err("Only official-provider sessions can be persisted".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Only official-provider sessions can be persisted",
+            ));
         }
         if self.authenticated_user_id().as_deref() != Some(user_id) {
-            return Err("Cannot persist an unverified session".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Cannot persist an unverified session",
+            ));
         }
         let secret = SessionSecret {
             version: SESSION_VERSION,
@@ -88,30 +106,38 @@ impl RezkaSession {
         let entry = Self::keyring_entry(user_id)?;
         entry
             .set_secret(&secret)
-            .map_err(|_| "System keyring is unavailable; session remains in memory".to_string())
+            .map_err(|_| "System keyring is unavailable; session remains in memory".to_string())?;
+        Ok(())
     }
 
     #[cfg(target_os = "android")]
-    pub fn persist_session(&self, _user_id: &str) -> Result<(), String> {
-        Err("Android stores sessions in the platform keystore".to_string())
+    pub fn persist_session(&self, _user_id: &str) -> Result<(), ClientError> {
+        Err("Android stores sessions in the platform keystore"
+            .to_string()
+            .into())
     }
 
     #[cfg(not(target_os = "android"))]
-    pub fn restore_session(&self, user_id: &str) -> Result<bool, String> {
+    pub fn restore_session(&self, user_id: &str) -> Result<bool, ClientError> {
         self.cookie_jar.clear();
         let entry = Self::keyring_entry(user_id)?;
         let secret = match entry.get_secret() {
             Ok(secret) => secret,
             Err(keyring::Error::NoEntry) => return Ok(false),
             Err(_) => {
-                return Err("System keyring is unavailable; session was not restored".to_string())
+                return Err("System keyring is unavailable; session was not restored"
+                    .to_string()
+                    .into())
             }
         };
         let secret: SessionSecret = match serde_json::from_slice(&secret) {
             Ok(secret) => secret,
             Err(_) => {
                 let _ = entry.delete_credential();
-                return Err("Stored session is invalid".to_string());
+                return Err(ClientError::new(
+                    ErrorKind::Session,
+                    "Stored session is invalid",
+                ));
             }
         };
         if secret.version != SESSION_VERSION
@@ -119,7 +145,10 @@ impl RezkaSession {
             || secret.user_id != user_id
         {
             let _ = entry.delete_credential();
-            return Err("Stored session does not match the requested account".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Stored session does not match the requested account",
+            ));
         }
         self.cookie_jar.replace(&secret.cookies);
         if self.authenticated_user_id().as_deref() == Some(user_id) {
@@ -132,12 +161,12 @@ impl RezkaSession {
     }
 
     #[cfg(target_os = "android")]
-    pub fn restore_session(&self, _user_id: &str) -> Result<bool, String> {
+    pub fn restore_session(&self, _user_id: &str) -> Result<bool, ClientError> {
         Ok(false)
     }
 
     #[cfg(not(target_os = "android"))]
-    pub fn clear_session(&self, user_id: Option<&str>) -> Result<(), String> {
+    pub fn clear_session(&self, user_id: Option<&str>) -> Result<(), ClientError> {
         self.invalidate_auth();
         let legacy_removed = Self::remove_legacy_cookie_file().is_ok();
         let keyring_removed = match user_id {
@@ -151,33 +180,38 @@ impl RezkaSession {
         };
         match (legacy_removed, keyring_removed) {
             (true, true) => Ok(()),
-            (false, true) => Err("Legacy session file could not be removed".to_string()),
-            (true, false) => {
-                Err("System keyring is unavailable; stored session was not removed".to_string())
-            }
+            (false, true) => Err("Legacy session file could not be removed"
+                .to_string()
+                .into()),
+            (true, false) => Err(
+                "System keyring is unavailable; stored session was not removed"
+                    .to_string()
+                    .into(),
+            ),
             (false, false) => Err(
                 "Stored session could not be fully removed from disk or the system keyring"
-                    .to_string(),
+                    .to_string()
+                    .into(),
             ),
         }
     }
 
     #[cfg(target_os = "android")]
-    pub fn clear_session(&self, _user_id: Option<&str>) -> Result<(), String> {
+    pub fn clear_session(&self, _user_id: Option<&str>) -> Result<(), ClientError> {
         self.invalidate_auth();
         Ok(())
     }
 
     #[cfg(not(target_os = "android"))]
-    fn keyring_entry(user_id: &str) -> Result<keyring::Entry, String> {
+    fn keyring_entry(user_id: &str) -> Result<keyring::Entry, ClientError> {
         keyring::Entry::new(KEYRING_SERVICE, &format!("hdrzk.org:{user_id}"))
-            .map_err(|_| "System keyring is unavailable".to_string())
+            .map_err(|_| "System keyring is unavailable".to_string().into())
     }
 
     pub fn load_legacy_session(
         &self,
         expected_user_id: Option<&str>,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<Option<String>, ClientError> {
         let path = Self::cookie_file_path();
         if !path.exists() {
             return Ok(None);
@@ -186,7 +220,7 @@ impl RezkaSession {
             Ok(content) => content,
             Err(_) => {
                 let _ = Self::remove_legacy_cookie_file();
-                return Err("Legacy session could not be read".to_string());
+                return Err("Legacy session could not be read".to_string().into());
             }
         };
         let url = Url::parse(&self.base_url)
@@ -197,7 +231,10 @@ impl RezkaSession {
         let persisted = Self::parse_host_cookies(&content, Some(host));
         let Some(cookies) = persisted.hosts.get(host) else {
             let _ = Self::remove_legacy_cookie_file();
-            return Err("Legacy session is invalid".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Legacy session is invalid",
+            ));
         };
         let cookies = cookies
             .iter()
@@ -210,12 +247,18 @@ impl RezkaSession {
         let Some(user_id) = self.authenticated_user_id() else {
             self.cookie_jar.clear();
             let _ = Self::remove_legacy_cookie_file();
-            return Err("Legacy session is incomplete".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Legacy session is incomplete",
+            ));
         };
         if expected_user_id.is_some_and(|expected| expected != user_id) {
             self.cookie_jar.clear();
             let _ = Self::remove_legacy_cookie_file();
-            return Err("Legacy session belongs to another account".to_string());
+            return Err(ClientError::new(
+                ErrorKind::Session,
+                "Legacy session belongs to another account",
+            ));
         }
         Ok(Some(user_id))
     }

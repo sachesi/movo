@@ -210,7 +210,7 @@ impl Component for HistoryView {
                 }
                 match loaded.result {
                     Ok(history) => self.render(history),
-                    Err(error) => self.content.set(ContentState::Error(&error)),
+                    Err(error) => self.content.set(ContentState::Error(&error.to_string())),
                 }
             }
             HistoryCommand::Changed(changed) => {
@@ -221,7 +221,7 @@ impl Component for HistoryView {
                 match changed.result {
                     Ok(()) => sender.input(HistoryMsg::Reload),
                     Err(error) => {
-                        let _ = sender.output(HistoryOutput::Warning(error));
+                        let _ = sender.output(HistoryOutput::Warning(error.to_string()));
                         sender.input(HistoryMsg::Reload);
                     }
                 }

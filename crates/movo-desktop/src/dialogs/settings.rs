@@ -473,13 +473,15 @@ fn account_group(
                 let client = state.client.clone();
                 let result = relm4::spawn(async move { client.logout().await })
                     .await
-                    .unwrap_or_else(|_| Err(tr("Signing out stopped unexpectedly").to_string()));
+                    .unwrap_or_else(|_| {
+                        Err(tr("Signing out stopped unexpectedly").to_string().into())
+                    });
                 show_account();
                 on_account_changed();
                 if let Err(error) = result {
                     adw::AlertDialog::builder()
                         .heading(tr("Signed out, but the stored session was not removed"))
-                        .body(&error)
+                        .body(error.to_string())
                         .build()
                         .present(Some(&dialog));
                 }

@@ -1,6 +1,7 @@
 use crate::ui::content::{ContentStack, ContentState};
 use crate::ui::poster_grid::{poster_grid, PosterGrid, PosterItem};
 use movo_core::client::models::MediaItem;
+use movo_core::error::ClientError;
 use relm4::gtk::{self, prelude::*};
 
 /// Distance from the bottom of the list at which the next page is requested.
@@ -102,7 +103,11 @@ impl PagedGrid {
     /// query, category or sort order the user has already moved away from.
     /// Returns a message to surface as a notification when a later page
     /// failed, where a full-page error would hide results still on screen.
-    pub fn apply(&mut self, page: usize, result: Result<Vec<MediaItem>, String>) -> Option<String> {
+    pub fn apply(
+        &mut self,
+        page: usize,
+        result: Result<Vec<MediaItem>, ClientError>,
+    ) -> Option<String> {
         if !self.is_pending(page) {
             return None;
         }
@@ -111,7 +116,7 @@ impl PagedGrid {
                 self.accept(page, items);
                 None
             }
-            Err(error) => self.reject(page, error),
+            Err(error) => self.reject(page, error.to_string()),
         }
     }
 

@@ -38,13 +38,17 @@ pub fn present(
     relm4::spawn_local(async move {
         let loaded = relm4::spawn(async move { client.fetch_actor(&url).await })
             .await
-            .unwrap_or_else(|_| Err(tr("Loading the profile stopped unexpectedly").to_string()));
+            .unwrap_or_else(|_| {
+                Err(tr("Loading the profile stopped unexpectedly")
+                    .to_string()
+                    .into())
+            });
 
         match loaded {
             Ok(actor) => toolbar.set_content(Some(&profile(actor, &dialog, on_open))),
             Err(error) => {
                 dialog.close();
-                on_error(error);
+                on_error(error.to_string());
             }
         }
     });

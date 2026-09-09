@@ -7,6 +7,7 @@ use movo_core::client::{
     models::{self, CatalogCategory, Translator},
     RezkaClient,
 };
+use movo_core::error::{ClientError, ErrorKind};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::LazyLock;
@@ -134,6 +135,7 @@ enum Command {
 /// A failed command, and whether it leaves the stored session worth keeping.
 struct Failure {
     message: String,
+    kind: ErrorKind,
     /// Set only by `Restore`: the provider turned the stored session down, so
     /// the app should forget it instead of trying again later.
     session_rejected: bool,
@@ -141,8 +143,20 @@ struct Failure {
 
 impl From<String> for Failure {
     fn from(message: String) -> Self {
+        let kind = movo_core::error::classify(&message);
         Self {
             message,
+            kind,
+            session_rejected: false,
+        }
+    }
+}
+
+impl From<ClientError> for Failure {
+    fn from(error: ClientError) -> Self {
+        Self {
+            message: error.message,
+            kind: error.kind,
             session_rejected: false,
         }
     }
@@ -279,7 +293,8 @@ fn invoke(command: Command) -> Result<Value, Failure> {
                     .await
                     .map(|user| json!(user))
                     .map_err(|error| Failure {
-                        message: error.message,
+                        message: error.error.message,
+                        kind: error.error.kind,
                         session_rejected: error.is_rejected,
                     })
             }
@@ -340,7 +355,7 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
             .unwrap_or_else(|failure| {
                 json!({
                     "error": failure.message,
-                    "code": movo_core::error::classify(&failure.message).code(),
+                    "code": failure.kind.code(),
                     "rejected": failure.session_rejected,
                 })
             })

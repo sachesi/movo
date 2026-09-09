@@ -3,6 +3,7 @@ use crate::i18n::tr;
 use crate::state::{account_of, AppState};
 use crate::ui::paged_grid::PagedGrid;
 use movo_core::client::models::{MediaItem, SearchFilter};
+use movo_core::error::ClientError;
 use movo_core::storage::search_history::SearchHistory;
 use relm4::adw;
 use relm4::adw::prelude::*;
@@ -251,7 +252,8 @@ impl Component for SearchView {
                         .await
                         .unwrap_or_else(|_| {
                             Err(tr("Clearing search history stopped unexpectedly").to_string())
-                        });
+                        })
+                        .map_err(ClientError::from);
                     SearchCommand::RecentCleared(Guarded { account, result })
                 });
             }
@@ -296,7 +298,7 @@ impl Component for SearchView {
                 match loaded.result {
                     Ok(filters) => show_filters(root, filters, &sender),
                     Err(error) => {
-                        let _ = sender.output(SearchOutput::Warning(error));
+                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
                     }
                 }
             }
@@ -309,7 +311,7 @@ impl Component for SearchView {
                     Ok(values) => self.show_recent(&values),
                     Err(error) => {
                         self.recent_section.set_visible(false);
-                        let _ = sender.output(SearchOutput::Warning(error));
+                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
                     }
                 }
             }
@@ -321,7 +323,7 @@ impl Component for SearchView {
                 match cleared.result {
                     Ok(()) => self.show_recent(&[]),
                     Err(error) => {
-                        let _ = sender.output(SearchOutput::Warning(error));
+                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
                         self.load_recent(&sender);
                     }
                 }
@@ -402,7 +404,8 @@ impl SearchView {
                 SearchHistory::load(&user_id).map(|history| history.values)
             })
             .await
-            .unwrap_or_else(|_| Err(tr("Loading search history stopped unexpectedly").to_string()));
+            .unwrap_or_else(|_| Err(tr("Loading search history stopped unexpectedly").to_string()))
+            .map_err(ClientError::from);
             SearchCommand::Recent(Guarded { account, result })
         });
     }

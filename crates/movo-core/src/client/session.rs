@@ -1,5 +1,6 @@
 use super::anubis;
 use super::anubis::AnubisSolution;
+use crate::error::{ClientError, ErrorKind};
 use reqwest::cookie::CookieStore;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, REFERER, USER_AGENT};
 use std::collections::HashMap;
@@ -54,12 +55,19 @@ impl Default for RezkaSession {
 
 impl RezkaSession {
     pub fn new() -> Self {
-        Self::new_for_base(OFFICIAL_MIRROR)
+        Self::new_for_base(OFFICIAL_MIRROR, Duration::from_secs(25))
     }
 
     #[cfg(test)]
     pub(super) fn new_for_test(base_url: &str) -> Self {
-        Self::new_for_base(base_url)
+        Self::new_for_base(base_url, Duration::from_secs(25))
+    }
+
+    /// A session whose request timeout is short enough to exercise in a test,
+    /// against a server that never answers.
+    #[cfg(test)]
+    pub(super) fn new_for_test_with_timeout(base_url: &str, timeout: Duration) -> Self {
+        Self::new_for_base(base_url, timeout)
     }
 
     #[cfg(test)]
@@ -71,7 +79,7 @@ impl RezkaSession {
             .add_cookie_str("dle_password=hash; Path=/", &url);
     }
 
-    fn new_for_base(base_url: &str) -> Self {
+    fn new_for_base(base_url: &str, timeout: Duration) -> Self {
         let cookie_jar = Arc::new(SharedCookieJar::default());
         let base = base_url.trim_end_matches('/').to_string();
 
@@ -80,7 +88,7 @@ impl RezkaSession {
         let client = reqwest::Client::builder()
             .cookie_provider(cookie_jar.clone())
             .default_headers(headers.clone())
-            .timeout(Duration::from_secs(25))
+            .timeout(timeout)
             .gzip(true)
             .brotli(true)
             .build()
@@ -89,7 +97,7 @@ impl RezkaSession {
         let pass_client = reqwest::Client::builder()
             .cookie_provider(cookie_jar.clone())
             .default_headers(headers)
-            .timeout(Duration::from_secs(25))
+            .timeout(timeout)
             .redirect(reqwest::redirect::Policy::none())
             .gzip(true)
             .brotli(true)
@@ -303,10 +311,14 @@ impl RezkaSession {
         Ok(())
     }
 
-    pub async fn get_html(&self, target_url: &str) -> Result<String, String> {
+    pub async fn get_html(&self, target_url: &str) -> Result<String, ClientError> {
         let full_url = if target_url.starts_with("http://") || target_url.starts_with("https://") {
-            let parsed = Url::parse(target_url)
-                .map_err(|error| format!("Invalid provider URL {}: {}", target_url, error))?;
+            let parsed = Url::parse(target_url).map_err(|error| {
+                ClientError::new(
+                    ErrorKind::Other,
+                    format!("Invalid provider URL {}: {}", target_url, error),
+                )
+            })?;
             format!(
                 "{}{}{}",
                 self.base_url,
@@ -320,29 +332,42 @@ impl RezkaSession {
             format!("{}/{}", self.base_url, target_url.trim_start_matches('/'))
         };
 
-        let mut last_err = String::new();
+        let mut last_err = None;
         for attempt in 0..3 {
             Self::back_off(attempt).await;
 
             match self.execute_get(&full_url).await {
                 Ok(html) => return Ok(html),
                 Err(e) => {
-                    last_err = e;
+                    last_err = Some(e);
                 }
             }
         }
 
-        Err(last_err)
+        Err(last_err.unwrap_or_else(|| ClientError::new(ErrorKind::Network, "GET request failed")))
     }
 
-    async fn execute_get(&self, full_url: &str) -> Result<String, String> {
+    /// Turns a transport-level failure into a [`ClientError`] with an explicit
+    /// kind instead of leaving it to be read back out of the message later:
+    /// a timed-out request is [`ErrorKind::Timeout`], anything else that never
+    /// reached the provider or never got a reply back is [`ErrorKind::Network`].
+    fn transport_error(context: &str, error: reqwest::Error) -> ClientError {
+        let kind = if error.is_timeout() {
+            ErrorKind::Timeout
+        } else {
+            ErrorKind::Network
+        };
+        ClientError::new(kind, format!("{context}: {}", error.without_url()))
+    }
+
+    async fn execute_get(&self, full_url: &str) -> Result<String, ClientError> {
         let resp = self
             .client
             .get(full_url)
             .header(REFERER, &self.base_url)
             .send()
             .await
-            .map_err(|e| format!("HTTP GET request failed: {}", e.without_url()))?;
+            .map_err(|e| Self::transport_error("HTTP GET request failed", e))?;
         self.capture_host_cookies(&resp, full_url);
         let (status, content_type, html) = Self::read_response(resp).await?;
         log::debug!(
@@ -365,7 +390,7 @@ impl RezkaSession {
                 .header(REFERER, &self.base_url)
                 .send()
                 .await
-                .map_err(|e| format!("Post-Anubis GET request failed: {}", e.without_url()))?;
+                .map_err(|e| Self::transport_error("Post-Anubis GET request failed", e))?;
             self.capture_host_cookies(&final_resp, full_url);
             let (status, content_type, final_html) = Self::read_response(final_resp).await?;
             return Self::require_success("GET", status, &content_type, final_html);
@@ -395,22 +420,22 @@ impl RezkaSession {
         &self,
         endpoint: &str,
         form_data: &[(&str, &str)],
-    ) -> Result<String, String> {
+    ) -> Result<String, ClientError> {
         let full_url = self.ajax_url(endpoint);
 
-        let mut last_err = String::new();
+        let mut last_err = None;
         for attempt in 0..3 {
             Self::back_off(attempt).await;
 
             match self.execute_post(&full_url, form_data).await {
                 Ok(resp) => return Ok(resp),
                 Err(e) => {
-                    last_err = e;
+                    last_err = Some(e);
                 }
             }
         }
 
-        Err(last_err)
+        Err(last_err.unwrap_or_else(|| ClientError::new(ErrorKind::Network, "POST request failed")))
     }
 
     /// Posts once, with no retry.
@@ -424,7 +449,7 @@ impl RezkaSession {
         &self,
         endpoint: &str,
         form_data: &[(&str, &str)],
-    ) -> Result<String, String> {
+    ) -> Result<String, ClientError> {
         self.execute_post(&self.ajax_url(endpoint), form_data).await
     }
 
@@ -432,26 +457,26 @@ impl RezkaSession {
         &self,
         full_url: &str,
         form_data: &[(&str, &str)],
-    ) -> Result<reqwest::Request, String> {
+    ) -> Result<reqwest::Request, ClientError> {
         self.client
             .post(full_url)
             .multipart(Self::multipart_form(form_data))
             .header(REFERER, &self.base_url)
             .build()
-            .map_err(|e| format!("HTTP POST request failed: {}", e.without_url()))
+            .map_err(|e| Self::transport_error("HTTP POST request failed", e))
     }
 
     async fn execute_post(
         &self,
         full_url: &str,
         form_data: &[(&str, &str)],
-    ) -> Result<String, String> {
+    ) -> Result<String, ClientError> {
         let request = self.post_request(full_url, form_data)?;
         let resp = self
             .client
             .execute(request)
             .await
-            .map_err(|e| format!("HTTP POST request failed: {}", e.without_url()))?;
+            .map_err(|e| Self::transport_error("HTTP POST request failed", e))?;
         self.capture_host_cookies(&resp, full_url);
         let (status, content_type, body) = Self::read_response(resp).await?;
         log::debug!(
@@ -477,7 +502,7 @@ impl RezkaSession {
                 .client
                 .execute(retry_request)
                 .await
-                .map_err(|e| format!("Post-Anubis POST request failed: {}", e.without_url()))?;
+                .map_err(|e| Self::transport_error("Post-Anubis POST request failed", e))?;
             self.capture_host_cookies(&retry_resp, full_url);
             let (status, content_type, body) = Self::read_response(retry_resp).await?;
             return Self::require_success("POST", status, &content_type, body);
@@ -509,7 +534,7 @@ impl RezkaSession {
 
     async fn read_response(
         response: reqwest::Response,
-    ) -> Result<(reqwest::StatusCode, String, String), String> {
+    ) -> Result<(reqwest::StatusCode, String, String), ClientError> {
         let status = response.status();
         let content_type = response
             .headers()
@@ -524,12 +549,12 @@ impl RezkaSession {
         while let Some(chunk) = response
             .chunk()
             .await
-            .map_err(|error| format!("Failed to read HTTP response: {}", error.without_url()))?
+            .map_err(|error| Self::transport_error("Failed to read HTTP response", error))?
         {
             if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
-                return Err(format!(
-                    "HTTP response exceeded {} bytes",
-                    MAX_RESPONSE_BYTES
+                return Err(ClientError::new(
+                    ErrorKind::Network,
+                    format!("HTTP response exceeded {} bytes", MAX_RESPONSE_BYTES),
                 ));
             }
             body.extend_from_slice(&chunk);
@@ -545,7 +570,7 @@ impl RezkaSession {
         status: reqwest::StatusCode,
         content_type: &str,
         body: String,
-    ) -> Result<String, String> {
+    ) -> Result<String, ClientError> {
         if status.is_success() {
             return Ok(body);
         }
@@ -558,10 +583,13 @@ impl RezkaSession {
         } else {
             "text"
         };
-        Err(format!(
-            "{operation} failed: HTTP {}; content-type {content_type}; {kind} body ({} bytes)",
-            status.as_u16(),
-            body.len()
+        Err(ClientError::new(
+            ErrorKind::Provider,
+            format!(
+                "{operation} failed: HTTP {}; content-type {content_type}; {kind} body ({} bytes)",
+                status.as_u16(),
+                body.len()
+            ),
         ))
     }
 
@@ -642,7 +670,8 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert!(error.contains("HTTP 502"), "{error}");
+        assert!(error.message.contains("HTTP 502"), "{error}");
+        assert_eq!(error.kind, crate::error::ErrorKind::Provider);
         assert_eq!(server.join().unwrap(), 1);
     }
 
@@ -660,8 +689,30 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert!(error.contains("HTTP 502"), "{error}");
+        assert!(error.message.contains("HTTP 502"), "{error}");
         assert_eq!(server.join().unwrap(), 3);
+    }
+
+    /// A request that outlives the client's timeout is reported with
+    /// `ErrorKind::Timeout` directly, not by reading the message back through
+    /// `classify`.
+    #[tokio::test]
+    async fn a_request_timeout_carries_the_timeout_kind() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        // Accept the connection and never answer it, so the client's own
+        // timeout is what ends the request.
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            std::thread::sleep(Duration::from_millis(1500));
+            drop(stream);
+        });
+
+        let session = RezkaSession::new_for_test_with_timeout(&base_url, Duration::from_millis(50));
+        let error = session.get_html("/").await.unwrap_err();
+
+        assert_eq!(error.kind, crate::error::ErrorKind::Timeout);
+        server.join().unwrap();
     }
 
     #[test]
@@ -680,9 +731,10 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(error.contains("HTTP 401"));
-        assert!(error.contains("content-type application/json"));
-        assert!(error.contains("JSON body"));
-        assert!(!error.contains("do-not-leak"));
+        assert!(error.message.contains("HTTP 401"));
+        assert!(error.message.contains("content-type application/json"));
+        assert!(error.message.contains("JSON body"));
+        assert!(!error.message.contains("do-not-leak"));
+        assert_eq!(error.kind, crate::error::ErrorKind::Provider);
     }
 }

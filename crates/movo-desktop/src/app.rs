@@ -322,6 +322,7 @@ impl Component for App {
                     .restore_session()
                     .await
                     .map(|user| user.map(|user| user.username))
+                    .map_err(|error| error.message)
             })
             .await
             .unwrap_or_else(|_| Err(tr("Restoring the session stopped unexpectedly").to_string()));

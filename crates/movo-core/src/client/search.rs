@@ -1,6 +1,7 @@
 use super::catalog;
 use super::models::{Collection, HomeSection, LinkedItem, MediaItem, SearchFilter};
 use super::session::RezkaSession;
+use crate::error::{ClientError, ErrorKind};
 use scraper::{Html, Selector};
 use std::time::Duration;
 
@@ -9,14 +10,14 @@ use std::time::Duration;
 const HOME_SECTION_TIMEOUT: Duration = Duration::from_secs(15);
 
 async fn bounded(
-    page: impl std::future::Future<Output = Result<String, String>>,
-) -> Result<String, String> {
+    page: impl std::future::Future<Output = Result<String, ClientError>>,
+) -> Result<String, ClientError> {
     tokio::time::timeout(HOME_SECTION_TIMEOUT, page)
         .await
-        .unwrap_or_else(|_| Err("Timed out".to_string()))
+        .unwrap_or_else(|_| Err(ClientError::new(ErrorKind::Timeout, "Timed out")))
 }
 
-pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
+pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, ClientError> {
     let hot =
         bounded(session.post_ajax("engine/ajax/get_newest_slider_content.php", &[("id", "0")]));
     let new = bounded(session.get_html("new"));
@@ -50,7 +51,9 @@ pub async fn home(session: &RezkaSession) -> Result<Vec<HomeSection>, String> {
     .filter(|section| !section.items.is_empty())
     .collect();
     if sections.is_empty() {
-        return Err(failure.unwrap_or_else(|| "The home page came back empty".to_string()));
+        return Err(failure.unwrap_or_else(|| {
+            ClientError::new(ErrorKind::Other, "The home page came back empty")
+        }));
     }
     Ok(sections)
 }

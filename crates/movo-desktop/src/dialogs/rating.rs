@@ -50,7 +50,12 @@ pub fn present(
                 tr("The account changed before the rating was sent").to_string()
             ));
         } else {
-            on_done(loaded.result.map(|()| rating));
+            on_done(
+                loaded
+                    .result
+                    .map(|()| rating)
+                    .map_err(|error| error.to_string()),
+            );
         }
     });
 }

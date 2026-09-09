@@ -177,7 +177,7 @@ impl Component for FavoritesView {
                         self.request_page(page, &sender);
                     }
                     Err(error) => {
-                        self.grid.reject(1, error);
+                        self.grid.reject(1, error.to_string());
                     }
                 }
             }

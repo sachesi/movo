@@ -8,6 +8,7 @@ pub mod search;
 pub mod session;
 pub mod stream;
 
+use crate::error::ClientError;
 use crate::storage::history::WatchHistory;
 use models::{
     AccountData, ActorDetails, CatalogCategory, Collection, CommentsPage, FavoritesCollection,
@@ -60,7 +61,7 @@ struct AccountState {
 
 /// Why a stored session could not be restored.
 pub struct RestoreError {
-    pub message: String,
+    pub error: ClientError,
     /// Whether the stored session is worthless from here on. A session the
     /// provider turned down is; one whose check never reached the provider is
     /// not, and discarding it would sign the account out over a lost network.
@@ -68,16 +69,16 @@ pub struct RestoreError {
 }
 
 impl RestoreError {
-    fn rejected(message: String) -> Self {
+    fn rejected(error: impl Into<ClientError>) -> Self {
         Self {
-            message,
+            error: error.into(),
             is_rejected: true,
         }
     }
 
-    fn retryable(message: String) -> Self {
+    fn retryable(error: impl Into<ClientError>) -> Self {
         Self {
-            message,
+            error: error.into(),
             is_rejected: false,
         }
     }
@@ -90,7 +91,7 @@ impl Default for RezkaClient {
 }
 
 impl RezkaClient {
-    pub fn export_session(&self) -> Result<String, String> {
+    pub fn export_session(&self) -> Result<String, ClientError> {
         self.ensure_signed_in()?;
         self.session.export_session()
     }
@@ -171,21 +172,25 @@ impl RezkaClient {
         category: CatalogCategory,
         filter: Option<&str>,
         page: usize,
-    ) -> Result<Vec<MediaItem>, String> {
+    ) -> Result<Vec<MediaItem>, ClientError> {
         let items = catalog::fetch_catalog(&self.session, category, filter, page).await?;
         Ok(self.shown(items))
     }
 
-    pub async fn search_full(&self, query: &str, page: usize) -> Result<Vec<MediaItem>, String> {
+    pub async fn search_full(
+        &self,
+        query: &str,
+        page: usize,
+    ) -> Result<Vec<MediaItem>, ClientError> {
         let items = search::search_full(&self.session, query, page).await?;
         Ok(self.shown(items))
     }
 
-    pub async fn search_suggestions(&self, query: &str) -> Result<Vec<String>, String> {
-        search::suggestions(&self.session, query).await
+    pub async fn search_suggestions(&self, query: &str) -> Result<Vec<String>, ClientError> {
+        Ok(search::suggestions(&self.session, query).await?)
     }
 
-    pub async fn home(&self) -> Result<Vec<HomeSection>, String> {
+    pub async fn home(&self) -> Result<Vec<HomeSection>, ClientError> {
         let sections = search::home(&self.session).await?;
         Ok(sections
             .into_iter()
@@ -196,50 +201,54 @@ impl RezkaClient {
             .collect())
     }
 
-    pub async fn search_filters(&self) -> Result<Vec<SearchFilter>, String> {
-        search::filters(&self.session).await
+    pub async fn search_filters(&self) -> Result<Vec<SearchFilter>, ClientError> {
+        Ok(search::filters(&self.session).await?)
     }
 
-    pub async fn fetch_collections(&self, page: usize) -> Result<Vec<Collection>, String> {
-        search::collections(&self.session, page).await
+    pub async fn fetch_collections(&self, page: usize) -> Result<Vec<Collection>, ClientError> {
+        Ok(search::collections(&self.session, page).await?)
     }
 
-    pub async fn fetch_path(&self, path: &str, page: usize) -> Result<Vec<MediaItem>, String> {
+    pub async fn fetch_path(&self, path: &str, page: usize) -> Result<Vec<MediaItem>, ClientError> {
         let items = search::path(&self.session, path, page).await?;
         Ok(self.shown(items))
     }
 
-    pub async fn fetch_details(&self, url: &str) -> Result<MediaDetails, String> {
+    pub async fn fetch_details(&self, url: &str) -> Result<MediaDetails, ClientError> {
         let mut details = details::fetch_details(&self.session, url).await?;
         details.related = self.shown(details.related);
         Ok(details)
     }
 
-    pub async fn fetch_actor(&self, url: &str) -> Result<ActorDetails, String> {
+    pub async fn fetch_actor(&self, url: &str) -> Result<ActorDetails, ClientError> {
         let mut actor = details::fetch_actor(&self.session, url).await?;
         actor.films = self.shown(actor.films);
         Ok(actor)
     }
 
-    pub async fn fetch_comments(&self, post_id: i64, page: usize) -> Result<CommentsPage, String> {
-        details::fetch_comments(&self.session, post_id, page).await
+    pub async fn fetch_comments(
+        &self,
+        post_id: i64,
+        page: usize,
+    ) -> Result<CommentsPage, ClientError> {
+        Ok(details::fetch_comments(&self.session, post_id, page).await?)
     }
 
-    pub async fn fetch_trailer(&self, post_id: i64) -> Result<Option<String>, String> {
-        details::fetch_trailer(&self.session, post_id).await
+    pub async fn fetch_trailer(&self, post_id: i64) -> Result<Option<String>, ClientError> {
+        Ok(details::fetch_trailer(&self.session, post_id).await?)
     }
 
-    pub async fn post_rating(&self, post_id: i64, rating: u8) -> Result<(), String> {
+    pub async fn post_rating(&self, post_id: i64, rating: u8) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
-        details::post_rating(&self.session, post_id, rating).await
+        Ok(details::post_rating(&self.session, post_id, rating).await?)
     }
 
-    pub async fn like_comment(&self, id: &str) -> Result<(), String> {
+    pub async fn like_comment(&self, id: &str) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
-        details::like_comment(&self.session, id).await
+        Ok(details::like_comment(&self.session, id).await?)
     }
 
-    pub async fn account_data(&self) -> Result<AccountData, String> {
+    pub async fn account_data(&self) -> Result<AccountData, ClientError> {
         self.ensure_signed_in()?;
         let (notifications, premium_days) = auth::fetch_notifications(&self.session).await?;
         Ok(AccountData {
@@ -248,9 +257,9 @@ impl RezkaClient {
         })
     }
 
-    pub async fn toggle_schedule_watched(&self, id: &str) -> Result<(), String> {
+    pub async fn toggle_schedule_watched(&self, id: &str) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
-        auth::toggle_schedule_watched(&self.session, id).await
+        Ok(auth::toggle_schedule_watched(&self.session, id).await?)
     }
 
     /// The episodes of a voice-over, carrying the watched state the title's
@@ -260,7 +269,7 @@ impl RezkaClient {
         post_id: i64,
         translator_id: i64,
         schedules: &[models::ScheduleGroup],
-    ) -> Result<Vec<models::Season>, String> {
+    ) -> Result<Vec<models::Season>, ClientError> {
         let mut seasons = details::fetch_episodes(&self.session, post_id, translator_id).await?;
         details::mark_scheduled(&mut seasons, schedules);
         Ok(seasons)
@@ -270,7 +279,7 @@ impl RezkaClient {
         &self,
         post_id: i64,
         translator: &Translator,
-    ) -> Result<StreamBundle, String> {
+    ) -> Result<StreamBundle, ClientError> {
         let mut bundle = stream::fetch_movie_stream(&self.session, post_id, translator).await?;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
@@ -282,7 +291,7 @@ impl RezkaClient {
         translator_id: i64,
         season: i64,
         episode: i64,
-    ) -> Result<StreamBundle, String> {
+    ) -> Result<StreamBundle, ClientError> {
         let mut bundle =
             stream::fetch_episode_stream(&self.session, post_id, translator_id, season, episode)
                 .await?;
@@ -295,7 +304,11 @@ impl RezkaClient {
         bundle.referer = self.session.referer().to_string();
     }
 
-    pub async fn login(&self, email_or_login: &str, password: &str) -> Result<UserProfile, String> {
+    pub async fn login(
+        &self,
+        email_or_login: &str,
+        password: &str,
+    ) -> Result<UserProfile, ClientError> {
         let mut profile = auth::login(&self.session, email_or_login, password).await?;
         let mut settings = crate::storage::settings::AppSettings::load();
         settings.user_id = Some(profile.user_id.clone());
@@ -306,7 +319,7 @@ impl RezkaClient {
         Ok(profile)
     }
 
-    pub async fn restore_session(&self) -> Result<Option<UserProfile>, String> {
+    pub async fn restore_session(&self) -> Result<Option<UserProfile>, ClientError> {
         let mut settings = crate::storage::settings::AppSettings::load();
         if let Some(user_id) = settings.user_id.clone() {
             match self.session.restore_session(&user_id) {
@@ -336,7 +349,7 @@ impl RezkaClient {
         &self,
         settings: &mut crate::storage::settings::AppSettings,
         legacy: bool,
-    ) -> Result<Option<UserProfile>, String> {
+    ) -> Result<Option<UserProfile>, ClientError> {
         match auth::check_profile(&self.session).await {
             Ok(Some(mut profile)) => {
                 if legacy {
@@ -359,12 +372,12 @@ impl RezkaClient {
                 let user_id = settings.user_id.take();
                 let _ = self.session.clear_session(user_id.as_deref());
                 settings.save()?;
-                Err(error)
+                Err(ClientError::from(error))
             }
         }
     }
 
-    pub async fn logout(&self) -> Result<(), String> {
+    pub async fn logout(&self) -> Result<(), ClientError> {
         let user_id = self
             .account
             .read()
@@ -379,26 +392,30 @@ impl RezkaClient {
         let settings_cleared = settings.save().is_ok();
         match (result, settings_cleared) {
             (Ok(()), true) => Ok(()),
-            (Err(error), true) => Err(error),
-            (Ok(()), false) => Err("Account selection could not be cleared".to_string()),
-            (Err(_), false) => {
-                Err("Stored session and account selection could not be fully cleared".to_string())
-            }
+            (Err(error), true) => Err(ClientError::from(error)),
+            (Ok(()), false) => Err(ClientError::from(
+                "Account selection could not be cleared".to_string(),
+            )),
+            (Err(_), false) => Err(ClientError::from(
+                "Stored session and account selection could not be fully cleared".to_string(),
+            )),
         }
     }
 
-    pub async fn fetch_favorites_categories(&self) -> Result<Vec<FavoritesCollection>, String> {
+    pub async fn fetch_favorites_categories(
+        &self,
+    ) -> Result<Vec<FavoritesCollection>, ClientError> {
         self.ensure_signed_in()?;
-        auth::fetch_favorites_categories(&self.session).await
+        Ok(auth::fetch_favorites_categories(&self.session).await?)
     }
 
     pub async fn fetch_favorites_page(
         &self,
         cat_id: Option<i64>,
         page: usize,
-    ) -> Result<Vec<MediaItem>, String> {
+    ) -> Result<Vec<MediaItem>, ClientError> {
         self.ensure_signed_in()?;
-        auth::fetch_favorites_page(&self.session, cat_id, page).await
+        Ok(auth::fetch_favorites_page(&self.session, cat_id, page).await?)
     }
 
     pub async fn set_favorite(
@@ -407,7 +424,7 @@ impl RezkaClient {
         post_id: i64,
         cat_id: i64,
         favorite: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
         let current = self.fetch_details(details_url).await?;
         if current.favorite_category_ids.contains(&cat_id) == favorite {
@@ -418,17 +435,19 @@ impl RezkaClient {
         if confirmed.favorite_category_ids.contains(&cat_id) == favorite {
             Ok(())
         } else {
-            Err("The account did not confirm the favorites update".to_string())
+            Err(ClientError::from(
+                "The account did not confirm the favorites update".to_string(),
+            ))
         }
     }
 
     /// The account's history rows, newest first.
-    pub async fn fetch_history(&self) -> Result<Vec<ServerHistoryEntry>, String> {
+    pub async fn fetch_history(&self) -> Result<Vec<ServerHistoryEntry>, ClientError> {
         self.ensure_signed_in()?;
-        auth::fetch_history(&self.session).await
+        Ok(auth::fetch_history(&self.session).await?)
     }
 
-    pub async fn sync_history(&self) -> Result<SyncedHistory, String> {
+    pub async fn sync_history(&self) -> Result<SyncedHistory, ClientError> {
         let user_id = self
             .user()
             .map(|user| user.user_id.clone())
@@ -452,22 +471,25 @@ impl RezkaClient {
         translator_id: i64,
         season: Option<i64>,
         episode: Option<i64>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
         if post_id <= 0 || translator_id <= 0 {
-            return Err("Cannot sync history without valid media and voice-over IDs".to_string());
+            return Err(ClientError::from(
+                "Cannot sync history without valid media and voice-over IDs".to_string(),
+            ));
         }
         auth::save_watch(&self.session, post_id, translator_id, season, episode).await?;
         self.wait_for_history_entry(post_id, season, episode)
             .await
             .map(|_| ())
+            .map_err(ClientError::from)
     }
 
-    pub async fn remove_history(&self, id: &str) -> Result<(), String> {
+    pub async fn remove_history(&self, id: &str) -> Result<(), ClientError> {
         self.remove_history_with_media(id).await.map(|_| ())
     }
 
-    pub async fn remove_history_with_media(&self, id: &str) -> Result<i64, String> {
+    pub async fn remove_history_with_media(&self, id: &str) -> Result<i64, ClientError> {
         self.ensure_signed_in()?;
         let user_id = self
             .user()
@@ -488,7 +510,7 @@ impl RezkaClient {
         Ok(media_id)
     }
 
-    pub async fn set_history_watched(&self, id: &str, watched: bool) -> Result<(), String> {
+    pub async fn set_history_watched(&self, id: &str, watched: bool) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
         let current = auth::fetch_history(&self.session).await?;
         let entry = current
@@ -510,9 +532,11 @@ impl RezkaClient {
         if confirmed.is_watched == watched {
             Ok(())
         } else if let Some(error) = toggle_error {
-            Err(error)
+            Err(ClientError::from(error))
         } else {
-            Err("The account did not confirm the watched state".to_string())
+            Err(ClientError::from(
+                "The account did not confirm the watched state".to_string(),
+            ))
         }
     }
 
@@ -524,7 +548,7 @@ impl RezkaClient {
         post_id: i64,
         season: Option<i64>,
         episode: Option<i64>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ClientError> {
         self.ensure_signed_in()?;
         let entry = self
             .wait_for_history_entry(post_id, season, episode)
@@ -538,7 +562,9 @@ impl RezkaClient {
             .find(|candidate| candidate.id == entry.id)
             .ok_or_else(|| "History item disappeared while marking watched".to_string())?;
         if !confirmed.is_watched {
-            return Err("The account did not confirm the watched state".to_string());
+            return Err(ClientError::from(
+                "The account did not confirm the watched state".to_string(),
+            ));
         }
         if let (Some(season), Some(episode)) = (season, episode) {
             // The provider keeps an episode's watched flag on its schedule
@@ -556,7 +582,9 @@ impl RezkaClient {
             let item = details::schedule_item_for(&confirmed, season, episode)
                 .ok_or_else(|| "Finished episode was not found".to_string())?;
             if !item.is_watched {
-                return Err("The account did not confirm the episode watched state".to_string());
+                return Err(ClientError::from(
+                    "The account did not confirm the episode watched state".to_string(),
+                ));
             }
         }
         Ok(())
@@ -819,7 +847,7 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert!(error.contains("did not confirm"), "{error}");
+        assert!(error.message.contains("did not confirm"), "{error}");
         server.join().unwrap();
     }
 

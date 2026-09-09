@@ -120,7 +120,7 @@ impl Component for Launcher {
                         .find(|translator| translator.id == translator_id)
                     {
                         Some(translator) => client.fetch_movie_stream(details.id, translator).await,
-                        None => Err(trf("Voice-over {} was not found", &[&translator_id])),
+                        None => Err(trf("Voice-over {} was not found", &[&translator_id]).into()),
                     },
                 }
             })
@@ -155,7 +155,7 @@ impl Component for Launcher {
                         self.start(*request, bundle, account, &sender);
                     }
                     Err(error) => {
-                        let _ = sender.output(LauncherOutput::Notify(error));
+                        let _ = sender.output(LauncherOutput::Notify(error.to_string()));
                     }
                 }
             }
@@ -185,7 +185,7 @@ impl Component for Launcher {
                         let _ = sender.output(LauncherOutput::HistoryChanged);
                     }
                     Err(error) => {
-                        let _ = sender.output(LauncherOutput::Notify(error));
+                        let _ = sender.output(LauncherOutput::Notify(error.to_string()));
                     }
                 }
             }

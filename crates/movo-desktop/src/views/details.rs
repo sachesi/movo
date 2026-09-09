@@ -451,7 +451,7 @@ impl relm4::Component for DetailsView {
                         self.favorite_categories = categories;
                         self.render(details, resume, account_point, &sender);
                     }
-                    Err(error) => self.content.set(ContentState::Error(&error)),
+                    Err(error) => self.content.set(ContentState::Error(&error.to_string())),
                 }
             }
             DetailsCommand::Episodes {
@@ -486,7 +486,7 @@ impl relm4::Component for DetailsView {
                                 self.show_seasons(&seasons, &sender);
                             }
                         }
-                        let _ = sender.output(DetailsOutput::Notify(error));
+                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
                     }
                 }
             }
@@ -510,7 +510,7 @@ impl relm4::Component for DetailsView {
                         ));
                     }
                     Err(error) => {
-                        let _ = sender.output(DetailsOutput::Notify(error));
+                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
                     }
                 }
             }
@@ -526,7 +526,7 @@ impl relm4::Component for DetailsView {
                         }
                     }
                     Err(error) => {
-                        let _ = sender.output(DetailsOutput::Notify(error));
+                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
                         sender.input(DetailsMsg::Reload);
                     }
                 }

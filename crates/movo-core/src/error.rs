@@ -37,6 +37,50 @@ impl ErrorKind {
     }
 }
 
+/// A client failure carrying its kind alongside the message, so a caller does
+/// not have to run the message back through [`classify`] to know what kind of
+/// failure it is looking at.
+#[derive(Debug, Clone)]
+pub struct ClientError {
+    pub kind: ErrorKind,
+    pub message: String,
+}
+
+impl ClientError {
+    pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for ClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ClientError {}
+
+/// Transitional: a plain message from a layer that has not been updated to set
+/// its own kind is classified from its text, same as before this type existed.
+impl From<String> for ClientError {
+    fn from(message: String) -> Self {
+        let kind = classify(&message);
+        Self { kind, message }
+    }
+}
+
+/// Lets a layer that sets its kind explicitly sit underneath one that has not
+/// been updated yet and still keeps returning a plain message; the kind is
+/// dropped, but nothing above has to change until it does the same.
+impl From<ClientError> for String {
+    fn from(error: ClientError) -> Self {
+        error.message
+    }
+}
+
 /// Reads the kind of failure out of one of the client's error messages.
 pub fn classify(message: &str) -> ErrorKind {
     let lower = message.to_ascii_lowercase();

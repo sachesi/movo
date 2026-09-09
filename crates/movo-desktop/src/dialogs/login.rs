@@ -118,7 +118,9 @@ pub fn present(
         relm4::spawn_local(async move {
             let result = relm4::spawn(async move { client.login(&name, &secret).await })
                 .await
-                .unwrap_or_else(|_| Err(tr("Signing in stopped unexpectedly").to_string()));
+                .unwrap_or_else(|_| {
+                    Err(tr("Signing in stopped unexpectedly").to_string().into())
+                });
 
             spinner.set_visible(false);
             button.set_sensitive(true);
@@ -142,7 +144,7 @@ pub fn present(
                     }
                 }
                 Err(message) => {
-                    error.set_label(&message);
+                    error.set_label(&message.to_string());
                     error.set_visible(true);
                 }
             }

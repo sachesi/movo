@@ -187,7 +187,7 @@ fn parse_notifications(html: &str) -> (Vec<NotificationGroup>, Option<u32>) {
 }
 
 pub fn logout(session: &RezkaSession, user_id: Option<&str>) -> Result<(), String> {
-    session.clear_session(user_id)
+    session.clear_session(user_id).map_err(String::from)
 }
 
 pub async fn fetch_favorites_categories(
