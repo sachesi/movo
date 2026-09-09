@@ -38,8 +38,8 @@ There is no download subsystem, and none is planned.
 
 Linux desktop:
 
-- Rust (2021 edition toolchain)
-- GTK 4.16 or newer and Libadwaita 1.6 or newer, with development headers
+- Rust 1.85 or newer
+- GTK 4.22 or newer and Libadwaita 1.9 or newer, with development headers
 - gettext
 - mpv, or any player that can open a URL, for playback
 
