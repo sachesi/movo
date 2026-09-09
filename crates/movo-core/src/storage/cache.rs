@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 pub struct ImageCache;
 
 impl ImageCache {
-    pub fn cache_dir() -> PathBuf {
+    fn cache_dir() -> PathBuf {
         if let Some(proj_dirs) = super::project_dirs() {
             let dir = proj_dirs.cache_dir().join("posters");
             let _ = fs::create_dir_all(&dir);
@@ -27,7 +27,7 @@ impl ImageCache {
         DIR.get_or_init(Self::cache_dir)
     }
 
-    pub fn key_path(url: &str) -> PathBuf {
+    fn key_path(url: &str) -> PathBuf {
         let mut hasher = Sha256::new();
         hasher.update(url.as_bytes());
         let hash = hex::encode(hasher.finalize());

@@ -177,11 +177,6 @@ impl RezkaClient {
         account.generation.wrapping_add(self.session.auth_epoch())
     }
 
-    pub fn is_account_current(&self, generation: u64, user_id: &str) -> bool {
-        self.account_generation() == generation
-            && self.user().is_some_and(|user| user.user_id == user_id)
-    }
-
     pub async fn fetch_catalog(
         &self,
         category: CatalogCategory,
@@ -978,13 +973,11 @@ mod tests {
             .generation = 7;
         let generation = client.account_generation();
         assert!(client.user().is_some());
-        assert!(client.is_account_current(generation, "42"));
 
         client.session.invalidate_auth();
 
         assert!(client.user().is_none());
         assert_ne!(client.account_generation(), generation);
-        assert!(!client.is_account_current(generation, "42"));
     }
 
     #[tokio::test]

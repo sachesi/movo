@@ -16,13 +16,13 @@ pub enum AnubisAlgorithm {
 }
 
 #[derive(Debug, Default, Deserialize)]
-pub struct AnubisRules {
+struct AnubisRules {
     pub algorithm: Option<AnubisAlgorithm>,
     pub difficulty: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AnubisChallengeInner {
+struct AnubisChallengeInner {
     pub id: String,
     #[serde(rename = "randomData")]
     pub random_data: String,
@@ -31,7 +31,7 @@ pub struct AnubisChallengeInner {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AnubisChallengeData {
+struct AnubisChallengeData {
     #[serde(default)]
     pub rules: Option<AnubisRules>,
     #[serde(default)]

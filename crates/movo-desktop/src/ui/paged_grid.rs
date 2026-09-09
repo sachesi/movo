@@ -93,7 +93,7 @@ impl PagedGrid {
     }
 
     /// Whether a completed request is still the one being awaited.
-    pub fn is_pending(&self, page: usize) -> bool {
+    fn is_pending(&self, page: usize) -> bool {
         self.pending == Some(page)
     }
 

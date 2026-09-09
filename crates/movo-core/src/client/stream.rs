@@ -279,7 +279,7 @@ fn decoded_url(parsed: &Value) -> Result<String, String> {
 /// followed by the base64 spelling of a short run of `@#!^$`. Dropping the
 /// markers and the noise leaves the original base64, which may have lost
 /// its padding on the way.
-pub fn decrypt_streams(encrypted: &str) -> String {
+fn decrypt_streams(encrypted: &str) -> String {
     let Some(payload) = encrypted.strip_prefix('#') else {
         return encrypted.to_string();
     };
