@@ -378,9 +378,12 @@ pub fn parse_stream_entries(decoded: &str) -> Vec<StreamEntry> {
     entries
 }
 
+/// Strips any markup the provider leaves in a quality label.
+static TAG_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"<[^>]*>").expect("static regex"));
+
 fn clean_quality_label(raw: &str) -> String {
-    let tag_regex = regex::Regex::new(r"<[^>]*>").unwrap();
-    let cleaned = tag_regex.replace_all(raw, "").trim().to_string();
+    let cleaned = TAG_REGEX.replace_all(raw, "").trim().to_string();
     if cleaned.is_empty() {
         raw.to_string()
     } else if cleaned.contains("2160") || cleaned.contains("4K") {

@@ -4,9 +4,18 @@ use super::models::{
     ScheduleItem, Season, Translator, VoiceRating,
 };
 use super::session::RezkaSession;
+use regex::Regex;
 use scraper::{Html, Selector};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+/// The numeric score in a rating line such as "IMDb: 7.8 (12 345)".
+static RATING_VALUE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\d+(?:[.,]\d+)?").expect("static regex"));
+/// The vote count in parentheses in the same line.
+static RATING_VOTES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\(([\d\s]+)\)").expect("static regex"));
 
 mod actor;
 mod comments;
@@ -477,8 +486,7 @@ fn people(cell: &scraper::ElementRef<'_>) -> Vec<Person> {
 
 fn parse_rating(text: String) -> Option<Rating> {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let value = regex::Regex::new(r"\d+(?:[.,]\d+)?")
-        .ok()?
+    let value = RATING_VALUE
         .find(&text)?
         .as_str()
         .replace(',', ".")
@@ -492,8 +500,7 @@ fn parse_rating(text: String) -> Option<Rating> {
             .trim()
             .to_string(),
         value,
-        votes: regex::Regex::new(r"\(([\d\s]+)\)")
-            .ok()?
+        votes: RATING_VOTES
             .captures(&text)
             .and_then(|capture| capture.get(1))
             .map(|votes| votes.as_str().replace(' ', ""))
@@ -508,6 +515,8 @@ fn parse_schedules(document: &Html) -> Vec<ScheduleGroup> {
     let row = Selector::parse("tr").unwrap();
     let cell = Selector::parse("td").unwrap();
     let marker = Selector::parse("i[data-id]").unwrap();
+    let title_bold = Selector::parse("b").unwrap();
+    let title_span = Selector::parse("span").unwrap();
     document
         .select(&block)
         .map(|table| ScheduleGroup {
@@ -537,14 +546,14 @@ fn parse_schedules(document: &Html) -> Vec<ScheduleGroup> {
                                 .to_string(),
                             episode: cells[0].text().collect::<String>().trim().to_string(),
                             title: cells[1]
-                                .select(&Selector::parse("b").unwrap())
+                                .select(&title_bold)
                                 .next()
                                 .map(|node| node.text().collect::<String>().trim().to_string())
                                 .unwrap_or_else(|| {
                                     cells[1].text().collect::<String>().trim().to_string()
                                 }),
                             original_title: cells[1]
-                                .select(&Selector::parse("span").unwrap())
+                                .select(&title_span)
                                 .next()
                                 .map(|node| node.text().collect::<String>().trim().to_string()),
                             date: cells
@@ -576,18 +585,21 @@ fn parse_voice_ratings(document: &Html) -> Vec<VoiceRating> {
         return Vec::new();
     };
     let fragment = Html::parse_fragment(raw);
+    let item_selector = Selector::parse(".b-rgstats__list_item").unwrap();
+    let title_selector = Selector::parse(".title").unwrap();
+    let count_selector = Selector::parse(".count").unwrap();
     fragment
-        .select(&Selector::parse(".b-rgstats__list_item").unwrap())
+        .select(&item_selector)
         .filter_map(|item| {
             let title = item
-                .select(&Selector::parse(".title").unwrap())
+                .select(&title_selector)
                 .next()?
                 .text()
                 .collect::<String>()
                 .trim()
                 .to_string();
             let rating = item
-                .select(&Selector::parse(".count").unwrap())
+                .select(&count_selector)
                 .next()?
                 .text()
                 .collect::<String>()

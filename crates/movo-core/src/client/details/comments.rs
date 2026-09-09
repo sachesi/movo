@@ -37,19 +37,27 @@ pub async fn fetch_comments(
 
 fn parse_comments(html: &str, navigation: &str, page: usize) -> CommentsPage {
     let document = Html::parse_fragment(html);
+    let item_selector = Selector::parse(".comments-tree-item").unwrap();
+    let name_selector = Selector::parse(".name").unwrap();
+    let avatar_selector = Selector::parse(".ava img").unwrap();
+    let date_selector = Selector::parse(".date").unwrap();
+    let text_selector = Selector::parse(".text div").unwrap();
+    let spoiler_selector = Selector::parse(".text_spoiler").unwrap();
+    let like_count_selector = Selector::parse(".b-comment__like_it").unwrap();
+    let liked_selector = Selector::parse(".show-likes-comment").unwrap();
     let items = document
-        .select(&Selector::parse(".comments-tree-item").unwrap())
+        .select(&item_selector)
         .map(|node| {
-            let find = |selector: &str| node.select(&Selector::parse(selector).unwrap()).next();
+            let find = |selector: &Selector| node.select(selector).next();
             Comment {
                 id: node.value().attr("data-id").unwrap_or_default().to_string(),
-                username: find(".name")
+                username: find(&name_selector)
                     .map(|item| item.text().collect::<String>().trim().to_string())
                     .unwrap_or_default(),
-                avatar_url: find(".ava img")
+                avatar_url: find(&avatar_selector)
                     .and_then(|item| item.value().attr("src"))
                     .map(str::to_string),
-                date: find(".date")
+                date: find(&date_selector)
                     .map(|item| {
                         item.text()
                             .collect::<String>()
@@ -58,7 +66,7 @@ fn parse_comments(html: &str, navigation: &str, page: usize) -> CommentsPage {
                             .to_string()
                     })
                     .unwrap_or_default(),
-                text: find(".text div")
+                text: find(&text_selector)
                     .map(|item| {
                         item.text()
                             .collect::<Vec<_>>()
@@ -68,17 +76,17 @@ fn parse_comments(html: &str, navigation: &str, page: usize) -> CommentsPage {
                             .join(" ")
                     })
                     .unwrap_or_default(),
-                has_spoiler: find(".text_spoiler").is_some(),
+                has_spoiler: find(&spoiler_selector).is_some(),
                 indent: node
                     .value()
                     .attr("data-indent")
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(0),
-                likes: find(".b-comment__like_it")
+                likes: find(&like_count_selector)
                     .and_then(|item| item.value().attr("data-likes_num"))
                     .and_then(|value| value.parse().ok())
                     .unwrap_or(0),
-                is_liked: find(".show-likes-comment").is_some_and(|item| {
+                is_liked: find(&liked_selector).is_some_and(|item| {
                     item.value()
                         .attr("class")
                         .unwrap_or_default()

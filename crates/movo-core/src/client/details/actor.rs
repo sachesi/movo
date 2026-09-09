@@ -50,6 +50,7 @@ fn parse_actor_html(html: &str) -> ActorDetails {
     };
     let cells = Selector::parse(".b-post__info tr").unwrap();
     let td = Selector::parse("td").unwrap();
+    let career_link = Selector::parse("a").unwrap();
     for row in document.select(&cells) {
         let parts = row.select(&td).collect::<Vec<_>>();
         if parts.len() < 2 {
@@ -65,7 +66,7 @@ fn parse_actor_html(html: &str) -> ActorDetails {
             actor.height = Some(value);
         } else if key.contains("карьера") {
             actor.careers = parts[1]
-                .select(&Selector::parse("a").unwrap())
+                .select(&career_link)
                 .map(|node| node.text().collect::<String>().trim().to_string())
                 .collect();
         }

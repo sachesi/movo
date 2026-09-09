@@ -134,11 +134,19 @@ pub async fn fetch_notifications(
 
 fn parse_notifications(html: &str) -> (Vec<NotificationGroup>, Option<u32>) {
     let document = Html::parse_document(html);
+    let block_selector = Selector::parse(".b-seriesupdate__block").unwrap();
+    let date_selector = Selector::parse(".b-seriesupdate__block_date").unwrap();
+    let tracked_selector = Selector::parse(".tracked").unwrap();
+    let link_selector = Selector::parse(".b-seriesupdate__block_list_link").unwrap();
+    let info_selectors = [
+        Selector::parse(".season").unwrap(),
+        Selector::parse(".cell-2").unwrap(),
+    ];
     let groups = document
-        .select(&Selector::parse(".b-seriesupdate__block").unwrap())
+        .select(&block_selector)
         .map(|group| NotificationGroup {
             date: group
-                .select(&Selector::parse(".b-seriesupdate__block_date").unwrap())
+                .select(&date_selector)
                 .next()
                 .map(|node| {
                     node.text()
@@ -149,19 +157,15 @@ fn parse_notifications(html: &str) -> (Vec<NotificationGroup>, Option<u32>) {
                 })
                 .unwrap_or_default(),
             items: group
-                .select(&Selector::parse(".tracked").unwrap())
+                .select(&tracked_selector)
                 .filter_map(|item| {
-                    let link = item
-                        .select(&Selector::parse(".b-seriesupdate__block_list_link").unwrap())
-                        .next()?;
+                    let link = item.select(&link_selector).next()?;
                     Some(NotificationItem {
                         title: link.text().collect::<String>().trim().to_string(),
                         url: link.value().attr("href")?.to_string(),
-                        info: [".season", ".cell-2"]
+                        info: info_selectors
                             .iter()
-                            .filter_map(|selector| {
-                                item.select(&Selector::parse(selector).unwrap()).next()
-                            })
+                            .filter_map(|selector| item.select(selector).next())
                             .map(|node| node.text().collect::<String>().trim().to_string())
                             .filter(|value| !value.is_empty())
                             .collect::<Vec<_>>()
