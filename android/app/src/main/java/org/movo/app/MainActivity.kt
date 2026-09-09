@@ -19,6 +19,7 @@ import org.movo.app.details.DetailsScreen
 import org.movo.app.home.HomeFlow
 import org.movo.app.ui.Loading
 import org.movo.app.ui.MovoBlue
+import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.toTvColorScheme
 import org.movo.app.ui.TvIconButton
@@ -84,6 +85,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -253,6 +255,16 @@ private fun MovoApp(
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val screen by model.screen.collectAsStateWithLifecycle(initialValue = Screen.Restoring)
                     val deepLink by deepLinks.collectAsStateWithLifecycle()
+                    // Screen.Player and Screen.Trailer are exclusive branches of the `when` below,
+                    // so the details route would otherwise leave composition under them and lose
+                    // its rememberSaveable state (focus memory, list scroll) on the way back.
+                    // Holding it here keeps that state alive across the trip; cleared once the
+                    // user is back at Home so a title visited earlier in the session cannot pin
+                    // its saved state in memory forever.
+                    val detailsState = rememberSaveableStateHolder()
+                    LaunchedEffect(screen) {
+                        if (screen == Screen.Home) detailsState.removeState("details")
+                    }
                     LaunchedEffect(screen, settings.initialTab, isTv) {
                         if (screen == Screen.Login) initialTabApplied = false
                         if (screen == Screen.Home && !initialTabApplied) {
@@ -297,12 +309,14 @@ private fun MovoApp(
                             // opened in landscape flipped the lock on and off with every turn.
                             Screen.Player -> PlayerRoute(model, settings, isTv, lockLandscape = !isBigScreen)
                             Screen.Trailer -> TrailerRoute(model, isTv)
-                            Screen.Details -> DetailsRoute(
-                                model,
-                                isTv,
-                                windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
-                                settings,
-                            )
+                            Screen.Details -> detailsState.SaveableStateProvider("details") {
+                                DetailsRoute(
+                                    model,
+                                    isTv,
+                                    windowSize.widthSizeClass != WindowWidthSizeClass.Compact,
+                                    settings,
+                                )
+                            }
                             Screen.Home -> HomeRoute(model, isTv, useRail, compactHeight, settings)
                         }
                         SnackbarHost(
@@ -472,7 +486,10 @@ private fun TrailerRoute(model: MovoViewModel, isTv: Boolean) {
             .align(Alignment.TopStart)
             // Edge to edge, so without the insets the button sat under the status bar.
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(16.dp)
+            .padding(
+                horizontal = if (isTv) TV_OVERSCAN_HORIZONTAL else 16.dp,
+                vertical = if (isTv) TV_OVERSCAN_VERTICAL else 16.dp,
+            )
         if (isTv) {
             TvIconButton(model::clearTrailer, backModifier) {
                 TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))

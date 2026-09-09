@@ -11,6 +11,7 @@ package org.movo.app.account
 import org.movo.app.ui.tvInitialFocus
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
+import org.movo.app.ui.TvFocusPivot
 import org.movo.app.catalog.MediaGrid
 import org.movo.app.home.ConfirmLogoutDialog
 import org.movo.app.ui.Empty
@@ -203,7 +204,8 @@ internal fun NotificationsScreen(state: AppState, isTv: Boolean, model: MovoView
             .coerceAtLeast(0)
     }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = focusedIndex)
-    LazyColumn(
+    // The focused row was parked flush against the bottom edge, inside the overscan band.
+    TvFocusPivot { LazyColumn(
         state = listState,
         contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -248,7 +250,7 @@ internal fun NotificationsScreen(state: AppState, isTv: Boolean, model: MovoView
                 }
             }
         }
-    }
+    } }
 }
 
 @Composable
@@ -552,7 +554,8 @@ internal fun HistoryScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
     }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
+        // The focused row was parked flush against the bottom edge, inside the overscan band.
+        TvFocusPivot { LazyColumn(
             state = listState,
             contentPadding = if (isTv) PaddingValues(horizontal = TV_OVERSCAN_HORIZONTAL, vertical = TV_OVERSCAN_VERTICAL) else PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 8.dp),
@@ -565,7 +568,7 @@ internal fun HistoryScreen(state: AppState, isTv: Boolean, model: MovoViewModel)
             items(state.history, key = { it.id }) { entry ->
                 HistoryCard(entry, isTv, model)
             }
-        }
+        } }
     }
 }
 

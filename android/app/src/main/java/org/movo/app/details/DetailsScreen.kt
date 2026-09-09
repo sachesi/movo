@@ -12,19 +12,16 @@ import androidx.window.layout.FoldingFeature
 import org.movo.app.ui.LocalFold
 import org.movo.app.ui.seamWidth
 import org.movo.app.ui.sectionHeading
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.focusRestorer
+import org.movo.app.ui.LocalReducedMotion
 import org.movo.app.ui.LocalTvFocusMemory
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.TvFocusMemory
+import org.movo.app.ui.TvFocusPivot
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.catalog.MediaCard
 import org.movo.app.ui.AdaptiveModal
@@ -81,6 +78,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -120,6 +118,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import org.movo.app.ui.TvAssistChip
 import org.movo.app.ui.TvFilterChip
 import androidx.tv.material3.SelectableChipScale
@@ -242,8 +241,9 @@ internal fun DetailsScreen(
     }
     BackHandler { model.closeDetails() }
     // The details page is its own top-level route, outside the TV shell that normally provides
-    // this, so it carries a memory of its own: returning from the player or a person's page puts
-    // the highlight back on the row the user left, not on the back arrow.
+    // this, so it carries a memory of its own. MainActivity hosts the route through a
+    // rememberSaveableStateHolder, so this and the list scroll position below both outlive a
+    // trip through the player or the trailer instead of resetting when the route recomposes.
     val focusMemory = rememberSaveable(details.url, saver = TvFocusMemory.Saver) { TvFocusMemory() }
     focusMemory.destination = details.url
     focusMemory.fallback = "details:play"
@@ -254,42 +254,33 @@ internal fun DetailsScreen(
     // The bar slides away as the page scrolls on a phone; a television has no scroll gesture
     // and its bar stays.
     val scrollBehavior = if (isTv) null else TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val reducedMotion = LocalReducedMotion.current
     Scaffold(
         modifier = scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(details.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                scrollBehavior = scrollBehavior,
-                navigationIcon = {
-                    if (isTv) {
-                        TvIconButton(model::closeDetails, Modifier.tvFocusMemory("details:back")) {
-                            TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
-                        }
-                    } else {
+            // No app bar on TV: every other TV page keeps its back arrow inline with the content
+            // instead of pinning a bar over it, and a pinned bar here is what let the poster and
+            // the headline scroll clean out of sight under it.
+            if (!isTv) {
+                CenterAlignedTopAppBar(
+                    title = { Text(details.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    scrollBehavior = scrollBehavior,
+                    navigationIcon = {
                         IconButton(model::closeDetails) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
-                    }
-                },
-                windowInsets = if (isTv) {
-                    // The overscan margin on top of whatever the device reports: nothing on a
-                    // television, the status bar and cutout on a phone or tablet using this layout.
-                    WindowInsets(
-                        left = TV_OVERSCAN_HORIZONTAL,
-                        top = TV_OVERSCAN_VERTICAL,
-                        right = TV_OVERSCAN_HORIZONTAL,
-                    ).add(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
-                } else {
-                    TopAppBarDefaults.windowInsets
-                },
-            )
+                    },
+                )
+            }
         },
     ) { padding ->
       CompositionLocalProvider(LocalTvFocusMemory provides (if (isTv) focusMemory else null)) {
         Box(Modifier.padding(padding).fillMaxSize()) {
             key(details.url) {
-                LazyColumn(
-                    Modifier
+                val listState = rememberLazyListState()
+                TvFocusPivot { LazyColumn(
+                    state = listState,
+                    modifier = Modifier
                         .widthIn(max = 1200.dp)
                         .fillMaxSize()
                         .align(Alignment.TopCenter)
@@ -316,9 +307,31 @@ internal fun DetailsScreen(
                     rowLeft?.let { left -> with(density) { (hinge.bounds.left - left).toDp() } }
                 }?.takeIf { it > posterWidth + 18.dp }
                 Row(
-                    Modifier.onGloballyPositioned { rowLeft = it.positionInWindow().x },
+                    Modifier
+                        .onGloballyPositioned { rowLeft = it.positionInWindow().x }
+                        .then(
+                            if (isTv) {
+                                // The header holds the poster, the title and the action row; giving
+                                // it the highlight from anywhere below scrolls the page back so none
+                                // of the three is left hidden under the (now removed) app bar band.
+                                Modifier.onFocusChanged {
+                                    if (it.hasFocus && listState.canScrollBackward) {
+                                        scope.launch {
+                                            if (reducedMotion) listState.scrollToItem(0) else listState.animateScrollToItem(0)
+                                        }
+                                    }
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ),
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
+                    if (isTv) {
+                        TvIconButton(model::closeDetails, Modifier.tvFocusMemory("details:back")) {
+                            TvIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                        }
+                    }
                     Box(if (leftPane != null) Modifier.width(leftPane - 18.dp) else Modifier) {
                         val tile = placeholderTile()
                         AsyncImage(
@@ -442,7 +455,7 @@ internal fun DetailsScreen(
                                     TvIcon(favoriteIcon, stringResource(R.string.favorite))
                                 }
                                 if (details.trailerAvailable) {
-                                    TvIconButton(model::loadTrailer) { TvIcon(Icons.Default.Movie, stringResource(R.string.trailer)) }
+                                    TvIconButton(model::loadTrailer, Modifier.tvFocusMemory("details:trailer")) { TvIcon(Icons.Default.Movie, stringResource(R.string.trailer)) }
                                 }
                                 TvIconButton({ showRating = true }, Modifier.tvFocusMemory("details:rate"), enabled = !details.ratingPosted) {
                                     TvIcon(Icons.Default.StarRate, stringResource(R.string.rate_title))
@@ -690,7 +703,7 @@ internal fun DetailsScreen(
                     }
                 }
             }
-                }
+                } }
             }
             // Over the page rather than at the end of it, where a long page hid both.
             if (state.loading) {

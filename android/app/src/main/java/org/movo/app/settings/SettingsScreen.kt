@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import org.movo.app.ui.TV_OVERSCAN_HORIZONTAL
 import org.movo.app.ui.TV_OVERSCAN_VERTICAL
 import org.movo.app.ui.MovoChoiceChip
+import org.movo.app.ui.TvFocusPivot
 import org.movo.app.ui.tvFocusMemory
 import org.movo.app.R
 import org.movo.app.core.Country
@@ -83,7 +84,8 @@ fun SettingsContent(
     countries: List<Country> = emptyList(),
 ) {
     Box(modifier.fillMaxSize()) {
-        LazyColumn(
+        // The focused row was parked flush against the bottom edge, inside the overscan band.
+        TvFocusPivot { LazyColumn(
             Modifier
                 .widthIn(max = 720.dp)
                 .fillMaxWidth()
@@ -205,7 +207,7 @@ fun SettingsContent(
             }
 
             item { Spacer(Modifier.height(if (isTv) TV_OVERSCAN_VERTICAL else 24.dp)) }
-        }
+        } }
     }
 }
 
