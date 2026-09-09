@@ -541,15 +541,15 @@ async fn start_player(
     }
 }
 
-/// Hand the stream to the application the user picks from the desktop's
-/// "Open With" prompt. The chosen application receives only the URL, so the
-/// provider may refuse it, and it reports no progress back.
+/// Hand the stream to the application the user picks from a list of
+/// installed applications. The chosen application receives only the URL, so
+/// the provider may refuse it, and it reports no progress back.
 ///
 /// `GtkFileLauncher` would be the modern way to ask, but it asks the portal
 /// about the URI, and a remote URI is matched by its scheme: the prompt then
 /// lists web browsers and no media player at all. Asking by content type is
-/// what puts the installed players in front of the user, and only the
-/// deprecated dialog can do that.
+/// what puts the installed players in front of the user, so the list here is
+/// built from `AppInfo::all_for_type` instead.
 async fn ask_application(window: &gtk::Window, url: &str) -> Result<Launched, String> {
     let path = reqwest::Url::parse(url)
         .ok()
@@ -562,25 +562,64 @@ async fn ask_application(window: &gtk::Window, url: &str) -> Result<Launched, St
         guessed.to_string()
     };
 
-    #[allow(deprecated)]
-    let dialog = gtk::AppChooserDialog::for_content_type(
-        Some(window),
-        gtk::DialogFlags::MODAL | gtk::DialogFlags::DESTROY_WITH_PARENT,
-        &content_type,
-    );
-    #[allow(deprecated)]
-    dialog.set_heading(tr("Open this stream with"));
+    let apps = gtk::gio::AppInfo::all_for_type(&content_type);
 
     let (chosen, receiver) = relm4::channel::<Option<gtk::gio::AppInfo>>();
-    #[allow(deprecated)]
-    dialog.connect_response(move |dialog, response| {
-        let picked = (response == gtk::ResponseType::Ok)
-            .then(|| dialog.app_info())
-            .flatten();
-        let _ = chosen.send(picked);
-        dialog.destroy();
+
+    let header = adw::HeaderBar::new();
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&header);
+
+    let dialog = adw::Dialog::builder()
+        .title(tr("Open this stream with"))
+        .content_width(360)
+        .content_height(420)
+        .child(&toolbar)
+        .build();
+
+    if apps.is_empty() {
+        let status = adw::StatusPage::builder()
+            .icon_name("dialog-question-symbolic")
+            .title(tr("No Application Found"))
+            .description(tr(
+                "No application on this system can open this kind of stream.",
+            ))
+            .vexpand(true)
+            .build();
+        toolbar.set_content(Some(&status));
+    } else {
+        let list = crate::ui::activatable_list();
+        for app in &apps {
+            let row = adw::ActionRow::builder()
+                .title(app.display_name())
+                .activatable(true)
+                .build();
+            if let Some(icon) = app.icon() {
+                row.add_prefix(&gtk::Image::from_gicon(&icon));
+            }
+            let chosen = chosen.clone();
+            let dialog = dialog.clone();
+            let picked = app.clone();
+            row.connect_activated(move |_| {
+                let _ = chosen.send(Some(picked.clone()));
+                dialog.close();
+            });
+            list.append(&row);
+        }
+        let scrolled = gtk::ScrolledWindow::builder()
+            .child(&list)
+            .vexpand(true)
+            .build();
+        toolbar.set_content(Some(&scrolled));
+    }
+
+    // Row activation above sends the choice and then closes the dialog, which fires this
+    // handler too; the second, empty send that follows is harmless because only the first
+    // value pulled off the channel below is used.
+    dialog.connect_closed(move |_| {
+        let _ = chosen.send(None);
     });
-    dialog.present();
+    dialog.present(Some(window));
 
     // Closing the prompt without choosing is not a failure.
     let Some(Some(app)) = receiver.recv().await else {

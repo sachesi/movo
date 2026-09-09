@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 10:17+0300\n"
+"POT-Creation-Date: 2026-09-09 10:22+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -195,7 +195,7 @@ msgstr "Провайдер приймає цілі числа від 1 до 10."
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
 #: crates/movo-desktop/src/dialogs/settings.rs:467
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/history.rs:169
 msgid "Cancel"
 msgstr "Скасувати"
@@ -482,7 +482,7 @@ msgid "Starting the player stopped unexpectedly"
 msgstr "Запуск програвача несподівано перервався"
 
 #: crates/movo-desktop/src/playback/launcher.rs:524
-#: crates/movo-desktop/src/playback/launcher.rs:592
+#: crates/movo-desktop/src/playback/launcher.rs:631
 msgid ""
 "This player does not report progress; the resume position is not updated."
 msgstr ""
@@ -494,15 +494,23 @@ msgstr ""
 "Відкрито системним програвачем; вкажіть mpv у налаштуваннях, щоб зберігати "
 "прогрес."
 
-#: crates/movo-desktop/src/playback/launcher.rs:572
+#: crates/movo-desktop/src/playback/launcher.rs:574
 msgid "Open this stream with"
 msgstr "Відкрити потік за допомогою"
 
-#: crates/movo-desktop/src/playback/launcher.rs:658
+#: crates/movo-desktop/src/playback/launcher.rs:583
+msgid "No Application Found"
+msgstr "Застосунок не знайдено"
+
+#: crates/movo-desktop/src/playback/launcher.rs:585
+msgid "No application on this system can open this kind of stream."
+msgstr "Жоден застосунок у системі не може відкрити цей тип потоку."
+
+#: crates/movo-desktop/src/playback/launcher.rs:697
 msgid "Choose Quality"
 msgstr "Вибір якості"
 
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/details.rs:889
 msgid "Watch"
 msgstr "Дивитися"

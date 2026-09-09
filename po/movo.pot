@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo 0.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 10:17+0300\n"
+"POT-Creation-Date: 2026-09-09 10:22+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -197,7 +197,7 @@ msgstr ""
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
 #: crates/movo-desktop/src/dialogs/settings.rs:467
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/history.rs:169
 msgid "Cancel"
 msgstr ""
@@ -475,7 +475,7 @@ msgid "Starting the player stopped unexpectedly"
 msgstr ""
 
 #: crates/movo-desktop/src/playback/launcher.rs:524
-#: crates/movo-desktop/src/playback/launcher.rs:592
+#: crates/movo-desktop/src/playback/launcher.rs:631
 msgid ""
 "This player does not report progress; the resume position is not updated."
 msgstr ""
@@ -484,15 +484,23 @@ msgstr ""
 msgid "Opened with the system player; set mpv in Settings for progress."
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher.rs:572
+#: crates/movo-desktop/src/playback/launcher.rs:574
 msgid "Open this stream with"
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher.rs:658
+#: crates/movo-desktop/src/playback/launcher.rs:583
+msgid "No Application Found"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:585
+msgid "No application on this system can open this kind of stream."
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher.rs:697
 msgid "Choose Quality"
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/details.rs:889
 msgid "Watch"
 msgstr ""

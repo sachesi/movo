@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 10:17+0300\n"
+"POT-Creation-Date: 2026-09-09 10:22+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Russian\n"
@@ -194,7 +194,7 @@ msgstr "Провайдер принимает целые числа от 1 до 
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
 #: crates/movo-desktop/src/dialogs/settings.rs:467
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/history.rs:169
 msgid "Cancel"
 msgstr "Отмена"
@@ -483,7 +483,7 @@ msgid "Starting the player stopped unexpectedly"
 msgstr "Запуск плеера неожиданно прервался"
 
 #: crates/movo-desktop/src/playback/launcher.rs:524
-#: crates/movo-desktop/src/playback/launcher.rs:592
+#: crates/movo-desktop/src/playback/launcher.rs:631
 msgid ""
 "This player does not report progress; the resume position is not updated."
 msgstr "Этот плеер не сообщает прогресс; позиция возобновления не обновляется."
@@ -494,15 +494,23 @@ msgstr ""
 "Открыто системным плеером; укажите mpv в настройках, чтобы сохранять "
 "прогресс."
 
-#: crates/movo-desktop/src/playback/launcher.rs:572
+#: crates/movo-desktop/src/playback/launcher.rs:574
 msgid "Open this stream with"
 msgstr "Открыть поток с помощью"
 
-#: crates/movo-desktop/src/playback/launcher.rs:658
+#: crates/movo-desktop/src/playback/launcher.rs:583
+msgid "No Application Found"
+msgstr "Приложение не найдено"
+
+#: crates/movo-desktop/src/playback/launcher.rs:585
+msgid "No application on this system can open this kind of stream."
+msgstr "Ни одно приложение в системе не может открыть этот тип потока."
+
+#: crates/movo-desktop/src/playback/launcher.rs:697
 msgid "Choose Quality"
 msgstr "Выбор качества"
 
-#: crates/movo-desktop/src/playback/launcher.rs:662
+#: crates/movo-desktop/src/playback/launcher.rs:701
 #: crates/movo-desktop/src/views/details.rs:889
 msgid "Watch"
 msgstr "Смотреть"
