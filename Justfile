@@ -59,7 +59,11 @@ apk-release:
     test -f "$mapping" || { echo "R8 mapping file not found: $PWD/$mapping" >&2; exit 1; }
     mapping_output="$(dirname "$output")/movo-release-$version_name-mapping.txt"
     cp "$mapping" "$mapping_output"
-    echo "APK: $output"
+    # Under the name the release asset carries, so `sha256sum -c` matches a downloaded copy.
+    checksum_output="$(dirname "$output")/movo-$version_name.apk.sha256"
+    (cd "$(dirname "$output")" && cp -f movo-release.apk "movo-$version_name.apk" && sha256sum "movo-$version_name.apk" > "$checksum_output")
+    echo "APK: $(dirname "$output")/movo-$version_name.apk"
+    echo "Checksum: $checksum_output"
     echo "Mapping: $mapping_output"
 
 # Run tests and lint, then build the debug APK.
