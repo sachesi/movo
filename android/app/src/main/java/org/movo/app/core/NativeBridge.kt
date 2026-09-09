@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
-import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -119,11 +118,7 @@ suspend fun warmUpNativeBridge() = withContext(Dispatchers.IO) { NativeBridge.wa
 
 /**
  * Account-scoped storage: the encrypted session, playback progress, and the per-user search and
- * notification history.
- *
- * Backed by the same DataStore the settings use, with a one-shot migration off the
- * SharedPreferences file earlier versions wrote, so an upgrade keeps the session it already had
- * rather than signing the account out.
+ * notification history. Backed by the same DataStore the settings use.
  */
 private val Context.accountDataStore by preferencesDataStore(
     name = ACCOUNT_STORE_NAME,
@@ -131,16 +126,7 @@ private val Context.accountDataStore by preferencesDataStore(
     // (reads already fall back to defaults), and the session and progress writes here run from
     // coroutines with nothing to catch it.
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-    produceMigrations = { context -> accountMigrations(context, ACCOUNT_STORE_NAME) },
 )
-
-/**
- * The one-shot move off the SharedPreferences file earlier versions wrote. Shared with the test
- * that proves it, which builds a store of its own: the delegate above is a single instance for the
- * whole process, so a test cannot get a fresh one.
- */
-internal fun accountMigrations(context: Context, name: String) =
-    listOf(SharedPreferencesMigration(context, name))
 
 private const val ACCOUNT_STORE_NAME = "account"
 

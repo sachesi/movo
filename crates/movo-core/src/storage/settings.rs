@@ -2,14 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-/// Bumped whenever a stored value needs rewriting on load.
-const SETTINGS_VERSION: u32 = 2;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    /// Schema version of the file this was read from; 0 means pre-versioning.
-    #[serde(default)]
-    pub version: u32,
     pub default_quality: String,
     pub external_player: String,
     pub user_id: Option<String>,
@@ -41,7 +35,6 @@ fn default_initial_view() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            version: SETTINGS_VERSION,
             default_quality: "1080p".to_string(),
             external_player: "mpv".to_string(),
             user_id: None,
@@ -68,35 +61,12 @@ impl AppSettings {
 
     pub fn load() -> Self {
         let path = Self::config_path();
-        if let Some(mut settings) = super::load_json::<AppSettings>(&path) {
-            if settings.migrate() {
-                let _ = settings.save();
-            }
+        if let Some(settings) = super::load_json::<AppSettings>(&path) {
             return settings;
         }
         let default_settings = Self::default();
         let _ = default_settings.save();
         default_settings
-    }
-
-    /// Rewrite values carried over from an older schema. Returns whether
-    /// anything changed, so the caller can persist the result.
-    fn migrate(&mut self) -> bool {
-        if self.version >= SETTINGS_VERSION {
-            return false;
-        }
-        if self.version < 1 {
-            // Before version 1 the player was a launcher command such as
-            // `xdg-open`, which cannot stream or report progress.
-            self.external_player = Self::default().external_player;
-        }
-        if self.version < 2 && self.initial_view == "catalog" {
-            // Version 1 wrote its "catalog" default to disk on first run, so
-            // the new Home default would never reach an existing install.
-            self.initial_view = default_initial_view();
-        }
-        self.version = SETTINGS_VERSION;
-        true
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -119,37 +89,5 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.initial_view, "home");
         assert_eq!(settings.external_player, "mpv");
-    }
-
-    #[test]
-    fn a_pre_version_launcher_command_is_replaced() {
-        let mut settings: AppSettings = serde_json::from_str(
-            r#"{"default_quality":"1080p","external_player":"xdg-open","user_id":null}"#,
-        )
-        .unwrap();
-
-        assert!(settings.migrate());
-        assert_eq!(settings.external_player, "mpv");
-        assert!(!settings.migrate());
-    }
-
-    #[test]
-    fn a_version_one_catalog_start_moves_to_home_once() {
-        let mut settings: AppSettings = serde_json::from_str(
-            r#"{"version":1,"default_quality":"1080p","external_player":"mpv","user_id":null,"initial_view":"catalog"}"#,
-        )
-        .unwrap();
-
-        assert!(settings.migrate());
-        assert_eq!(settings.initial_view, "home");
-        assert_eq!(settings.version, 2);
-        assert!(!settings.migrate());
-
-        let mut chosen: AppSettings = serde_json::from_str(
-            r#"{"version":1,"default_quality":"1080p","external_player":"mpv","user_id":null,"initial_view":"search"}"#,
-        )
-        .unwrap();
-        assert!(chosen.migrate());
-        assert_eq!(chosen.initial_view, "search");
     }
 }

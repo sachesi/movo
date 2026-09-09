@@ -1,19 +1,8 @@
 use reqwest::cookie::{CookieStore, Jar};
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use url::Url;
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub(super) struct PersistedCookies {
-    pub cookies: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub(super) struct HostCookies {
-    pub(super) hosts: HashMap<String, HashMap<String, String>>,
-}
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(super) struct StoredCookie {

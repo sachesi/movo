@@ -48,15 +48,6 @@ fn test_settings_defaults() {
 }
 
 #[test]
-fn test_settings_ignore_legacy_external_player_switch() {
-    let mut value = serde_json::to_value(AppSettings::default()).unwrap();
-    value["use_external_player"] = serde_json::Value::Bool(false);
-
-    let settings: AppSettings = serde_json::from_value(value).unwrap();
-    assert_eq!(settings.external_player, "mpv");
-}
-
-#[test]
 fn test_settings_ignore_removed_options() {
     let mut value = serde_json::to_value(AppSettings::default()).unwrap();
     value["official_mode"] = serde_json::Value::Bool(false);

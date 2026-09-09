@@ -24,7 +24,6 @@ Movo uses only the official `https://hdrzk.org` provider and requires a verified
 | Session cookies | Android Keystore-encrypted file (Android) | The Rust core has no keyring access on Android (`persist_session`/`restore_session` are stubbed out there); the app exports the session as a string (`RezkaClient::export_session`) after login, encrypts and stores it itself, and hands it back through the `Restore` JNI command (`RezkaClient::import_session`) on the next launch. |
 | Signed-in user ID | `settings.json` | The only account field `AppSettings` keeps; every other field is a UI preference. Used only to look up the right keyring entry on Linux. |
 | Watch positions | `history-{user_id}.json` (or equivalent, one file per account) | `crates/movo-core/src/storage/history.rs`. Holds the exact playback second per title/season/episode, because the provider does not expose one. Never shared between accounts. |
-| Legacy cookie file | `session_cookies.json` | Read once by `RezkaSession::load_legacy_session`, validated against the profile endpoint, and removed by `remove_legacy_cookie_file` once a keyring entry (or the in-memory session, if the keyring failed) replaces it. Desktop only; nothing in the current client writes this file. |
 
 No password, cookie, or token is ever written to `settings.json`, a log line, or an error message.
 

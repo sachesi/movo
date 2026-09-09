@@ -1,5 +1,4 @@
 use super::models::UserProfile;
-use super::session::RezkaSession;
 use super::{auth, blocking, RestoreError, RezkaClient};
 use crate::error::ClientError;
 use std::sync::PoisonError;
@@ -51,70 +50,30 @@ impl RezkaClient {
             crate::storage::settings::AppSettings::load,
         )
         .await?;
-        if let Some(user_id) = settings.user_id.clone() {
-            let session = self.session.clone();
-            let lookup_id = user_id.clone();
-            let restored = blocking("Restoring the session", move || {
-                session.restore_session(&lookup_id)
-            })
-            .await?;
-            match restored {
-                Ok(true) => return self.verify_restored_session(&mut settings, false).await,
-                Ok(false) => {}
-                Err(error) if !RezkaSession::cookie_file_path().exists() => return Err(error),
-                Err(_) => {}
-            }
-            let session = self.session.clone();
-            let legacy_id = user_id.clone();
-            let legacy = blocking("Restoring the session", move || {
-                session.load_legacy_session(Some(&legacy_id))
-            })
-            .await??;
-            if legacy.is_some() {
-                return self.verify_restored_session(&mut settings, true).await;
-            }
-            settings.user_id = None;
-            let saved = settings.clone();
-            blocking("Saving settings", move || saved.save()).await??;
-            self.set_account(None);
-            return Ok(None);
-        }
-
-        let session = self.session.clone();
-        let Some(user_id) = blocking("Restoring the session", move || {
-            session.load_legacy_session(None)
-        })
-        .await??
-        else {
+        let Some(user_id) = settings.user_id.clone() else {
             return Ok(None);
         };
-        settings.user_id = Some(user_id);
+        let session = self.session.clone();
+        let restored = blocking("Restoring the session", move || {
+            session.restore_session(&user_id)
+        })
+        .await??;
+        if restored {
+            return self.verify_restored_session(&mut settings).await;
+        }
+        settings.user_id = None;
         let saved = settings.clone();
         blocking("Saving settings", move || saved.save()).await??;
-        self.verify_restored_session(&mut settings, true).await
+        self.set_account(None);
+        Ok(None)
     }
 
     async fn verify_restored_session(
         &self,
         settings: &mut crate::storage::settings::AppSettings,
-        legacy: bool,
     ) -> Result<Option<UserProfile>, ClientError> {
         match auth::check_profile(&self.session).await {
-            Ok(Some(mut profile)) => {
-                if legacy {
-                    let session = self.session.clone();
-                    let user_id = profile.user_id.clone();
-                    profile.is_session_persistent = blocking("Persisting the session", move || {
-                        session.persist_session(&user_id)
-                    })
-                    .await
-                    .is_ok_and(|result| result.is_ok());
-                    blocking(
-                        "Removing the legacy session",
-                        RezkaSession::remove_legacy_cookie_file,
-                    )
-                    .await??;
-                }
+            Ok(Some(profile)) => {
                 self.set_account(Some(profile.clone()));
                 Ok(Some(profile))
             }

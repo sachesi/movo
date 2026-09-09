@@ -1,11 +1,8 @@
-use super::cookies::{HostCookies, PersistedCookies, StoredCookie};
+use super::cookies::StoredCookie;
 use super::{RezkaSession, OFFICIAL_MIRROR};
 use crate::error::{ClientError, ErrorKind};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use url::Url;
 
 #[cfg(not(target_os = "android"))]
 const KEYRING_SERVICE: &str = "io.github.sachesi.Movo";
@@ -62,23 +59,6 @@ impl RezkaSession {
                 "Stored session is invalid",
             ))
         }
-    }
-
-    pub fn cookie_file_path() -> PathBuf {
-        if let Some(proj_dirs) = crate::storage::project_dirs() {
-            proj_dirs.data_dir().join("session_cookies.json")
-        } else {
-            PathBuf::from("session_cookies.json")
-        }
-    }
-
-    pub fn remove_legacy_cookie_file() -> Result<(), ClientError> {
-        let path = Self::cookie_file_path();
-        if path.exists() {
-            fs::remove_file(path)
-                .map_err(|_| "Legacy session file could not be removed".to_string())?;
-        }
-        Ok(())
     }
 
     #[cfg(not(target_os = "android"))]
@@ -168,31 +148,23 @@ impl RezkaSession {
     #[cfg(not(target_os = "android"))]
     pub fn clear_session(&self, user_id: Option<&str>) -> Result<(), ClientError> {
         self.invalidate_auth();
-        let legacy_removed = Self::remove_legacy_cookie_file().is_ok();
-        let keyring_removed = match user_id {
-            None => true,
-            Some(user_id) => Self::keyring_entry(user_id).is_ok_and(|entry| {
-                matches!(
-                    entry.delete_credential(),
-                    Ok(()) | Err(keyring::Error::NoEntry)
-                )
-            }),
+        let Some(user_id) = user_id else {
+            return Ok(());
         };
-        match (legacy_removed, keyring_removed) {
-            (true, true) => Ok(()),
-            (false, true) => Err("Legacy session file could not be removed"
-                .to_string()
-                .into()),
-            (true, false) => Err(
+        let removed = Self::keyring_entry(user_id).is_ok_and(|entry| {
+            matches!(
+                entry.delete_credential(),
+                Ok(()) | Err(keyring::Error::NoEntry)
+            )
+        });
+        if removed {
+            Ok(())
+        } else {
+            Err(
                 "System keyring is unavailable; stored session was not removed"
                     .to_string()
                     .into(),
-            ),
-            (false, false) => Err(
-                "Stored session could not be fully removed from disk or the system keyring"
-                    .to_string()
-                    .into(),
-            ),
+            )
         }
     }
 
@@ -207,101 +179,13 @@ impl RezkaSession {
         keyring::Entry::new(KEYRING_SERVICE, &format!("hdrzk.org:{user_id}"))
             .map_err(|_| "System keyring is unavailable".to_string().into())
     }
-
-    pub fn load_legacy_session(
-        &self,
-        expected_user_id: Option<&str>,
-    ) -> Result<Option<String>, ClientError> {
-        let path = Self::cookie_file_path();
-        if !path.exists() {
-            return Ok(None);
-        }
-        let content = match fs::read_to_string(&path) {
-            Ok(content) => content,
-            Err(_) => {
-                let _ = Self::remove_legacy_cookie_file();
-                return Err("Legacy session could not be read".to_string().into());
-            }
-        };
-        let url = Url::parse(&self.base_url)
-            .map_err(|_| "Official provider URL is invalid".to_string())?;
-        let host = url
-            .host_str()
-            .ok_or_else(|| "Official provider URL has no host".to_string())?;
-        let persisted = Self::parse_host_cookies(&content, Some(host));
-        let Some(cookies) = persisted.hosts.get(host) else {
-            let _ = Self::remove_legacy_cookie_file();
-            return Err(ClientError::new(
-                ErrorKind::Session,
-                "Legacy session is invalid",
-            ));
-        };
-        let cookies = cookies
-            .iter()
-            .map(|(name, value)| StoredCookie {
-                url: url.as_str().to_string(),
-                header: format!("{name}={value}; Domain={host}; Path=/; Secure; HttpOnly"),
-            })
-            .collect::<Vec<_>>();
-        self.cookie_jar.replace(&cookies);
-        let Some(user_id) = self.authenticated_user_id() else {
-            self.cookie_jar.clear();
-            let _ = Self::remove_legacy_cookie_file();
-            return Err(ClientError::new(
-                ErrorKind::Session,
-                "Legacy session is incomplete",
-            ));
-        };
-        if expected_user_id.is_some_and(|expected| expected != user_id) {
-            self.cookie_jar.clear();
-            let _ = Self::remove_legacy_cookie_file();
-            return Err(ClientError::new(
-                ErrorKind::Session,
-                "Legacy session belongs to another account",
-            ));
-        }
-        Ok(Some(user_id))
-    }
-
-    fn parse_host_cookies(content: &str, legacy_host: Option<&str>) -> HostCookies {
-        if let Ok(hosts) = serde_json::from_str::<HostCookies>(content) {
-            return hosts;
-        }
-        let mut hosts = HostCookies::default();
-        if let (Ok(legacy), Some(host)) = (
-            serde_json::from_str::<PersistedCookies>(content),
-            legacy_host,
-        ) {
-            hosts.hosts.insert(host.to_string(), legacy.cookies);
-        }
-        hosts
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::cookies::SharedCookieJar;
     use super::*;
-
-    #[test]
-    fn legacy_cookie_file_migrates_to_current_host() {
-        let parsed = RezkaSession::parse_host_cookies(
-            r#"{"cookies":{"dle_user_id":"42","PHPSESSID":"abc"}}"#,
-            Some("hdrzk.org"),
-        );
-        assert_eq!(parsed.hosts["hdrzk.org"]["dle_user_id"], "42");
-        assert_eq!(parsed.hosts["hdrzk.org"]["PHPSESSID"], "abc");
-    }
-
-    #[test]
-    fn host_cookie_file_keeps_hosts_separate() {
-        let parsed = RezkaSession::parse_host_cookies(
-            r#"{"hosts":{"one.example":{"a":"1"},"two.example":{"b":"2"}}}"#,
-            Some("ignored.example"),
-        );
-        assert_eq!(parsed.hosts["one.example"]["a"], "1");
-        assert_eq!(parsed.hosts["two.example"]["b"], "2");
-    }
+    use url::Url;
 
     #[test]
     fn session_secret_preserves_cookie_metadata() {
