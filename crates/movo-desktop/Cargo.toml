@@ -1,6 +1,6 @@
 [package]
 name = "movo"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 rust-version = "1.85"
 authors = ["sachesi <xsachesi@pm.me>"]
@@ -25,6 +25,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # System, logging & misc
 gettext-rs = { version = "0.8", features = ["gettext-system"] }
 image = "0.25"
+ksni = "0.3.6"
 log = "0.4"
 env_logger = "0.11"
 chrono = "0.4"

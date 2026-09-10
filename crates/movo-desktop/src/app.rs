@@ -1,6 +1,7 @@
 use crate::i18n::{tr, trf};
 use crate::playback::launcher::{Launcher, LauncherMsg, LauncherOutput, PlayRequest};
 use crate::state::AppState;
+use crate::tray::{TrayEvent, TrayIcon};
 use crate::views::catalog::{CatalogMsg, CatalogOutput, CatalogView};
 use crate::views::collections::{CollectionsOutput, CollectionsView};
 use crate::views::details::{DetailsMsg, DetailsOutput, DetailsView};
@@ -16,6 +17,7 @@ use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, Controller};
 use std::rc::Rc;
+use std::{cell::Cell, sync::mpsc, time::Duration};
 
 pub struct App {
     state: Rc<AppState>,
@@ -347,6 +349,37 @@ impl Component for App {
             toasts: toasts.clone(),
         };
         let widgets = view_output!();
+
+        let tray_available = Rc::new(Cell::new(false));
+        let (tray_events, events) = mpsc::channel();
+        let tray = TrayIcon::new(tray_events, tr("Open Movo").into(), tr("Quit").into());
+        relm4::spawn(tray.run());
+
+        {
+            let root = root.clone();
+            let application = application.clone();
+            let tray_available = tray_available.clone();
+            gtk::glib::timeout_add_local(Duration::from_millis(100), move || {
+                while let Ok(event) = events.try_recv() {
+                    match event {
+                        TrayEvent::Available => tray_available.set(true),
+                        TrayEvent::Unavailable => tray_available.set(false),
+                        TrayEvent::Show => root.present(),
+                        TrayEvent::Quit => application.quit(),
+                    }
+                }
+                gtk::glib::ControlFlow::Continue
+            });
+        }
+
+        root.connect_close_request(move |window| {
+            if tray_available.get() {
+                window.set_visible(false);
+                gtk::glib::Propagation::Stop
+            } else {
+                gtk::glib::Propagation::Proceed
+            }
+        });
 
         // The tooltip is not read by a screen reader; the icon-only button needs its own label.
         widgets

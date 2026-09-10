@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Movo 0.4.1\n"
+"Project-Id-Version: Movo 0.4.2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-09 11:50+0300\n"
+"POT-Creation-Date: 2026-09-10 23:45+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,74 +27,79 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:114 crates/movo-desktop/src/app.rs:354
+#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:387
 msgid "Main Menu"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:256
+#: crates/movo-desktop/src/app.rs:258
 #: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:263
+#: crates/movo-desktop/src/app.rs:265
 #: crates/movo-desktop/src/dialogs/settings.rs:119
 #: crates/movo-desktop/src/views/home.rs:206
 msgid "Catalog"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:270
+#: crates/movo-desktop/src/app.rs:272
 #: crates/movo-desktop/src/dialogs/settings.rs:120
 #: crates/movo-desktop/src/views/search.rs:503
 msgid "Search"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:277
+#: crates/movo-desktop/src/app.rs:279
 #: crates/movo-desktop/src/dialogs/settings.rs:121
 #: crates/movo-desktop/src/views/details.rs:602
 msgid "Collections"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:284
+#: crates/movo-desktop/src/app.rs:286
 #: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:291
+#: crates/movo-desktop/src/app.rs:293
 #: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:298
+#: crates/movo-desktop/src/app.rs:300
 #: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:329
+#: crates/movo-desktop/src/app.rs:331
 msgid "Restoring the session stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:375
+#: crates/movo-desktop/src/app.rs:355
+msgid "Open Movo"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:355 crates/movo-desktop/src/app.rs:570
+#: crates/movo-desktop/src/app.rs:585
+msgid "Quit"
+msgstr ""
+
+#: crates/movo-desktop/src/app.rs:408
 msgid "Your session has ended. Sign in again to continue."
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:401
+#: crates/movo-desktop/src/app.rs:434
 msgid "Signed in as {}"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:534 crates/movo-desktop/src/app.rs:545
+#: crates/movo-desktop/src/app.rs:567 crates/movo-desktop/src/app.rs:578
 msgid "Preferences"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:535 crates/movo-desktop/src/app.rs:549
+#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:582
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:536
+#: crates/movo-desktop/src/app.rs:569
 msgid "About Movo"
-msgstr ""
-
-#: crates/movo-desktop/src/app.rs:537 crates/movo-desktop/src/app.rs:552
-msgid "Quit"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/actor.rs:23

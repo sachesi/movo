@@ -337,7 +337,7 @@ dependencies = [
  "log",
  "num-rational",
  "num-traits",
- "pastey",
+ "pastey 0.1.1",
  "rayon",
  "thiserror 2.0.20",
  "v_frame",
@@ -2062,6 +2062,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ksni"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "814b44c24cd2cb236c3b8a41c7f08237b452a8e76ecaa81f1cec40b5b678215b"
+dependencies = [
+ "futures-util",
+ "pastey 0.2.3",
+ "serde",
+ "tokio",
+ "zbus",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2299,13 +2312,14 @@ dependencies = [
 
 [[package]]
 name = "movo"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "env_logger",
  "gettext-rs",
  "gtk4",
  "image",
+ "ksni",
  "libadwaita",
  "log",
  "movo-core",
@@ -2317,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "movo-android"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "jni",
  "movo-core",
@@ -2328,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "movo-core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64",
  "chrono",
@@ -2596,6 +2610,12 @@ name = "pastey"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
+
+[[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "percent-encoding"
@@ -3784,6 +3804,7 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -4514,6 +4535,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_repr",
+ "tokio",
  "tracing",
  "uds_windows",
  "uuid",

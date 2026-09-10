@@ -118,7 +118,7 @@ pot:
     # 'static as an unterminated character constant on every occurrence, which drowns out
     # any warning that would matter. Filter that one message out; nothing else is silenced.
     xgettext --from-code=UTF-8 --language=C --keyword=tr --keyword=trf --keyword=trn:1,2 \
-        --package-name=Movo --package-version=0.4.1 \
+        --package-name=Movo --package-version=0.4.2 \
         --output=po/movo.pot $(find crates/movo-desktop/src -name '*.rs' | sort) \
         2> >(grep -v 'unterminated character constant' >&2)
     for language in ru uk; do
