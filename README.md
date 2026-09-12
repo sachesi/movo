@@ -11,7 +11,7 @@ favorites, history or premium streams.
 
 ## Status
 
-Version 0.4.3, usable but young. The desktop client was rewritten on relm4 and
+Version 0.4.4, usable but young. The desktop client was rewritten on relm4 and
 the Android client is the newer of the two. Expect the provider layer to need
 maintenance whenever the site changes its markup or its stream encoding.
 

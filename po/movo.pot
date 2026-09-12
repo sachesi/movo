@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Movo 0.4.3\n"
+"Project-Id-Version: Movo 0.4.4\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-10 23:50+0300\n"
+"POT-Creation-Date: 2026-09-12 20:09+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,7 +27,7 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:387
+#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:388
 msgid "Main Menu"
 msgstr ""
 
@@ -69,36 +69,36 @@ msgstr ""
 msgid "History"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:331
+#: crates/movo-desktop/src/app.rs:332
 msgid "Restoring the session stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:355
+#: crates/movo-desktop/src/app.rs:356
 msgid "Open Movo"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:355 crates/movo-desktop/src/app.rs:570
-#: crates/movo-desktop/src/app.rs:585
+#: crates/movo-desktop/src/app.rs:356 crates/movo-desktop/src/app.rs:571
+#: crates/movo-desktop/src/app.rs:586
 msgid "Quit"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:408
+#: crates/movo-desktop/src/app.rs:409
 msgid "Your session has ended. Sign in again to continue."
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:434
+#: crates/movo-desktop/src/app.rs:435
 msgid "Signed in as {}"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:567 crates/movo-desktop/src/app.rs:578
+#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:579
 msgid "Preferences"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:582
+#: crates/movo-desktop/src/app.rs:569 crates/movo-desktop/src/app.rs:583
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:569
+#: crates/movo-desktop/src/app.rs:570
 msgid "About Movo"
 msgstr ""
 

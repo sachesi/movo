@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-10 23:38+0300\n"
+"POT-Creation-Date: 2026-09-12 20:09+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -22,7 +22,7 @@ msgstr "Обліковий запис змінився до початку за�
 msgid "The request stopped unexpectedly"
 msgstr "Запит несподівано перервався"
 
-#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:387
+#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:388
 msgid "Main Menu"
 msgstr "Головне меню"
 
@@ -64,36 +64,36 @@ msgstr "Обране"
 msgid "History"
 msgstr "Історія"
 
-#: crates/movo-desktop/src/app.rs:331
+#: crates/movo-desktop/src/app.rs:332
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Відновлення сеансу несподівано перервалося"
 
-#: crates/movo-desktop/src/app.rs:355
+#: crates/movo-desktop/src/app.rs:356
 msgid "Open Movo"
 msgstr "Відкрити Movo"
 
-#: crates/movo-desktop/src/app.rs:355 crates/movo-desktop/src/app.rs:570
-#: crates/movo-desktop/src/app.rs:585
+#: crates/movo-desktop/src/app.rs:356 crates/movo-desktop/src/app.rs:571
+#: crates/movo-desktop/src/app.rs:586
 msgid "Quit"
 msgstr "Вийти"
 
-#: crates/movo-desktop/src/app.rs:408
+#: crates/movo-desktop/src/app.rs:409
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
 
-#: crates/movo-desktop/src/app.rs:434
+#: crates/movo-desktop/src/app.rs:435
 msgid "Signed in as {}"
 msgstr "Ви увійшли як {}"
 
-#: crates/movo-desktop/src/app.rs:567 crates/movo-desktop/src/app.rs:578
+#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:579
 msgid "Preferences"
 msgstr "Налаштування"
 
-#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:582
+#: crates/movo-desktop/src/app.rs:569 crates/movo-desktop/src/app.rs:583
 msgid "Keyboard Shortcuts"
 msgstr "Комбінації клавіш"
 
-#: crates/movo-desktop/src/app.rs:569
+#: crates/movo-desktop/src/app.rs:570
 msgid "About Movo"
 msgstr "Про застосунок Movo"
 
