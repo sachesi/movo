@@ -7,6 +7,7 @@ import org.movo.app.settings.QualityMode
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.unit.IntSize
+import androidx.media3.common.PlaybackException
 import kotlin.math.abs
 
 private const val MAX_VIDEO_ZOOM = 4f
@@ -34,6 +35,23 @@ internal fun nextLowerStream(bundle: StreamBundle, current: StreamEntry?): Strea
         .filter { it.urls.isNotEmpty() && it.qualityScore() < currentScore }
         .maxByOrNull { it.qualityScore() }
 }
+
+/**
+ * The source to try after the one at [index] failed, or null once this quality has none left.
+ * Every file is offered on several hosts, so the list holds each one several times over. A host
+ * that could not be reached or read from is worth the same file on the next host; a file in
+ * [brokenFiles], which the decoder or the parser gave up on, breaks the same way wherever it is
+ * served from, and each try downloads its start again.
+ */
+internal fun nextSource(urls: List<String>, index: Int, brokenFiles: Set<String>): Int? =
+    (index + 1 until urls.size).firstOrNull { urls[it].file() !in brokenFiles }
+
+/** What a source serves, whichever host serves it: every host carries the same paths. */
+internal fun String.file() = substringAfter("://").substringAfter('/', "")
+
+/** Whether a playback error is the host's doing. Media3 numbers every input/output failure 2xxx. */
+internal fun isHostFailure(errorCode: Int) =
+    errorCode / 1000 == PlaybackException.ERROR_CODE_IO_UNSPECIFIED / 1000
 
 internal fun updateVideoTransform(
     scale: Float,

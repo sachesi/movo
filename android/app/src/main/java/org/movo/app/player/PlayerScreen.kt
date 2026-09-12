@@ -332,8 +332,12 @@ fun PlayerScreen(
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
-                        val next = content.urlIndex + 1
-                        if (next < (content.stream?.urls?.size ?: 0)) {
+                        val urls = content.stream?.urls.orEmpty()
+                        if (!isHostFailure(error.errorCode)) {
+                            urls.getOrNull(content.urlIndex)?.let { content.brokenFiles += it.file() }
+                        }
+                        val next = nextSource(urls, content.urlIndex, content.brokenFiles)
+                        if (next != null) {
                             content.urlIndex = next
                         } else {
                             val fallback = nextLowerStream(bundle, content.stream)

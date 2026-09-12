@@ -25,6 +25,8 @@ class PlayerContentState(
 ) {
     var stream by mutableStateOf(initialStream)
     var urlIndex by mutableIntStateOf(0)
+    /** Files that failed on their own account, which no other host serves any better. */
+    var brokenFiles = emptySet<String>()
     var subtitle by mutableStateOf(initialSubtitle)
     var playbackError by mutableStateOf<String?>(null)
     var completed by mutableStateOf(false)

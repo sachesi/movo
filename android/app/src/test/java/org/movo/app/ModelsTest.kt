@@ -18,8 +18,11 @@ import org.movo.app.player.PROGRESS_SAVE_INTERVAL_MS
 import org.movo.app.player.TV_TIMELINE_MAX_SEEK_SECONDS
 import org.movo.app.player.TV_TIMELINE_SEEK_SECONDS
 import org.movo.app.player.episodeMenuAnchorIndex
+import org.movo.app.player.file
 import org.movo.app.player.formatSeekDelta
+import org.movo.app.player.isHostFailure
 import org.movo.app.player.nextLowerStream
+import org.movo.app.player.nextSource
 import org.movo.app.player.nextSeekTarget
 import org.movo.app.player.pipAspectRatio
 import org.movo.app.player.playbackStartPosition
@@ -37,6 +40,7 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.unit.IntSize
+import androidx.media3.common.PlaybackException
 import org.junit.Assert.assertEquals
 import androidx.compose.runtime.saveable.SaverScope
 import org.junit.Test
@@ -164,6 +168,36 @@ class ModelsTest {
         assertEquals("720p", nextLowerStream(bundle, streams[0])?.quality)
         assertEquals("480p", nextLowerStream(bundle, streams[1])?.quality)
         assertEquals(null, nextLowerStream(bundle, streams[2]))
+    }
+
+    /** Each file on two hosts, the way the core lists them: the host that answered first. */
+    private val mirroredSources = listOf(
+        "https://a.example/v/720.m3u8",
+        "https://a.example/v/720.mp4",
+        "https://b.example/v/720.m3u8",
+        "https://b.example/v/720.mp4",
+    )
+
+    @Test fun aHostThatFailsHandsOnToTheNextSource() {
+        assertEquals(1, nextSource(mirroredSources, 0, emptySet()))
+        assertEquals(null, nextSource(mirroredSources, 3, emptySet()))
+    }
+
+    @Test fun aFileThePlayerGaveUpOnIsNotFetchedFromAnotherHost() {
+        val manifest = mirroredSources[0].file()
+        val video = mirroredSources[1].file()
+
+        assertEquals(1, nextSource(mirroredSources, 0, setOf(manifest)))
+        assertEquals(3, nextSource(mirroredSources, 1, setOf(manifest)))
+        assertEquals(null, nextSource(mirroredSources, 1, setOf(manifest, video)))
+    }
+
+    @Test fun onlyAFailureToReachOrReadTheSourceIsTheHostsDoing() {
+        assertEquals(true, isHostFailure(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED))
+        assertEquals(true, isHostFailure(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        assertEquals(false, isHostFailure(PlaybackException.ERROR_CODE_DECODING_FAILED))
+        assertEquals(false, isHostFailure(PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED))
+        assertEquals("v/720.mp4", "https://b.example/v/720.mp4".file())
     }
 
     @Test fun videoZoomKeepsContentBoundedAndResets() {
