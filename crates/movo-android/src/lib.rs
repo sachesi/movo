@@ -1,6 +1,6 @@
 use jni::{
     objects::{JClass, JString},
-    sys::jstring,
+    sys::{jlong, jstring},
     JNIEnv,
 };
 use movo_core::client::{
@@ -10,8 +10,11 @@ use movo_core::client::{
 use movo_core::error::{ClientError, ErrorKind};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::LazyLock;
-use tokio::sync::RwLock;
+use std::collections::HashMap;
+use std::future::Future;
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, Instant};
+use tokio::sync::{Notify, RwLock};
 
 static CLIENT: LazyLock<RwLock<RezkaClient>> = LazyLock::new(|| RwLock::new(RezkaClient::new()));
 
@@ -22,6 +25,57 @@ static CLIENT: LazyLock<RwLock<RezkaClient>> = LazyLock::new(|| RwLock::new(Rezk
 static MUTATIONS: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 static RUNTIME: LazyLock<tokio::runtime::Runtime> =
     LazyLock::new(|| tokio::runtime::Runtime::new().expect("Android runtime"));
+
+/// Reads the app is waiting on, by the id it sent each one under, so it can
+/// drop one it stopped waiting for instead of leaving it to run for nobody:
+/// a dropped read gives back its place under the provider's request limit and
+/// its hold on the client, which a sign-out waits for.
+static READS: LazyLock<Mutex<HashMap<u64, Read>>> = LazyLock::new(Default::default);
+
+/// How long a drop is kept for a read that has not started yet. The app only
+/// asks for one once the read is on its way, so the read turns up within
+/// moments; a drop still waiting after this was for a read that had already
+/// answered.
+const EARLY_DROP_KEPT: Duration = Duration::from_secs(60);
+
+struct Read {
+    dropped: Arc<Notify>,
+    /// When the drop arrived, for a read that had not started yet.
+    early_since: Option<Instant>,
+}
+
+fn reads() -> MutexGuard<'static, HashMap<u64, Read>> {
+    let mut reads = READS.lock().unwrap_or_else(PoisonError::into_inner);
+    let now = Instant::now();
+    reads.retain(|_, read| {
+        read.early_since
+            .is_none_or(|since| now.duration_since(since) < EARLY_DROP_KEPT)
+    });
+    reads
+}
+
+/// What the read sent under `id` waits on besides its reply. A drop that
+/// arrived before the read has already been signalled.
+fn track(id: u64) -> Arc<Notify> {
+    let mut reads = reads();
+    let read = reads.entry(id).or_insert_with(|| Read {
+        dropped: Arc::default(),
+        early_since: None,
+    });
+    read.early_since = None;
+    read.dropped.clone()
+}
+
+fn drop_read(id: u64) {
+    reads()
+        .entry(id)
+        .or_insert_with(|| Read {
+            dropped: Arc::default(),
+            early_since: Some(Instant::now()),
+        })
+        .dropped
+        .notify_one();
+}
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -130,6 +184,37 @@ enum Command {
         season: Option<i64>,
         episode: Option<i64>,
     },
+}
+
+impl Command {
+    /// Whether the command only reads, which is all the app may drop. A change
+    /// runs to the end once sent, even when the app stops waiting for it: the
+    /// user asked for it, and one cut off half way leaves nobody knowing
+    /// whether it happened.
+    fn is_read(&self) -> bool {
+        matches!(
+            self,
+            Command::Catalog { .. }
+                | Command::Search { .. }
+                | Command::SearchSuggestions { .. }
+                | Command::Home
+                | Command::SearchFilters
+                | Command::Collections { .. }
+                | Command::Path { .. }
+                | Command::Details { .. }
+                | Command::Actor { .. }
+                | Command::Comments { .. }
+                | Command::Trailer { .. }
+                | Command::AccountData
+                | Command::Episodes { .. }
+                | Command::MovieStream { .. }
+                | Command::EpisodeStream { .. }
+                | Command::FavoriteCategories
+                | Command::Favorites { .. }
+                | Command::History
+                | Command::Countries
+        )
+    }
 }
 
 /// A failed command, and whether it leaves the stored session worth keeping.
@@ -277,52 +362,77 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
     }
 }
 
-fn invoke(command: Command) -> Result<Value, Failure> {
-    RUNTIME.block_on(async move {
-        match command {
-            Command::Login { login, password } => {
-                let client = CLIENT.write().await;
-                client.check_stream_hosts();
-                let user = client.login(&login, &password).await?;
-                Ok(json!({"user": user, "secret": client.export_session()?}))
-            }
-            Command::Restore { secret } => {
-                let client = CLIENT.write().await;
-                client.check_stream_hosts();
-                // The reply carries whether the session was turned down, so the
-                // app only throws the stored secret away when it is worthless.
-                client
-                    .import_session(&secret)
-                    .await
-                    .map(|user| json!(user))
-                    .map_err(|error| Failure {
-                        message: error.error.message,
-                        kind: error.error.kind,
-                        session_rejected: error.is_rejected,
-                    })
-            }
-            Command::Logout => {
-                CLIENT.write().await.logout().await?;
-                Ok(Value::Null)
-            }
-            command @ (Command::SetFavorite { .. }
-            | Command::RemoveHistory { .. }
-            | Command::SetHistoryWatched { .. }
-            | Command::Rate { .. }
-            | Command::LikeComment { .. }
-            | Command::ToggleScheduleWatched { .. }
-            | Command::SaveWatch { .. }
-            | Command::MarkWatched { .. }) => {
-                let _mutation = MUTATIONS.lock().await;
-                let client = CLIENT.read().await;
-                invoke_read(command, &client).await
-            }
-            command => {
-                let client = CLIENT.read().await;
-                invoke_read(command, &client).await
-            }
+/// Runs a command to its reply. A read sent under a request id ends early,
+/// with an error nobody is waiting for, once the app drops it.
+fn invoke(command: Command, request_id: Option<u64>) -> Result<Value, Failure> {
+    let droppable = request_id.filter(|_| command.is_read());
+    wait(run(command), droppable)
+}
+
+/// Waits for `work` to finish or, when it runs under `id`, for the app to
+/// drop it, whichever comes first.
+fn wait(
+    work: impl Future<Output = Result<Value, Failure>>,
+    id: Option<u64>,
+) -> Result<Value, Failure> {
+    let Some(id) = id else {
+        return RUNTIME.block_on(work);
+    };
+    let dropped = track(id);
+    let outcome = RUNTIME.block_on(async {
+        tokio::select! {
+            outcome = work => outcome,
+            () = dropped.notified() => Err(Failure::from("The request was dropped".to_string())),
         }
-    })
+    });
+    reads().remove(&id);
+    outcome
+}
+
+async fn run(command: Command) -> Result<Value, Failure> {
+    match command {
+        Command::Login { login, password } => {
+            let client = CLIENT.write().await;
+            client.check_stream_hosts();
+            let user = client.login(&login, &password).await?;
+            Ok(json!({"user": user, "secret": client.export_session()?}))
+        }
+        Command::Restore { secret } => {
+            let client = CLIENT.write().await;
+            client.check_stream_hosts();
+            // The reply carries whether the session was turned down, so the
+            // app only throws the stored secret away when it is worthless.
+            client
+                .import_session(&secret)
+                .await
+                .map(|user| json!(user))
+                .map_err(|error| Failure {
+                    message: error.error.message,
+                    kind: error.error.kind,
+                    session_rejected: error.is_rejected,
+                })
+        }
+        Command::Logout => {
+            CLIENT.write().await.logout().await?;
+            Ok(Value::Null)
+        }
+        command @ (Command::SetFavorite { .. }
+        | Command::RemoveHistory { .. }
+        | Command::SetHistoryWatched { .. }
+        | Command::Rate { .. }
+        | Command::LikeComment { .. }
+        | Command::ToggleScheduleWatched { .. }
+        | Command::SaveWatch { .. }
+        | Command::MarkWatched { .. }) => {
+            let _mutation = MUTATIONS.lock().await;
+            let client = CLIENT.read().await;
+            invoke_read(command, &client).await
+        }
+        command => {
+            let client = CLIENT.read().await;
+            invoke_read(command, &client).await
+        }
+    }
 }
 
 /// Turns a panic into the same error reply a failed command produces.
@@ -340,6 +450,30 @@ fn caught(run: impl FnOnce() -> String) -> String {
         .unwrap_or_else(|_| json!({"error": "The request stopped unexpectedly"}).to_string())
 }
 
+/// Reads a request: the command, and the id the app may later drop it under.
+/// The id has a key of its own because several commands name a field `id`.
+fn parse(request: &str) -> Result<(Command, Option<u64>), Failure> {
+    let request: Value =
+        serde_json::from_str(request).map_err(|error| Failure::from(error.to_string()))?;
+    let request_id = request.get("request_id").and_then(Value::as_u64);
+    let command =
+        serde_json::from_value(request).map_err(|error| Failure::from(error.to_string()))?;
+    Ok((command, request_id))
+}
+
+/// Drops the read the app sent under `id`: it answers at once, and whatever
+/// it was waiting on is let go. A change, or a read that already answered, is
+/// left alone.
+#[no_mangle]
+pub extern "system" fn Java_org_movo_app_core_NativeBridge_drop(
+    _env: JNIEnv,
+    _class: JClass,
+    id: jlong,
+) {
+    // Nothing may unwind out of an `extern "system"` function; see `caught`.
+    let _ = std::panic::catch_unwind(|| drop_read(id as u64));
+}
+
 #[no_mangle]
 pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
     mut env: JNIEnv,
@@ -349,11 +483,8 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
     let response = caught(|| {
         env.get_string(&request)
             .map_err(|error| Failure::from(error.to_string()))
-            .and_then(|request| {
-                serde_json::from_str::<Command>(&request.to_string_lossy())
-                    .map_err(|error| Failure::from(error.to_string()))
-            })
-            .and_then(invoke)
+            .and_then(|request| parse(&request.to_string_lossy()))
+            .and_then(|(command, request_id)| invoke(command, request_id))
             .map(|data| json!({"data": data}))
             .unwrap_or_else(|failure| {
                 json!({
@@ -379,7 +510,6 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
     /// An in-flight mutation holds the mutation lock and a read lock. Reads
     /// must still get through: some mutations poll the provider for seconds.
@@ -416,5 +546,124 @@ mod tests {
             assert!(second.is_ok());
             drop(first);
         });
+    }
+
+    /// Runs `work` under `id` on a thread of its own and hands back the
+    /// outcome, or `None` if it was still waiting after a generous while.
+    fn waited(
+        work: impl Future<Output = Result<Value, Failure>> + Send + 'static,
+        id: u64,
+        before_drop: Duration,
+    ) -> Option<Result<Value, Failure>> {
+        let (sender, outcome) = std::sync::mpsc::channel();
+        std::thread::spawn(move || sender.send(wait(work, Some(id))));
+        std::thread::sleep(before_drop);
+        drop_read(id);
+        outcome.recv_timeout(Duration::from_secs(5)).ok()
+    }
+
+    #[test]
+    fn a_request_id_rides_beside_the_command() {
+        let Ok((command, id)) = parse(r#"{"request_id":7,"type":"logout"}"#) else {
+            panic!("a request with an id did not parse");
+        };
+        assert!(matches!(command, Command::Logout));
+        assert_eq!(id, Some(7));
+
+        // A command with an `id` of its own keeps it.
+        let Ok((command, id)) = parse(r#"{"request_id":8,"type":"like_comment","id":"c1"}"#) else {
+            panic!("a command with an id of its own did not parse");
+        };
+        assert!(matches!(command, Command::LikeComment { id } if id == "c1"));
+        assert_eq!(id, Some(8));
+
+        let Ok((_, id)) = parse(r#"{"type":"home"}"#) else {
+            panic!("a request without an id did not parse");
+        };
+        assert_eq!(id, None);
+    }
+
+    #[test]
+    fn a_dropped_read_answers_at_once() {
+        let outcome = waited(std::future::pending(), 9_001, Duration::from_millis(50));
+
+        assert!(
+            matches!(outcome, Some(Err(_))),
+            "the dropped read is still waiting"
+        );
+        assert!(!READS.lock().unwrap().contains_key(&9_001));
+    }
+
+    #[test]
+    fn a_drop_that_arrives_before_its_read_still_ends_it() {
+        drop_read(9_002);
+
+        let outcome = waited(std::future::pending(), 9_002, Duration::ZERO);
+
+        assert!(
+            matches!(outcome, Some(Err(_))),
+            "the dropped read is still waiting"
+        );
+    }
+
+    /// What a sign-out waits for: every read to let go of the client.
+    #[test]
+    fn a_dropped_read_lets_go_of_the_client() {
+        let holding = async {
+            let _client = CLIENT.read().await;
+            std::future::pending::<()>().await;
+            Ok(Value::Null)
+        };
+
+        assert!(waited(holding, 9_003, Duration::from_millis(50)).is_some());
+        let write = RUNTIME.block_on(async {
+            tokio::time::timeout(Duration::from_secs(1), CLIENT.write())
+                .await
+                .is_ok()
+        });
+        assert!(write, "the dropped read still holds the client");
+    }
+
+    #[test]
+    fn a_read_that_answers_leaves_nothing_behind() {
+        assert!(matches!(
+            wait(async { Ok(Value::Null) }, Some(9_004)),
+            Ok(Value::Null)
+        ));
+        assert!(!READS.lock().unwrap().contains_key(&9_004));
+    }
+
+    #[test]
+    fn only_reads_can_be_dropped() {
+        assert!(Command::Home.is_read());
+        assert!(Command::Details { url: String::new() }.is_read());
+        assert!(!Command::Logout.is_read());
+        assert!(!Command::Rate {
+            post_id: 1,
+            rating: 5
+        }
+        .is_read());
+        assert!(!Command::SetHiddenCountries {
+            countries: String::new()
+        }
+        .is_read());
+    }
+
+    /// A drop for a read that had already answered would otherwise stay for
+    /// the life of the process.
+    #[test]
+    fn a_drop_nothing_came_for_is_forgotten() {
+        let Some(long_ago) = Instant::now().checked_sub(EARLY_DROP_KEPT * 2) else {
+            return;
+        };
+        READS.lock().unwrap().insert(
+            9_005,
+            Read {
+                dropped: Arc::default(),
+                early_since: Some(long_ago),
+            },
+        );
+
+        assert!(!reads().contains_key(&9_005));
     }
 }

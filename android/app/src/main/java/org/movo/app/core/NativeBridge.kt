@@ -19,6 +19,8 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -31,6 +33,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import java.security.GeneralSecurityException
 import java.security.KeyStore
+import java.util.concurrent.atomic.AtomicLong
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
@@ -47,6 +50,12 @@ class BridgeException(message: String, val code: String, val sessionRejected: Bo
 /** Sends one serialized request to the core and returns its serialized reply. */
 internal fun interface CoreTransport {
     fun send(request: String): String
+
+    /**
+     * Asks the core to drop the request sent under `request_id` [id], which then answers at once.
+     * Only a read stops; a change the user asked for runs to the end.
+     */
+    fun cancel(id: Long) {}
 }
 
 object NativeBridge {
@@ -63,12 +72,19 @@ object NativeBridge {
      */
     private external fun invoke(request: String): String
 
+    /** Drops a read [invoke] is running under [id]; the same rules as [invoke] hold for its name. */
+    private external fun drop(id: Long)
+
     /** Holds the library load off until something actually sends, so a test can swap it out first. */
     private object JniTransport : CoreTransport {
         init { System.loadLibrary("movo_android") }
 
         override fun send(request: String) = invoke(request)
+
+        override fun cancel(id: Long) = drop(id)
     }
+
+    private val requestIds = AtomicLong()
 
     /**
      * Where requests go. Held behind a lazy default so the Rust library is loaded on first use
@@ -89,8 +105,9 @@ object NativeBridge {
     internal fun warmUp() { core }
 
     suspend fun call(type: String, fields: JsonObject = buildJsonObject {}): String = withContext(dispatcher) {
-        val request = buildJsonObject { put("type", type); fields.forEach { (key, value) -> put(key, value) } }
-        val response = json.parseToJsonElement(core.send(request.toString())).jsonObject
+        val id = requestIds.incrementAndGet()
+        val request = buildJsonObject { put("request_id", id); put("type", type); fields.forEach { (key, value) -> put(key, value) } }
+        val response = json.parseToJsonElement(exchange(id, request.toString())).jsonObject
         response["error"]?.jsonPrimitive?.content?.let {
             throw BridgeException(
                 it,
@@ -99,6 +116,42 @@ object NativeBridge {
             )
         }
         response.getValue("data").toString()
+    }
+
+    /**
+     * Sends [request] from a worker of [dispatcher], so the caller waits for the reply without
+     * being held to it. Blocking the caller on the core held a cancelled caller, and any timeout
+     * around it, until the core answered, which on a network that swallows packets is over a
+     * minute. A caller that stops waiting is let go at once, and the core is asked to drop the
+     * request rather than finish it for nobody.
+     */
+    private suspend fun exchange(id: Long, request: String): String = suspendCancellableCoroutine { waiting ->
+        val lock = Any()
+        // Set while the core has the request, which is when there is something to drop.
+        var sending: CoreTransport? = null
+        var abandoned = false
+        waiting.invokeOnCancellation {
+            synchronized(lock) {
+                abandoned = true
+                sending?.cancel(id)
+            }
+        }
+        dispatcher.asExecutor().execute {
+            val reply = runCatching {
+                val transport = core
+                synchronized(lock) {
+                    // Abandoned while queued: nothing has reached the core, so nothing is sent.
+                    if (abandoned) return@execute
+                    sending = transport
+                }
+                try {
+                    transport.send(request)
+                } finally {
+                    synchronized(lock) { sending = null }
+                }
+            }
+            waiting.resumeWith(reply)
+        }
     }
 
     /**

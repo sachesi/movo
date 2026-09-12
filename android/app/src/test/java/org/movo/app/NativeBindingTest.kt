@@ -30,17 +30,18 @@ class NativeBindingTest {
     }
 
     @Test
-    fun theCoreExportsTheSymbolTheBridgeDeclares() {
+    fun theCoreExportsEverySymbolTheBridgeDeclares() {
         val natives = NativeBridge::class.java.declaredMethods.filter { Modifier.isNative(it.modifiers) }
-        assertEquals("the bridge declares exactly one native method", 1, natives.size)
+        assertEquals("the bridge declares its request and its drop", setOf("invoke", "drop"), natives.map { it.name }.toSet())
 
-        val expected = jniSymbol(NativeBridge::class.java, natives.single().name)
         val rust = File(repoRoot(), "crates/movo-android/src/lib.rs").readText()
-
-        assertTrue(
-            "crates/movo-android/src/lib.rs exports no `$expected`. The Kotlin declaration and " +
-                "the Rust symbol have to name the same class, and one of them moved.",
-            rust.contains("fn $expected("),
-        )
+        for (native in natives) {
+            val expected = jniSymbol(NativeBridge::class.java, native.name)
+            assertTrue(
+                "crates/movo-android/src/lib.rs exports no `$expected`. The Kotlin declaration and " +
+                    "the Rust symbol have to name the same class, and one of them moved.",
+                rust.contains("fn $expected("),
+            )
+        }
     }
 }
