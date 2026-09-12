@@ -147,14 +147,25 @@ class MainActivity : ComponentActivity() {
      * the user back to the title they had already navigated away from.
      */
     private fun takeDeepLink(source: Intent?) {
-        deepLinks.value = source?.data
-            ?.takeIf { it.scheme == "https" && it.host == PROVIDER_HOST }
-            ?.toString()
+        deepLinks.value = source?.data?.let { titlePageUrl(it.scheme, it.host, it.encodedPath) }
         source?.data = null
     }
 }
 
 private const val PROVIDER_HOST = "hdrzk.org"
+
+/** A title page's path: sections, then the id and the name, `/films/drama/123-name-2020.html`. */
+private val TITLE_PATH = Regex("""(/[A-Za-z0-9_-]+)+/\d+-[A-Za-z0-9_-]+\.html""")
+
+/**
+ * The title page a link opens, rebuilt from its path alone, or null for anything else. The page
+ * is fetched with the user's session, and any app may hand this activity a link, so a link to
+ * another page of the provider, or one carrying a query, would have the app request it as the
+ * user.
+ */
+internal fun titlePageUrl(scheme: String?, host: String?, path: String?): String? =
+    path?.takeIf { scheme == "https" && host == PROVIDER_HOST && TITLE_PATH.matches(it) }
+        ?.let { "https://$PROVIDER_HOST$it" }
 
 /** The smallest width the platform itself files under "tablet" (`sw600dp`). */
 private const val TABLET_MIN_WIDTH_DP = 600
