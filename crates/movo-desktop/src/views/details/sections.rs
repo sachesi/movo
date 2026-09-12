@@ -246,6 +246,8 @@ impl DetailsView {
             let watch = gtk::Button::with_label(tr("Watch"));
             watch.add_css_class("suggested-action");
             watch.add_css_class("pill");
+            // A title not released yet has no voice-over to play in.
+            watch.set_sensitive(!details.translators.is_empty());
             let sender = sender.clone();
             watch.connect_clicked(move |_| sender.input(DetailsMsg::Play(None, None)));
             row.append(&watch);

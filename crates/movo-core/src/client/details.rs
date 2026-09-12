@@ -25,6 +25,7 @@ mod schedule;
 pub use actor::fetch_actor;
 pub use comments::{fetch_comments, like_comment};
 pub use episodes::fetch_episodes;
+use episodes::{request_episodes, Episodes};
 pub use schedule::{labelled_position, mark_scheduled, schedule_item_for};
 
 pub async fn fetch_details(session: &RezkaSession, url: &str) -> Result<MediaDetails, String> {
@@ -48,13 +49,25 @@ pub async fn fetch_details(session: &RezkaSession, url: &str) -> Result<MediaDet
     // If it's a TV series, fetch seasons and episodes for the first translator
     if details.media_type == MediaType::TVSeries && !details.translators.is_empty() {
         let first_tr_id = details.translators[0].id;
-        if let Ok(seasons) = fetch_episodes(session, details.id, first_tr_id).await {
-            details.seasons = seasons;
+        if let Ok(reply) = request_episodes(session, details.id, first_tr_id).await {
+            take_first_episodes(&mut details, reply);
         }
     }
     mark_scheduled(&mut details.seasons, &details.schedules);
 
     Ok(details)
+}
+
+/// Takes the provider's answer for a series' first voice-over. When that is
+/// the only voice-over and the provider has no episodes under it, the series
+/// has nothing to play, so none is offered: the app would otherwise offer Play
+/// and meet the same refusal.
+fn take_first_episodes(details: &mut MediaDetails, reply: Episodes) {
+    match reply {
+        Episodes::Listed(seasons) => details.seasons = seasons,
+        Episodes::Refused(_) if details.translators.len() == 1 => details.translators.clear(),
+        Episodes::Refused(_) => {}
+    }
 }
 
 /// The schedule table of a title's page, where the provider keeps the
@@ -231,6 +244,13 @@ pub fn parse_details_html(html: &str, url: &str) -> Result<MediaDetails, String>
         }
     }
 
+    // A title announced but not released yet has no player, so no voice-over:
+    // the provider turns down every one the app asks it for.
+    let pending_release = document
+        .select(&Selector::parse(".b-post__go_status").unwrap())
+        .next()
+        .is_some();
+
     // Parse translators list
     let mut translators = Vec::new();
     let tr_selector = Selector::parse(".b-translator__item, #translators-list li").unwrap();
@@ -255,17 +275,22 @@ pub fn parse_details_html(html: &str, url: &str) -> Result<MediaDetails, String>
         }
     }
 
-    // If no translators in list, try to find default from scripts
+    // With no list, the title's one voice-over is the one its player starts
+    // with. A page with no player has none to offer.
     if translators.is_empty() {
-        let tr_id = extract_script_translator_id(html).unwrap_or(238);
-        translators.push(Translator {
-            id: tr_id,
-            name: "По умолчанию".to_string(),
-            is_premium: false,
-            is_camrip: false,
-            has_ads: false,
-            is_director_cut: false,
-        });
+        if let Some(tr_id) = extract_script_translator_id(html) {
+            translators.push(Translator {
+                id: tr_id,
+                name: "По умолчанию".to_string(),
+                is_premium: false,
+                is_camrip: false,
+                has_ads: false,
+                is_director_cut: false,
+            });
+        }
+    }
+    if pending_release {
+        translators.clear();
     }
 
     // Parse franchises/parts
@@ -527,8 +552,81 @@ fn extract_script_translator_id(html: &str) -> Option<i64> {
 }
 #[cfg(test)]
 mod tests {
-    use super::episodes::parse_episodes_html;
-    use super::parse_details_html;
+    use super::episodes::{parse_episodes_html, Episodes};
+    use super::{parse_details_html, take_first_episodes};
+    use crate::client::models::Translator;
+
+    const SERIES_PAGE: &str = r#"
+        <h1 class="b-post__title">Upcoming</h1>
+        <script>sof.tv.initCDNSeriesEvents(42, 56, 1, 1, false, 'hdrezka');</script>
+    "#;
+
+    fn voice(id: i64) -> Translator {
+        Translator {
+            id,
+            name: format!("voice {id}"),
+            is_premium: false,
+            is_camrip: false,
+            has_ads: false,
+            is_director_cut: false,
+        }
+    }
+
+    #[test]
+    fn a_title_without_a_list_offers_the_voice_over_its_player_starts_with() {
+        let details =
+            parse_details_html(SERIES_PAGE, "https://example.test/series/42-upcoming.html")
+                .unwrap();
+
+        assert_eq!(
+            details.translators.iter().map(|t| t.id).collect::<Vec<_>>(),
+            vec![56]
+        );
+    }
+
+    #[test]
+    fn a_title_not_released_yet_offers_no_voice_over() {
+        let page = format!(r#"{SERIES_PAGE}<div class="b-post__go_status">Ожидается</div>"#);
+
+        let details =
+            parse_details_html(&page, "https://example.test/series/42-upcoming.html").unwrap();
+
+        assert!(details.translators.is_empty());
+    }
+
+    #[test]
+    fn a_page_without_a_player_offers_no_voice_over() {
+        let details = parse_details_html(
+            r#"<h1 class="b-post__title">No player</h1>"#,
+            "https://example.test/films/42-no-player.html",
+        )
+        .unwrap();
+
+        assert!(details.translators.is_empty());
+    }
+
+    #[test]
+    fn a_series_whose_only_voice_over_has_no_episodes_offers_none() {
+        let mut details =
+            parse_details_html(SERIES_PAGE, "https://example.test/series/42-upcoming.html")
+                .unwrap();
+
+        take_first_episodes(&mut details, Episodes::Refused("not found".to_string()));
+
+        assert!(details.translators.is_empty());
+    }
+
+    #[test]
+    fn a_refused_first_voice_over_leaves_the_others_to_choose_from() {
+        let mut details =
+            parse_details_html(SERIES_PAGE, "https://example.test/series/42-upcoming.html")
+                .unwrap();
+        details.translators = vec![voice(1), voice(2)];
+
+        take_first_episodes(&mut details, Episodes::Refused("not found".to_string()));
+
+        assert_eq!(details.translators.len(), 2);
+    }
 
     #[test]
     fn parses_account_membership_and_watched_episode_state() {
