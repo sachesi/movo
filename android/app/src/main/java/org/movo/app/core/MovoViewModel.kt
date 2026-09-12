@@ -133,6 +133,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private val listings = HashMap<Tab, Listing>()
     private var loginJob: Job? = null
 
+    /**
+     * Whether [AppState.favoriteGroups] still matches the account. The folders only change when a
+     * favourite does, and fetching them beside every title spent half of each page's share of the
+     * provider's request limit on a list that had not moved.
+     */
+    private var favoriteGroupsCurrent = false
+
     /** What the core currently filters by, so only a real change reloads the listings. */
     private var appliedHiddenCountries: String? = null
 
@@ -253,6 +260,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         try { NativeBridge.call("logout") } finally {
             store.saveSecret(null)
             listings.clear()
+            favoriteGroupsCurrent = false
             _state.value = AppState(restoring = false)
         }
     }
@@ -507,6 +515,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             val page = if (append) state.value.page + 1 else 1
             val items = NativeBridge.decode<List<MediaItem>>("favorites", buildJsonObject { selected?.let { put("category_id", it) }; put("page", page) })
             if (state.value.tab == Tab.Favorites) {
+                if (!append) favoriteGroupsCurrent = true
                 _state.update { it.copy(favoriteGroups = groups, favoriteGroup = selected, items = merged(state.value.items, items, append), page = page) }
             }
         }
@@ -552,12 +561,16 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun loadDetails(url: String) = coroutineScope {
         // Fetched beside the title, and optional: a slow or failed folder list must not hold the
         // page back or turn a title that loaded into an error.
-        val groups = async { attempt { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") } }
+        val groups = if (favoriteGroupsCurrent) null else async {
+            attempt { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") }
+        }
         val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
         val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
+        val fetchedGroups = groups?.await()
+        if (fetchedGroups != null) favoriteGroupsCurrent = true
         _state.update { it.copy(
             details = details,
-            favoriteGroups = groups.await() ?: it.favoriteGroups,
+            favoriteGroups = fetchedGroups ?: it.favoriteGroups,
             resumeSeasonId = resume?.first,
             resumeEpisodeId = resume?.second,
             resumeTranslatorId = resume?.third,
@@ -742,6 +755,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
         detailsJob = run {
             NativeBridge.call("set_favorite", buildJsonObject { put("url", details.url); put("post_id", details.id); put("category_id", groupId); put("favorite", favorite) })
+            // Each folder's count moved.
+            favoriteGroupsCurrent = false
             // The favourites listing no longer matches: fetched again on the next visit, or now
             // if it is the page under this one.
             listings.remove(Tab.Favorites)
