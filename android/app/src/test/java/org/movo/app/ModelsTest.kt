@@ -8,6 +8,7 @@ import org.movo.app.core.Translator
 import org.movo.app.settings.safeValueOf
 import org.movo.app.catalog.shouldLoadMore
 import org.movo.app.details.preferredTranslator
+import org.movo.app.details.wantsEpisodes
 import org.movo.app.search.searchFilterPath
 import org.movo.app.settings.AppSettings
 import org.movo.app.settings.QualityMode
@@ -168,6 +169,12 @@ class ModelsTest {
         assertEquals("720p", nextLowerStream(bundle, streams[0])?.quality)
         assertEquals("480p", nextLowerStream(bundle, streams[1])?.quality)
         assertEquals(null, nextLowerStream(bundle, streams[2]))
+    }
+
+    @Test fun onlyASeriesInAnotherVoiceOverFetchesEpisodes() {
+        assertEquals(true, wantsEpisodes(series = true, listedFor = 1, translatorId = 2))
+        assertEquals(false, wantsEpisodes(series = true, listedFor = 2, translatorId = 2))
+        assertEquals(false, wantsEpisodes(series = false, listedFor = 1, translatorId = 2))
     }
 
     /** Each file on two hosts, the way the core lists them: the host that answered first. */

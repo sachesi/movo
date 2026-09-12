@@ -208,9 +208,8 @@ internal fun DetailsScreen(
         it.id == state.resumeEpisodeId && selectedSeason.id == state.resumeSeasonId
     } ?: selectedSeason?.episodes?.firstOrNull()
     LaunchedEffect(showPlayback) {
-        if (showPlayback && state.episodesTranslatorId != translator?.id) {
-            translator?.let(model::loadEpisodes)
-        }
+        val voice = translator ?: return@LaunchedEffect
+        if (showPlayback && wantsEpisodes(series, state.episodesTranslatorId, voice.id)) model.loadEpisodes(voice)
     }
     LaunchedEffect(
         showPlayback,
@@ -970,6 +969,14 @@ private fun LinkChip(
         )
     }
 }
+
+/**
+ * Whether opening playback in [translatorId] has to fetch its episodes: only for a series whose
+ * episodes were listed for another voice-over. A film has none, and asking for them anyway put
+ * the provider's refusal over a sheet that played the film regardless.
+ */
+internal fun wantsEpisodes(series: Boolean, listedFor: Long?, translatorId: Long) =
+    series && translatorId != listedFor
 
 internal fun preferredTranslator(translators: List<Translator>, translatorId: Long?) =
     translators.firstOrNull { it.id == translatorId } ?: translators.firstOrNull()
