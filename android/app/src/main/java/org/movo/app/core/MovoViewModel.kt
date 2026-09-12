@@ -154,7 +154,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         if (hidden.isNotBlank() || appliedHiddenCountries != null) {
             // Best-effort: a filter that did not reach the core costs a few extra rows, not the
             // sign-in or the listing behind it.
-            runCatching { NativeBridge.call("set_hidden_countries", buildJsonObject { put("countries", hidden) }) }
+            attempt { NativeBridge.call("set_hidden_countries", buildJsonObject { put("countries", hidden) }) }
         }
         appliedHiddenCountries = hidden
     }
@@ -391,9 +391,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
         suggestJob = viewModelScope.launch {
             delay(SUGGEST_DEBOUNCE_MS)
-            val values = runCatching {
+            val values = attempt {
                 NativeBridge.decode<List<String>>("search_suggestions", buildJsonObject { put("query", query.trim()) })
-            }.getOrNull()?.distinct() ?: return@launch
+            }?.distinct() ?: return@launch
             if (state.value.tab == Tab.Search) _state.update { it.copy(suggestions = values) }
         }
     }
@@ -401,8 +401,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun loadCountries() {
         if (state.value.countries.isNotEmpty()) return
         viewModelScope.launch {
-            runCatching { NativeBridge.decode<List<Country>>("countries") }
-                .onSuccess { countries -> _state.update { it.copy(countries = countries) } }
+            attempt { NativeBridge.decode<List<Country>>("countries") }
+                ?.let { countries -> _state.update { it.copy(countries = countries) } }
         }
     }
 
@@ -1001,14 +1001,14 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun markWatched(userId: String, details: MediaDetails, stream: StreamBundle) {
         val key = progressKey(userId, details.id, stream)
         if (markedWatchedKey == key) return
-        runCatching {
+        attempt {
             NativeBridge.call("mark_watched", buildJsonObject {
                 put("url", details.url)
                 put("post_id", details.id)
                 stream.season?.let { put("season", it) }
                 stream.episode?.let { put("episode", it) }
             })
-        }.onSuccess { markedWatchedKey = key }
+        }?.let { markedWatchedKey = key }
     }
 
     /** Quiet re-fetch of history (no loading/error mutation) so a freshly watched item
@@ -1016,7 +1016,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private fun refreshHistory() {
         contentJob?.cancel()
         contentJob = viewModelScope.launch {
-            runCatching {
+            attempt {
                 val userId = state.value.user?.userId ?: return@launch
                 val result = NativeBridge.decode<HistoryResult>("history")
                 if (state.value.user?.userId != userId) return@launch
