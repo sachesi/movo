@@ -2,7 +2,7 @@ use super::models::{StoryboardCue, StreamBundle, StreamEntry, SubtitleTrack, Tra
 use super::session::RezkaSession;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use reqwest::header::{RANGE, REFERER};
+use reqwest::header::{CONTENT_TYPE, RANGE, REFERER};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, Mutex, PoisonError};
@@ -432,10 +432,12 @@ fn with_cdn_mirrors(urls: Vec<String>) -> Vec<String> {
     all
 }
 
-/// Puts a CDN host that answers at the front of every stream's URLs.
+/// Puts a CDN host that answers at the front of every stream's URLs and the
+/// ones known to be down at the back.
 ///
 /// Players other than the Android one only ever see the first URL, so one on
-/// a host that is down would fail however many alternatives follow it.
+/// a host that is down would fail however many alternatives follow it; the
+/// Android one walks the rest in order, waiting out each host that is down.
 async fn prefer_reachable_cdn(session: &RezkaSession, bundle: &mut StreamBundle) {
     let client = match reqwest::Client::builder()
         .user_agent(session.user_agent())
@@ -484,23 +486,34 @@ async fn promote_reachable_url(
     if candidates.len() < 2 {
         return;
     }
-    match reachable_candidate(client, referer, unreachable, &candidates).await {
-        Some(0) => {}
-        Some(index) => {
-            let origin = url_origin(&candidates[index]);
-            log::info!(
-                "Stream host {} did not answer, playing from {}",
-                url_origin(&candidates[0]),
-                origin
-            );
-            for entry in streams.iter_mut() {
-                if let Some(at) = entry.urls.iter().position(|url| url_origin(url) == origin) {
-                    let url = entry.urls.remove(at);
-                    entry.urls.insert(0, url);
-                }
+    let Some(index) = reachable_candidate(client, referer, unreachable, &candidates).await else {
+        log::warn!("No stream host answered; keeping the provider's order");
+        return;
+    };
+    let origin = url_origin(&candidates[index]);
+    if index > 0 {
+        log::info!(
+            "Stream host {} did not answer, playing from {}",
+            url_origin(&candidates[0]),
+            origin
+        );
+    }
+    let down = unreachable
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    for entry in streams.iter_mut() {
+        // A stable sort, so the provider's order holds within each group.
+        entry.urls.sort_by_key(|url| {
+            let url_origin = url_origin(url);
+            if url_origin == origin {
+                0
+            } else if down.contains(&url_origin) {
+                2
+            } else {
+                1
             }
-        }
-        None => log::warn!("No stream host answered; keeping the provider's order"),
+        });
     }
 }
 
@@ -527,10 +540,15 @@ async fn reachable_candidate(
             .header(REFERER, referer)
             .header(RANGE, "bytes=0-0");
         probes.spawn(async move {
-            let answered = request
-                .send()
-                .await
-                .is_ok_and(|response| response.status().is_success());
+            // A host blocked on the way answers with a web page, not the file.
+            let answered = request.send().await.is_ok_and(|response| {
+                let is_page = response
+                    .headers()
+                    .get(CONTENT_TYPE)
+                    .and_then(|value| value.to_str().ok())
+                    .is_some_and(|value| value.starts_with("text/html"));
+                response.status().is_success() && !is_page
+            });
             (index, answered)
         });
     }
@@ -541,12 +559,12 @@ async fn reachable_candidate(
             continue;
         };
         if index == 0 {
-            let mut unreachable = unreachable.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut down = unreachable.lock().unwrap_or_else(PoisonError::into_inner);
             if answered {
-                unreachable.remove(&first_origin);
+                down.remove(&first_origin);
                 return Some(0);
             }
-            unreachable.insert(first_origin.clone());
+            down.insert(first_origin.clone());
             first_failed = true;
         } else if answered && first_answer.is_none() {
             first_answer = Some(index);
@@ -774,18 +792,22 @@ mod tests {
 
     /// A host that answers every request with a success.
     fn live_host() -> String {
-        slow_host(Duration::ZERO)
+        serving("video/mp4", Duration::ZERO)
     }
 
     /// A host that answers every request with a success after `delay`.
     fn slow_host(delay: Duration) -> String {
+        serving("video/mp4", delay)
+    }
+
+    fn serving(content_type: &'static str, delay: Duration) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         std::thread::spawn(move || {
             for mut stream in listener.incoming().flatten() {
                 read_request(&mut stream);
                 std::thread::sleep(delay);
-                respond(&mut stream, "video/mp4", "x");
+                respond(&mut stream, content_type, "x");
             }
         });
         origin
@@ -824,6 +846,38 @@ mod tests {
             assert_eq!(stream.urls[1], format!("{dead}/{}.mp4", stream.quality));
         }
         assert!(unreachable.lock().unwrap().contains(&dead));
+    }
+
+    #[tokio::test]
+    async fn moves_hosts_that_are_down_behind_the_rest() {
+        let (dead, slow, live) = (dead_host(), slow_host(Duration::from_secs(1)), live_host());
+        let unreachable = Mutex::default();
+        let mut streams = vec![entry("720p", false, &[&dead, &slow, &live])];
+
+        promote(&unreachable, &mut streams).await;
+
+        assert_eq!(
+            streams[0].urls,
+            [
+                format!("{live}/720p.mp4"),
+                format!("{slow}/720p.mp4"),
+                format!("{dead}/720p.mp4"),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn takes_a_host_answering_with_a_web_page_for_down() {
+        let (page, live) = (
+            serving("text/html; charset=utf-8", Duration::ZERO),
+            live_host(),
+        );
+        let unreachable = Mutex::default();
+        let mut streams = vec![entry("720p", false, &[&page, &live])];
+
+        promote(&unreachable, &mut streams).await;
+
+        assert_eq!(streams[0].urls[0], format!("{live}/720p.mp4"));
     }
 
     #[tokio::test]
