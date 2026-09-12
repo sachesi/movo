@@ -8,6 +8,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -133,6 +134,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private val listings = HashMap<Tab, Listing>()
     private var loginJob: Job? = null
 
+    /** A restore that outlived its wait at startup, applied when its reply arrives. */
+    private var lateRestore: Job? = null
+
     /**
      * Whether [AppState.favoriteGroups] still matches the account. The folders only change when a
      * favourite does, and fetching them beside every title spent half of each page's share of the
@@ -218,27 +222,61 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         applyHiddenCountries(getApplication<Application>().settings.first().hiddenCountries)
         try {
             val secret = store.secret() ?: return@run
-            // The provider may be slow or away; a bounded wait, then the app opens on the account
-            // as last seen with a banner, rather than a splash for as long as the network takes.
-            val user = withTimeoutOrNull(RESTORE_TIMEOUT_MS) {
+            // Not a child of this job: the wait below may give up on it, and the reply is still
+            // wanted when it arrives.
+            val restoring = viewModelScope.async {
                 NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", secret) })
             }
+            // The provider may be slow or away; a bounded wait, then the app opens on the account
+            // as last seen with a banner, rather than a splash for as long as the network takes.
+            // With no account seen yet there is nothing to open on, so the wait goes on.
+            val known = store.profile()
+            val user = if (known == null) restoring.await() else withTimeoutOrNull(RESTORE_TIMEOUT_MS) { restoring.await() }
             if (user == null) {
-                val known = store.profile() ?: error(text(R.string.error_timeout))
                 _state.update { it.copy(user = known, error = text(R.string.error_timeout)) }
+                lateRestore = viewModelScope.launch { finishRestore(restoring) }
                 return@run
             }
-            store.saveProfile(user)
-            _state.update { it.copy(user = user) }
-            // Notifications and premium days are decoration: they load beside the restored
-            // session, not ahead of it, so the splash does not wait on them.
-            viewModelScope.launch { attempt { refreshAccountData(false) } }
+            restored(user)
         } catch (error: BridgeException) {
             // Only forget the session the provider actually turned down. Clearing it on any
             // failure signed the account out whenever restore happened to hit a dead network.
             if (error.sessionRejected) store.saveSecret(null)
             throw error
         }
+    }
+
+    private suspend fun restored(user: UserProfile) {
+        store.saveProfile(user)
+        _state.update { it.copy(user = user) }
+        // Notifications and premium days are decoration: they load beside the restored
+        // session, not ahead of it, so the splash does not wait on them.
+        viewModelScope.launch { attempt { refreshAccountData(false) } }
+    }
+
+    /**
+     * Takes the reply to a restore that outlived its wait, while the app shows the account as last
+     * seen. A session the provider turned down signs the user out after all; one that merely did
+     * not get through stays as it is, with the banner already saying why.
+     */
+    private suspend fun finishRestore(restoring: Deferred<UserProfile>) {
+        val user = try {
+            restoring.await()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: BridgeException) {
+            if (!error.sessionRejected) return
+            store.saveSecret(null)
+            cancelRequests()
+            listings.clear()
+            favoriteGroupsCurrent = false
+            _state.value = AppState(restoring = false, error = describe(error))
+            return
+        } catch (_: Exception) {
+            return
+        }
+        restored(user)
+        _state.update { if (it.error == text(R.string.error_timeout)) it.copy(error = null) else it }
     }
 
     fun login(login: String, password: String) {
@@ -256,6 +294,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() = run {
+        lateRestore?.cancel()
         cancelRequests()
         try { NativeBridge.call("logout") } finally {
             store.saveSecret(null)
