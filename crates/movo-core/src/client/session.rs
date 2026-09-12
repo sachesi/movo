@@ -11,8 +11,10 @@ use url::Url;
 
 mod cookies;
 mod credentials;
+mod throttle;
 
 use cookies::SharedCookieJar;
+use throttle::Throttle;
 
 const DEFAULT_USER_AGENT: &str =
     "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36";
@@ -23,6 +25,10 @@ const RETRY_BASE_DELAY: Duration = Duration::from_millis(300);
 
 /// Upper bound of the random-ish spread added to every retry delay.
 const RETRY_SPREAD_MS: u64 = 100;
+
+/// Times a request turned away by the provider's limit is sent again. Each
+/// resend waits for the throttle, so these are spread out.
+const LIMIT_RESENDS: u32 = 3;
 
 /// Ceiling on a single response body. The largest page the provider serves is
 /// a detail page well under a megabyte; this only stops a broken or hostile
@@ -45,6 +51,7 @@ pub struct RezkaSession {
     cookie_jar: Arc<SharedCookieJar>,
     auth_epoch: Arc<AtomicU64>,
     base_url: String,
+    throttle: Arc<Throttle>,
 }
 
 impl Default for RezkaSession {
@@ -55,19 +62,23 @@ impl Default for RezkaSession {
 
 impl RezkaSession {
     pub fn new() -> Self {
-        Self::new_for_base(OFFICIAL_MIRROR, Duration::from_secs(25))
+        Self::new_for_base(
+            OFFICIAL_MIRROR,
+            Duration::from_secs(25),
+            Throttle::provider(),
+        )
     }
 
     #[cfg(test)]
     pub(super) fn new_for_test(base_url: &str) -> Self {
-        Self::new_for_base(base_url, Duration::from_secs(25))
+        Self::new_for_base(base_url, Duration::from_secs(25), Throttle::unlimited())
     }
 
     /// A session whose request timeout is short enough to exercise in a test,
     /// against a server that never answers.
     #[cfg(test)]
     pub(super) fn new_for_test_with_timeout(base_url: &str, timeout: Duration) -> Self {
-        Self::new_for_base(base_url, timeout)
+        Self::new_for_base(base_url, timeout, Throttle::unlimited())
     }
 
     #[cfg(test)]
@@ -79,7 +90,7 @@ impl RezkaSession {
             .add_cookie_str("dle_password=hash; Path=/", &url);
     }
 
-    fn new_for_base(base_url: &str, timeout: Duration) -> Self {
+    fn new_for_base(base_url: &str, timeout: Duration, throttle: Throttle) -> Self {
         let cookie_jar = Arc::new(SharedCookieJar::default());
         let base = base_url.trim_end_matches('/').to_string();
 
@@ -110,6 +121,7 @@ impl RezkaSession {
             cookie_jar,
             auth_epoch: Arc::new(AtomicU64::new(0)),
             base_url: base,
+            throttle: Arc::new(throttle),
         }
     }
 
@@ -360,16 +372,22 @@ impl RezkaSession {
         ClientError::new(kind, format!("{context}: {}", error.without_url()))
     }
 
-    async fn execute_get(&self, full_url: &str) -> Result<String, ClientError> {
-        let resp = self
-            .client
+    fn get_request(&self, full_url: &str) -> Result<reqwest::Request, ClientError> {
+        self.client
             .get(full_url)
             .header(REFERER, &self.base_url)
-            .send()
-            .await
-            .map_err(|e| Self::transport_error("HTTP GET request failed", e))?;
-        self.capture_host_cookies(&resp, full_url);
-        let (status, content_type, html) = Self::read_response(resp).await?;
+            .build()
+            .map_err(|e| Self::transport_error("HTTP GET request failed", e))
+    }
+
+    async fn execute_get(&self, full_url: &str) -> Result<String, ClientError> {
+        let (status, content_type, html) = self
+            .exchange(
+                full_url,
+                || self.get_request(full_url),
+                "HTTP GET request failed",
+            )
+            .await?;
         log::debug!(
             "GET {full_url} -> {} {content_type} ({} bytes)",
             status.as_u16(),
@@ -384,15 +402,13 @@ impl RezkaSession {
             self.solve_anubis_challenge(&html, full_url).await?;
 
             // Re-fetch the target URL now that the clearance cookie is stored
-            let final_resp = self
-                .client
-                .get(full_url)
-                .header(REFERER, &self.base_url)
-                .send()
-                .await
-                .map_err(|e| Self::transport_error("Post-Anubis GET request failed", e))?;
-            self.capture_host_cookies(&final_resp, full_url);
-            let (status, content_type, final_html) = Self::read_response(final_resp).await?;
+            let (status, content_type, final_html) = self
+                .exchange(
+                    full_url,
+                    || self.get_request(full_url),
+                    "Post-Anubis GET request failed",
+                )
+                .await?;
             return Self::require_success("GET", status, &content_type, final_html);
         }
 
@@ -471,14 +487,13 @@ impl RezkaSession {
         full_url: &str,
         form_data: &[(&str, &str)],
     ) -> Result<String, ClientError> {
-        let request = self.post_request(full_url, form_data)?;
-        let resp = self
-            .client
-            .execute(request)
-            .await
-            .map_err(|e| Self::transport_error("HTTP POST request failed", e))?;
-        self.capture_host_cookies(&resp, full_url);
-        let (status, content_type, body) = Self::read_response(resp).await?;
+        let (status, content_type, body) = self
+            .exchange(
+                full_url,
+                || self.post_request(full_url, form_data),
+                "HTTP POST request failed",
+            )
+            .await?;
         log::debug!(
             "POST {full_url} -> {} {content_type} ({} bytes): {}",
             status.as_u16(),
@@ -497,18 +512,46 @@ impl RezkaSession {
             self.solve_anubis_challenge(&body, full_url).await?;
 
             // Retry original post after passing PoW
-            let retry_request = self.post_request(full_url, form_data)?;
-            let retry_resp = self
-                .client
-                .execute(retry_request)
-                .await
-                .map_err(|e| Self::transport_error("Post-Anubis POST request failed", e))?;
-            self.capture_host_cookies(&retry_resp, full_url);
-            let (status, content_type, body) = Self::read_response(retry_resp).await?;
+            let (status, content_type, body) = self
+                .exchange(
+                    full_url,
+                    || self.post_request(full_url, form_data),
+                    "Post-Anubis POST request failed",
+                )
+                .await?;
             return Self::require_success("POST", status, &content_type, body);
         }
 
         Self::require_success("POST", status, &content_type, body)
+    }
+
+    /// Sends the request `build` makes and reads the reply, keeping under the
+    /// provider's request limit and sending it again when the limit turned
+    /// it away anyway. Such a request never reached the site, so this holds
+    /// even for posts that must not be repeated.
+    async fn exchange(
+        &self,
+        full_url: &str,
+        build: impl Fn() -> Result<reqwest::Request, ClientError>,
+        context: &str,
+    ) -> Result<(reqwest::StatusCode, String, String), ClientError> {
+        let mut resends = 0;
+        loop {
+            self.throttle.acquire().await;
+            let response = self
+                .client
+                .execute(build()?)
+                .await
+                .map_err(|e| Self::transport_error(context, e))?;
+            self.capture_host_cookies(&response, full_url);
+            let reply = Self::read_response(response).await?;
+            if resends == LIMIT_RESENDS || !throttle::is_refusal(reply.0, &reply.2) {
+                return Ok(reply);
+            }
+            resends += 1;
+            log::debug!("The provider's request limit turned away {full_url}; sending again");
+            self.throttle.exhaust();
+        }
     }
 
     /// Waits before retry `attempt`, doubling each time and adding a little
@@ -673,6 +716,53 @@ mod tests {
         assert!(error.message.contains("HTTP 502"), "{error}");
         assert_eq!(error.kind, crate::error::ErrorKind::Provider);
         assert_eq!(server.join().unwrap(), 1);
+    }
+
+    /// Answers the first request with the page the provider's request limit
+    /// sends, and the second with a success; returns how many arrived.
+    fn limited_once_server(listener: TcpListener) -> std::thread::JoinHandle<usize> {
+        const REFUSAL: &str = "<html>\r\n<head><title>404 Not Found</title></head>\r\n<body>\r\n\
+            <center><h1>404 Not Found</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>";
+        std::thread::spawn(move || {
+            let mut seen = 0;
+            for (status, body) in [("404 Not Found", REFUSAL), ("200 OK", "{}")] {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                seen += 1;
+                let mut buffer = [0; 4096];
+                let _ = stream.read(&mut buffer);
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            }
+            seen
+        })
+    }
+
+    /// The limit turns a request away before the site sees it, so even a
+    /// post that must not be repeated goes out again.
+    #[tokio::test]
+    async fn a_request_the_limit_turned_away_is_sent_again() {
+        for post in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let base_url = format!("http://{}", listener.local_addr().unwrap());
+            let server = limited_once_server(listener);
+
+            let session = RezkaSession::new_for_test(&base_url);
+            let reply = if post {
+                session
+                    .post_ajax_once("engine/ajax/cdn_saves_view.php", &[("id", "7")])
+                    .await
+            } else {
+                session.get_html("new/").await
+            };
+
+            assert_eq!(reply.unwrap(), "{}");
+            assert_eq!(server.join().unwrap(), 2);
+        }
     }
 
     /// Repeatable posts keep their retries: the provider drops requests often
