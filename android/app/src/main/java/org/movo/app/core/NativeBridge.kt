@@ -15,6 +15,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import kotlinx.coroutines.CoroutineDispatcher
@@ -31,10 +32,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
-import java.security.GeneralSecurityException
 import java.security.KeyStore
+import java.security.UnrecoverableKeyException
 import java.util.concurrent.atomic.AtomicLong
+import javax.crypto.BadPaddingException
 import javax.crypto.Cipher
+import javax.crypto.IllegalBlockSizeException
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 
@@ -183,6 +186,19 @@ private val Context.accountDataStore by preferencesDataStore(
 
 private const val ACCOUNT_STORE_NAME = "account"
 
+/**
+ * Whether [error] says the stored session can never be decrypted: the ciphertext does not match
+ * the key, the key was invalidated or cannot be recovered, or the stored bytes are no ciphertext
+ * at all. A keystore that failed for a moment says none of that, and signing the user out over it
+ * would lose a session that still works.
+ */
+internal fun isUnreadable(error: Exception) =
+    error is BadPaddingException ||
+        error is IllegalBlockSizeException ||
+        error is KeyPermanentlyInvalidatedException ||
+        error is UnrecoverableKeyException ||
+        error is IllegalArgumentException
+
 private val SESSION = stringPreferencesKey("session")
 private val PROFILE = stringPreferencesKey("profile")
 
@@ -215,6 +231,7 @@ class SessionStore(
      * The stored session, or null when there is none and when the stored one can no longer be
      * decrypted. A ciphertext the keystore key no longer opens is gone for good, so it is dropped
      * rather than thrown over: the user signs in again instead of meeting a crash on every start.
+     * Any other failure is thrown on, and the session kept for the next start.
      */
     suspend fun secret(): String? = withContext(Dispatchers.IO) {
         read()[SESSION]?.let { encoded ->
@@ -223,9 +240,8 @@ class SessionStore(
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")
                 cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, 12))
                 cipher.doFinal(bytes, 12, bytes.size - 12).decodeToString()
-            } catch (_: GeneralSecurityException) {
-                forgetSession()
-            } catch (_: IllegalArgumentException) {
+            } catch (error: Exception) {
+                if (!isUnreadable(error)) throw error
                 forgetSession()
             }
         }

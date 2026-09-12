@@ -1,15 +1,23 @@
 package org.movo.app
 
 import org.movo.app.core.SessionStore
+import org.movo.app.core.isUnreadable
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.security.InvalidKeyException
+import java.security.KeyStoreException
+import java.security.ProviderException
+import javax.crypto.AEADBadTagException
 
 @RunWith(RobolectricTestRunner::class)
 class SessionStoreTest {
@@ -30,6 +38,17 @@ class SessionStoreTest {
         store.saveLastEpisode("u1", 8, null, null, 56)
 
         assertEquals(Triple(null, null, 56L), store.lastWatchedEpisode("u1", 8))
+    }
+
+    /** Signing the user out is for a session that is gone, not for a keystore that faltered. */
+    @Test
+    fun onlyASessionThatCanNeverBeDecryptedIsForgotten() {
+        assertTrue(isUnreadable(AEADBadTagException()))
+        assertTrue(isUnreadable(KeyPermanentlyInvalidatedException()))
+        assertTrue(isUnreadable(IllegalArgumentException()))
+        assertFalse(isUnreadable(InvalidKeyException()))
+        assertFalse(isUnreadable(KeyStoreException()))
+        assertFalse(isUnreadable(ProviderException()))
     }
 
     @Test
