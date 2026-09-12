@@ -321,6 +321,7 @@ impl Component for App {
         let client = state.client.clone();
         sender.oneshot_command(async move {
             let restored = relm4::spawn(async move {
+                client.check_stream_hosts();
                 client
                     .restore_session()
                     .await

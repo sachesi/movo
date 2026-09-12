@@ -2,6 +2,7 @@ mod account;
 pub mod anubis;
 pub mod auth;
 pub mod catalog;
+mod cdn;
 pub mod countries;
 pub mod details;
 mod history_sync;
@@ -275,6 +276,13 @@ impl RezkaClient {
                 .await?;
         self.add_playback_headers(&mut bundle);
         Ok(bundle)
+    }
+
+    /// Starts checking which stream hosts can be reached, in the background,
+    /// unless that happened recently; fetching a stream does the same. Call it
+    /// from within the Tokio runtime, once the app starts.
+    pub fn check_stream_hosts(&self) {
+        cdn::check_if_due(self.session.user_agent());
     }
 
     fn add_playback_headers(&self, bundle: &mut StreamBundle) {

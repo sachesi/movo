@@ -282,15 +282,16 @@ fn invoke(command: Command) -> Result<Value, Failure> {
         match command {
             Command::Login { login, password } => {
                 let client = CLIENT.write().await;
+                client.check_stream_hosts();
                 let user = client.login(&login, &password).await?;
                 Ok(json!({"user": user, "secret": client.export_session()?}))
             }
             Command::Restore { secret } => {
+                let client = CLIENT.write().await;
+                client.check_stream_hosts();
                 // The reply carries whether the session was turned down, so the
                 // app only throws the stored secret away when it is worthless.
-                CLIENT
-                    .write()
-                    .await
+                client
                     .import_session(&secret)
                     .await
                     .map(|user| json!(user))
