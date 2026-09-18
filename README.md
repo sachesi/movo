@@ -80,6 +80,9 @@ just apk-install  # build and install on a connected device
 `MOVO_KEY_ALIAS` and `MOVO_KEYSTORE_PASSWORD` in the environment, and it copies the R8 mapping
 file alongside the APK so a crash from that build can be retraced later.
 
+Arch Linux: the AUR package `movo`, built from
+[packaging/aur/PKGBUILD](packaging/aur/PKGBUILD), which each release tag updates.
+
 ## Layout
 
 ```
