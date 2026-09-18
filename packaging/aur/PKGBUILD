@@ -11,6 +11,8 @@ license=('GPL-3.0-only')
 depends=('gtk4>=1:4.22' 'libadwaita>=1:1.9' 'glib2' 'pango' 'hicolor-icon-theme' 'libgcc' 'glibc')
 makedepends=('cargo' 'gettext')
 optdepends=('mpv: play streams')
+# ring compiles C code in; the Rust linker cannot read the objects makepkg's LTO makes of it.
+options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
