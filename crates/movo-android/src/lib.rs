@@ -1,7 +1,7 @@
 use jni::{
     objects::{JClass, JString},
     sys::{jlong, jstring},
-    JNIEnv,
+    EnvUnowned, Outcome,
 };
 use movo_core::client::{
     models::{self, CatalogCategory, Translator},
@@ -466,7 +466,7 @@ fn parse(request: &str) -> Result<(Command, Option<u64>), Failure> {
 /// left alone.
 #[no_mangle]
 pub extern "system" fn Java_org_movo_app_core_NativeBridge_drop(
-    _env: JNIEnv,
+    _env: EnvUnowned,
     _class: JClass,
     id: jlong,
 ) {
@@ -475,36 +475,43 @@ pub extern "system" fn Java_org_movo_app_core_NativeBridge_drop(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke(
-    mut env: JNIEnv,
-    _class: JClass,
-    request: JString,
+pub extern "system" fn Java_org_movo_app_core_NativeBridge_invoke<'caller>(
+    mut env: EnvUnowned<'caller>,
+    _class: JClass<'caller>,
+    request: JString<'caller>,
 ) -> jstring {
-    let response = caught(|| {
-        env.get_string(&request)
-            .map_err(|error| Failure::from(error.to_string()))
-            .and_then(|request| parse(&request.to_string_lossy()))
-            .and_then(|(command, request_id)| invoke(command, request_id))
-            .map(|data| json!({"data": data}))
-            .unwrap_or_else(|failure| {
-                json!({
-                    "error": failure.message,
-                    "code": failure.kind.code(),
-                    "rejected": failure.session_rejected,
+    // with_env catches panics as well, so nothing unwinds out of here.
+    let outcome = env.with_env(|env| -> jni::errors::Result<jstring> {
+        let response = caught(|| {
+            request
+                .try_to_string(env)
+                .map_err(|error| Failure::from(error.to_string()))
+                .and_then(|request| parse(&request))
+                .and_then(|(command, request_id)| invoke(command, request_id))
+                .map(|data| json!({"data": data}))
+                .unwrap_or_else(|failure| {
+                    json!({
+                        "error": failure.message,
+                        "code": failure.kind.code(),
+                        "rejected": failure.session_rejected,
+                    })
                 })
+                .to_string()
+        });
+        // A failed allocation here must not unwind out of an `extern "system"` function either,
+        // so the conversion is fallible all the way down instead of relying on `caught` above it.
+        env.new_string(response)
+            .or_else(|_| {
+                env.new_string(
+                    r#"{"error":"The request stopped unexpectedly","code":"other","rejected":false}"#,
+                )
             })
-            .to_string()
+            .map(|value| value.into_raw())
     });
-    // A failed allocation here must not unwind out of an `extern "system"` function either,
-    // so the conversion is fallible all the way down instead of relying on `caught` above it.
-    env.new_string(response)
-        .or_else(|_| {
-            env.new_string(
-                r#"{"error":"The request stopped unexpectedly","code":"other","rejected":false}"#,
-            )
-        })
-        .map(|value| value.into_raw())
-        .unwrap_or(std::ptr::null_mut())
+    match outcome.into_outcome() {
+        Outcome::Ok(value) => value,
+        Outcome::Err(_) | Outcome::Panic(_) => std::ptr::null_mut(),
+    }
 }
 
 #[cfg(test)]
