@@ -16,7 +16,7 @@ const NOISE_WIDTH: usize = 4;
 
 /// The base64 spellings of every noise run the site emits.
 static NOISE: LazyLock<HashSet<[u8; NOISE_WIDTH]>> = LazyLock::new(|| {
-    const RUN_CHARS: [u8; 5] = [b'@', b'#', b'!', b'^', b'$'];
+    const RUN_CHARS: [u8; 5] = *b"@#!^$";
     let mut spellings = HashSet::with_capacity(RUN_CHARS.len().pow(2) + RUN_CHARS.len().pow(3));
     for &first in &RUN_CHARS {
         for &second in &RUN_CHARS {
