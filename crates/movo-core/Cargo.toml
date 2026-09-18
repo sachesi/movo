@@ -33,7 +33,7 @@ chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-keyring = "=4.1.6"
+keyring = "=4.2.0"
 
 [lib]
 name = "movo_core"
