@@ -1,0 +1,57 @@
+name: Release
+
+# A release tag must agree with the version in the sources before the AUR is updated
+# (ci.yml calls this once CI has passed). The GitHub release itself, with its notes and
+# the Android package, is made by hand.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Check the release
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the version
+        run: |
+          python3 - <<'EOF'
+          import os, re, sys, tomllib
+          import xml.etree.ElementTree as ET
+
+          def toml(path, *keys):
+              with open(path, "rb") as f:
+                  value = tomllib.load(f)
+              for key in keys:
+                  value = value[key]
+              return path, value
+
+          def lock(path, name):
+              with open(path, "rb") as f:
+                  found = [p["version"] for p in tomllib.load(f)["package"] if p["name"] == name]
+              return f"{name} in {path}", found[0]
+
+          def grep(path, pattern):
+              with open(path) as f:
+                  return path, re.search(pattern, f.read()).group(1)
+
+          tag = os.environ["TAG"].removeprefix("v")
+          found = [
+              toml("crates/movo-core/Cargo.toml", "package", "version"),
+              toml("crates/movo-desktop/Cargo.toml", "package", "version"),
+              toml("crates/movo-android/Cargo.toml", "package", "version"),
+              lock("Cargo.lock", "movo-core"),
+              lock("Cargo.lock", "movo"),
+              lock("Cargo.lock", "movo-android"),
+              grep("android/app/build.gradle.kts", r"versionName = .*\?: \"(.*)\""),
+          ]
+          release = ET.parse("crates/movo-desktop/data/io.github.sachesi.Movo.metainfo.xml").find("releases/release")
+          found.append(("the metainfo", release.get("version")))
+          wrong = [f"{where} says {v}" for where, v in found if v != tag]
+          if wrong:
+              sys.exit(f"The tag is {tag}, but " + ", ".join(wrong))
+          EOF
