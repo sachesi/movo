@@ -38,7 +38,7 @@ There is no download subsystem, and none is planned.
 
 Linux desktop:
 
-- Rust 1.85 or newer
+- Rust 1.93 or newer
 - GTK 4.22 or newer and Libadwaita 1.9 or newer, with development headers
 - gettext
 - mpv, or any player that can open a URL, for playback

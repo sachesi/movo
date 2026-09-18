@@ -2,7 +2,7 @@
 name = "movo-core"
 version = "0.4.4"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.93"
 authors = ["sachesi <xsachesi@pm.me>"]
 description = "Headless core engine for HDRezka client"
 license = "GPL-3.0-only"

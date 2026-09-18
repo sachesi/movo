@@ -2,7 +2,7 @@
 name = "movo"
 version = "0.4.4"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.93"
 authors = ["sachesi <xsachesi@pm.me>"]
 description = "Native GNOME desktop application for movies and series"
 license = "GPL-3.0-only"
