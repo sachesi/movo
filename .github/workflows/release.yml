@@ -1,22 +1,32 @@
 name: Release
 
-# A release tag must agree with the version in the sources before the AUR is updated
-# (ci.yml calls this once CI has passed). The GitHub release itself, with its notes and
-# the Android package, is made by hand.
+# A release tag must agree with the version in the sources and with the newest release in
+# the metainfo (ci.yml calls this once CI has passed). Its GitHub release gets packages for
+# Fedora, Debian, Ubuntu and Arch Linux; a release that does not exist yet is made a draft,
+# whose notes and Android package are added by hand. Run by hand, it packages a tag pushed
+# before this workflow existed.
 on:
   workflow_call:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, such as v1.2.3
+        required: true
 
 permissions:
   contents: read
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
-  release:
-    name: Check the release
+  source:
+    name: Check the version
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
       - name: Check the version
         run: |
           python3 - <<'EOF'
@@ -55,3 +65,171 @@ jobs:
           if wrong:
               sys.exit(f"The tag is {tag}, but " + ", ".join(wrong))
           EOF
+
+  fedora:
+    name: Package for Fedora
+    needs: source
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:44
+    steps:
+      - name: Install the tools
+        run: dnf install -y --setopt=install_weak_deps=False git-core rpm-build dnf-plugins-core
+      # The spec of this workflow's revision, which builds the tag's sources.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: |
+          spec=packaging/fedora/movo.spec
+          sed -i "s/^Version:.*/Version:        ${TAG#v}/; s/^Release:.*/Release:        1%{?dist}/" "$spec"
+          dnf builddep -y --setopt=install_weak_deps=False "$spec"
+          # rpmbuild fetches Source0 from the tag into a directory it does not create itself.
+          mkdir -p rpmbuild/SOURCES
+          rpmbuild -bb --define "_topdir $PWD/rpmbuild" --define "_disable_source_fetch 0" "$spec"
+          mkdir dist && mv rpmbuild/RPMS/*/*.rpm dist/
+          # The dependencies resolve on the release it was built for.
+          dnf install -y dist/*.rpm
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fedora
+          path: dist/*
+
+  debian:
+    name: Package for ${{ matrix.name }}
+    needs: source
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Testing: stable's GTK and libadwaita are older than it needs.
+          - name: Debian
+            image: debian:forky
+            artifact: debian
+            revision: "1"
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+            artifact: ubuntu
+            revision: 1~ubuntu26.04
+    container: ${{ matrix.image }}
+    env:
+      REVISION: ${{ matrix.revision }}
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install the build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev \
+            cargo rustc pkg-config gettext libgtk-4-dev libadwaita-1-dev libglib2.0-dev libssl-dev
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Build
+        run: |
+          # Build with the distribution's toolchain rather than the pinned one.
+          rm -f rust-toolchain.toml
+          cargo build --locked --release -p movo
+          data=crates/movo-desktop/data app_id=io.github.sachesi.Movo
+          install -Dm755 target/release/movo -t stage/usr/bin
+          install -Dm644 $data/$app_id.desktop -t stage/usr/share/applications
+          install -Dm644 $data/$app_id.metainfo.xml -t stage/usr/share/metainfo
+          install -Dm644 $data/icons/hicolor/scalable/apps/$app_id.svg -t stage/usr/share/icons/hicolor/scalable/apps
+          install -Dm644 $data/icons/hicolor/symbolic/apps/$app_id-symbolic.svg -t stage/usr/share/icons/hicolor/symbolic/apps
+          install -Dm644 $data/icons/hicolor/512x512/apps/$app_id.png -t stage/usr/share/icons/hicolor/512x512/apps
+          for po in po/*.po; do
+            lang=$(basename "$po" .po)
+            install -d "stage/usr/share/locale/$lang/LC_MESSAGES"
+            msgfmt -o "stage/usr/share/locale/$lang/LC_MESSAGES/movo.mo" "$po"
+          done
+          install -Dm644 LICENSE stage/usr/share/doc/movo/copyright
+      - name: Package
+        run: |
+          bins=()
+          for f in $(find stage -type f); do
+            readelf -h "$f" >/dev/null 2>&1 && bins+=("$f")
+          done
+          arch=all shlibs=
+          if [ ${#bins[@]} -gt 0 ]; then
+            arch=$(dpkg --print-architecture)
+            strip --strip-unneeded "${bins[@]}"
+            # dpkg-shlibdeps wants a source package to belong to.
+            mkdir debian
+            printf 'Source: movo\n\nPackage: movo\nArchitecture: any\n' > debian/control
+            shlibs=$(dpkg-shlibdeps -O $(printf -- '-e %s ' "${bins[@]}") | sed -n 's/^shlibs:Depends=//p')
+          fi
+          mkdir stage/DEBIAN
+          cat > stage/DEBIAN/control <<EOF
+          Package: movo
+          Version: ${TAG#v}-$REVISION
+          Architecture: $arch
+          Maintainer: sachesi <xsachesi@pm.me>
+          Installed-Size: $(du -sk stage | cut -f1)
+          Depends: ${shlibs:+$shlibs, }libgtk-4-1 (>= 4.22), libadwaita-1-0 (>= 1.9), hicolor-icon-theme
+          Recommends: mpv
+          Section: video
+          Priority: optional
+          Homepage: https://github.com/sachesi/movo
+          Description: GTK 4 and Libadwaita client for HDRezka
+           Movo is an unofficial client for the HDRezka streaming site, written in Rust.
+           It provides a GTK 4 and Libadwaita desktop application for browsing catalogs,
+           searching titles, managing favorites and watch history, and playing streams
+           via an external player such as mpv.
+          EOF
+          mkdir dist
+          deb="dist/movo_${TAG#v}-${REVISION}_$arch.deb"
+          dpkg-deb --root-owner-group -Zxz --build stage "$deb"
+          # The dependencies resolve on the release it was built for.
+          apt-get install -y "./$deb"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*
+
+  arch:
+    name: Package for Arch Linux
+    needs: source
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      # The PKGBUILD of this workflow's revision, which builds the tag's sources.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: |
+          pacman -Syu --noconfirm --needed git
+          useradd -m builder
+          install -d -o builder pkg
+          cp packaging/aur/PKGBUILD pkg/
+          sed -i "s/^pkgver=.*/pkgver=${TAG#v}/; s/^pkgrel=.*/pkgrel=1/" pkg/PKGBUILD
+          (source pkg/PKGBUILD && pacman -S --noconfirm --needed --asdeps "${depends[@]}" "${makedepends[@]}")
+          su builder -c 'cd pkg && makepkg --noconfirm'
+          name=$(source pkg/PKGBUILD && echo "$pkgname")
+          mkdir dist && mv pkg/"$name-${TAG#v}"-1-*.pkg.tar.zst dist/
+          # The dependencies resolve on Arch as it is today.
+          pacman -U --noconfirm dist/*.pkg.tar.zst
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: arch
+          path: dist/*
+
+  publish:
+    name: Publish the release
+    needs: [source, fedora, debian, arch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          pattern: "{fedora,debian,ubuntu,arch}"
+          merge-multiple: true
+      - name: Publish
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber *
+          else
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --draft --title "Movo ${TAG#v}" \
+              --notes "" *
+          fi
