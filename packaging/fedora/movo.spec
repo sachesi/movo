@@ -2,6 +2,7 @@
 %define debug_package %{nil}
 
 Name:           movo
+# The release workflow and Copr set Version to the tag they build.
 Version:        0.4.4
 Release:        1%{?dist}
 Summary:        GTK 4 and Libadwaita client for HDRezka
@@ -9,6 +10,8 @@ Summary:        GTK 4 and Libadwaita client for HDRezka
 License:        GPL-3.0-only
 URL:            https://github.com/sachesi/movo
 Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
+# The crates the build needs, from the release, so that it runs without a network.
+Source1:        %{url}/releases/download/v%{version}/%{name}-%{version}-vendor.tar.xz
 
 BuildRequires:  cargo
 BuildRequires:  rust
@@ -28,13 +31,13 @@ searching titles, managing favorites and watch history, and playing streams
 via an external player such as mpv.
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup -n %{name}-%{version} -b 1
 rm -f rust-toolchain.toml
 
 %build
 export CARGO_HOME=$PWD/.cargo-home
 export RUSTFLAGS="%{?build_rustflags}"
-cargo build --release -p movo
+cargo build --release -p movo --offline --locked
 
 %install
 install -Dpm 0755 target/release/movo %{buildroot}%{_bindir}/movo
