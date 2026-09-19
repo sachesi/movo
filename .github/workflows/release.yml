@@ -4,8 +4,7 @@ name: Release
 # the metainfo (ci.yml calls this once CI has passed). Its GitHub release gets the crates
 # the build needs and packages for Fedora, Debian, Ubuntu and Arch Linux; a release that
 # does not exist yet is made a draft, whose notes and Android package are added by hand.
-# Once published, it is built in Copr, in sachesi/software. Run by hand, it packages a tag
-# pushed before this workflow existed.
+# Run by hand, it packages a tag pushed before this workflow existed.
 on:
   workflow_call:
   workflow_dispatch:
@@ -258,24 +257,3 @@ jobs:
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --draft --title "Movo ${TAG#v}" \
               --notes "" *
           fi
-
-  copr:
-    name: Build in Copr
-    needs: publish
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Start the build
-        env:
-          # The custom webhook of sachesi/software, without the package name.
-          COPR_WEBHOOK: ${{ secrets.COPR_WEBHOOK }}
-        run: |
-          [ -n "$COPR_WEBHOOK" ] || { echo "COPR_WEBHOOK is not set" >&2; exit 1; }
-          # A draft's files cannot be downloaded yet; its build waits until it is published.
-          if [ "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" = true ]; then
-            echo "::notice::$TAG is a draft; once it is published, run: copr-cli build-package sachesi/software --name movo"
-            exit 0
-          fi
-          # Copr's script for the package builds the tag it is sent, with the spec on main.
-          curl -fsS -X POST --data "$TAG" "${COPR_WEBHOOK%/}/movo/"
