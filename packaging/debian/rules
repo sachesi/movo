@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+
+export CARGO_HOME = $(CURDIR)/debian/cargo-home
+DATA = crates/movo-desktop/data
+APP_ID = io.github.sachesi.Movo
+
+%:
+	dh $@
+
+# The crates come as the orig-vendor component, which unpacks into vendor/ with the cargo
+# configuration that points at them. The source package leaves out their Cargo.toml.orig
+# files, which cargo would check against each crate's list of file checksums; the crate's
+# own sum stays.
+override_dh_auto_configure:
+	# Build with the distribution's toolchain rather than the pinned one.
+	rm -f rust-toolchain.toml
+	mkdir -p .cargo
+	sed 's|^directory = .*|directory = "vendor/vendor"|' vendor/.cargo/config.toml > .cargo/config.toml
+	find vendor/vendor -name .cargo-checksum.json -print0 | xargs -0 sed -i 's/"files":{[^}]*}/"files":{}/'
+
+override_dh_auto_build:
+	cargo build --release --offline --locked -p movo
+
+# CI runs the tests on every change; the package build does not compile everything twice.
+override_dh_auto_test:
+
+override_dh_auto_install:
+	install -Dm755 target/release/movo -t debian/movo/usr/bin
+	install -Dm644 $(DATA)/$(APP_ID).desktop -t debian/movo/usr/share/applications
+	install -Dm644 $(DATA)/$(APP_ID).metainfo.xml -t debian/movo/usr/share/metainfo
+	install -Dm644 $(DATA)/icons/hicolor/scalable/apps/$(APP_ID).svg -t debian/movo/usr/share/icons/hicolor/scalable/apps
+	install -Dm644 $(DATA)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg -t debian/movo/usr/share/icons/hicolor/symbolic/apps
+	install -Dm644 $(DATA)/icons/hicolor/512x512/apps/$(APP_ID).png -t debian/movo/usr/share/icons/hicolor/512x512/apps
+	for po in po/*.po; do \
+	  lang=$$(basename $$po .po); \
+	  install -d debian/movo/usr/share/locale/$$lang/LC_MESSAGES; \
+	  msgfmt -o debian/movo/usr/share/locale/$$lang/LC_MESSAGES/movo.mo $$po; \
+	done

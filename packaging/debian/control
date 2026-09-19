@@ -1,0 +1,29 @@
+Source: movo
+Section: video
+Priority: optional
+Maintainer: sachesi <xsachesi@pm.me>
+Build-Depends: debhelper-compat (= 13),
+               cargo,
+               rustc (>= 1.93),
+               pkg-config,
+               gettext,
+               libssl-dev,
+               libgtk-4-dev (>= 4.22),
+               libadwaita-1-dev (>= 1.9)
+Standards-Version: 4.7.2
+Homepage: https://github.com/sachesi/movo
+Rules-Requires-Root: no
+
+Package: movo
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         libgtk-4-1 (>= 4.22),
+         libadwaita-1-0 (>= 1.9),
+         hicolor-icon-theme
+Recommends: mpv
+Description: GTK 4 and Libadwaita client for HDRezka
+ Movo is an unofficial client for the HDRezka streaming site, written in Rust.
+ It provides a GTK 4 and Libadwaita desktop application for browsing catalogs,
+ searching titles, managing favorites and watch history, and playing streams via
+ an external player such as mpv.
