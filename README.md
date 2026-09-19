@@ -53,6 +53,44 @@ Android:
 
 Android 6.0 (API 23) is the minimum supported release. Set `JAVA_HOME` if the JDK is not the default one.
 
+## Packages
+
+Fedora 44, 45 and Rawhide, from the Copr project
+[sachesi/software](https://copr.fedorainfracloud.org/coprs/sachesi/software/):
+
+```sh
+sudo dnf copr enable sachesi/software
+sudo dnf install movo
+```
+
+openSUSE Tumbleweed and Slowroll, from the OBS project
+[home:sachesi:software](https://build.opensuse.org/project/show/home:sachesi:software); for
+Slowroll the address has `openSUSE_Slowroll` in it, and on aarch64 `openSUSE_Factory_ARM`:
+
+```sh
+sudo zypper addrepo https://download.opensuse.org/repositories/home:sachesi:software/openSUSE_Tumbleweed/home:sachesi:software.repo
+sudo zypper install movo
+```
+
+Debian testing and Ubuntu 26.04, from the same OBS project; for Ubuntu the addresses
+have `xUbuntu_26.04` in place of `Debian_Testing`:
+
+```sh
+sudo install -d /etc/apt/keyrings
+curl -fsSL https://download.opensuse.org/repositories/home:sachesi:software/Debian_Testing/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/sachesi-software.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/sachesi-software.gpg] https://download.opensuse.org/repositories/home:sachesi:software/Debian_Testing/ /' | sudo tee /etc/apt/sources.list.d/sachesi-software.list
+sudo apt update
+sudo apt install movo
+```
+
+Debian 13 and Ubuntu 24.04 ship a GTK and libadwaita older than Movo needs.
+
+Arch Linux: the AUR package `movo`, built from
+[packaging/aur/PKGBUILD](packaging/aur/PKGBUILD), which each release tag updates.
+
+The same packages are attached to each [release](https://github.com/sachesi/movo/releases),
+along with the Android package.
+
 ## Build and run
 
 The `Justfile` holds every build recipe; `just` on its own lists them.
@@ -79,9 +117,6 @@ just apk-install  # build and install on a connected device
 `just apk-release` produces a signed release APK and expects `MOVO_KEYSTORE`,
 `MOVO_KEY_ALIAS` and `MOVO_KEYSTORE_PASSWORD` in the environment, and it copies the R8 mapping
 file alongside the APK so a crash from that build can be retraced later.
-
-Arch Linux: the AUR package `movo`, built from
-[packaging/aur/PKGBUILD](packaging/aur/PKGBUILD), which each release tag updates.
 
 ## Layout
 
