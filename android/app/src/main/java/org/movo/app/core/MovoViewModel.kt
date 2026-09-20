@@ -1097,11 +1097,16 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleHistory(entry: HistoryEntry) {
         contentJob?.cancel()
         val userId = state.value.user?.userId ?: return
+        val watched = !entry.watched
         contentJob = run {
-            NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", !entry.watched) })
-            val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.user?.userId == userId && state.value.tab == Tab.History) {
-                _state.update { it.copy(history = history.entries) }
+            NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", watched) })
+            // The row is flipped where it stands. Re-reading the list would reorder it: the
+            // account sorts watched rows last, so the title just ticked would jump off the
+            // screen under the finger that ticked it.
+            if (state.value.user?.userId == userId) {
+                _state.update { state ->
+                    state.copy(history = state.history.map { if (it.id == entry.id) it.copy(watched = watched) else it })
+                }
             }
         }
     }

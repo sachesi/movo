@@ -42,6 +42,7 @@ pub enum HistoryOutput {
 pub enum HistoryCommand {
     Loaded(Guarded<SyncedHistory>),
     Changed(Guarded<()>),
+    Toggled(String, bool, Guarded<()>),
 }
 
 #[relm4::component(pub)]
@@ -139,10 +140,13 @@ impl Component for HistoryView {
                 }
                 let account = self.account.clone();
                 let client = self.state.client.clone();
+                let requested = id.clone();
                 sender.oneshot_command(async move {
-                    HistoryCommand::Changed(
+                    HistoryCommand::Toggled(
+                        id,
+                        watched,
                         guarded_as(client, account, move |client| async move {
-                            client.set_history_watched(&id, watched).await
+                            client.set_history_watched(&requested, watched).await
                         })
                         .await,
                     )
@@ -213,6 +217,23 @@ impl Component for HistoryView {
                     Err(error) => self.content.set(ContentState::Error(&error.to_string())),
                 }
             }
+            HistoryCommand::Toggled(id, watched, changed) => {
+                if !self.state.accepts(&changed.account) {
+                    let _ = sender.output(HistoryOutput::AccountInvalidated);
+                    return;
+                }
+                match changed.result {
+                    // The row is flipped where it stands. Re-reading the list
+                    // would reorder it: the provider sorts watched rows last,
+                    // so the title the user just ticked would jump away from
+                    // the pointer.
+                    Ok(()) => self.set_watched(&id, watched),
+                    Err(error) => {
+                        let _ = sender.output(HistoryOutput::Warning(error.to_string()));
+                        sender.input(HistoryMsg::Reload);
+                    }
+                }
+            }
             HistoryCommand::Changed(changed) => {
                 if !self.state.accepts(&changed.account) {
                     let _ = sender.output(HistoryOutput::AccountInvalidated);
@@ -249,6 +270,18 @@ impl HistoryView {
         drop(rows);
         self.content.set(ContentState::Content);
     }
+
+    /// Show `id` as watched or not without disturbing the order of the list.
+    fn set_watched(&mut self, id: &str, watched: bool) {
+        let Some(index) = self.rows.iter().position(|row| row.entry.id == id) else {
+            return;
+        };
+        let mut rows = self.rows.guard();
+        if let Some(row) = rows.get_mut(index) {
+            row.entry.is_watched = watched;
+            row.pending = false;
+        }
+    }
 }
 
 /// Local playback progress for a server history entry, if this device has any.
@@ -271,12 +304,20 @@ fn progress_of(
 pub struct HistoryRow {
     entry: ServerHistoryEntry,
     progress: f64,
+    /// Set while the account confirms a toggle, so the button cannot be
+    /// pressed a second time before the first answer arrives.
+    pending: bool,
+}
+
+#[derive(Debug)]
+pub enum HistoryRowMsg {
+    Toggle,
 }
 
 #[relm4::factory(pub)]
 impl relm4::factory::FactoryComponent for HistoryRow {
     type Init = (ServerHistoryEntry, f64);
-    type Input = ();
+    type Input = HistoryRowMsg;
     type Output = HistoryMsg;
     type CommandOutput = ();
     type ParentWidget = gtk::ListBox;
@@ -287,28 +328,32 @@ impl relm4::factory::FactoryComponent for HistoryRow {
             set_title: &self.entry.title,
             set_subtitle: &subtitle(&self.entry),
             set_activatable: true,
+            #[watch]
             set_opacity: if self.entry.is_watched { 0.65 } else { 1.0 },
 
             add_suffix = &gtk::ProgressBar {
                 set_fraction: self.progress,
                 set_width_request: 60,
                 set_valign: gtk::Align::Center,
+                #[watch]
                 set_visible: !self.entry.is_watched && self.progress > 0.0,
             },
 
             add_suffix = &gtk::Button {
+                #[watch]
                 set_icon_name: if self.entry.is_watched {
                     "object-select-symbolic"
                 } else {
                     "checkbox-symbolic"
                 },
+                #[watch]
+                set_sensitive: !self.pending,
                 set_tooltip_text: Some(tr("Toggle Watched Status")),
                 set_has_frame: false,
                 set_valign: gtk::Align::Center,
                 update_property: &[gtk::accessible::Property::Label(tr("Toggle Watched Status"))],
-                connect_clicked[sender, id = self.entry.id.clone(), watched = self.entry.is_watched] => move |button| {
-                    button.set_sensitive(false);
-                    sender.output(HistoryMsg::SetWatched(id.clone(), !watched)).ok();
+                connect_clicked[sender] => move |_| {
+                    sender.input(HistoryRowMsg::Toggle);
                 },
             },
 
@@ -334,7 +379,28 @@ impl relm4::factory::FactoryComponent for HistoryRow {
         _index: &relm4::factory::DynamicIndex,
         _sender: FactorySender<Self>,
     ) -> Self {
-        Self { entry, progress }
+        Self {
+            entry,
+            progress,
+            pending: false,
+        }
+    }
+
+    fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
+        match message {
+            HistoryRowMsg::Toggle => {
+                if self.pending {
+                    return;
+                }
+                self.pending = true;
+                sender
+                    .output(HistoryMsg::SetWatched(
+                        self.entry.id.clone(),
+                        !self.entry.is_watched,
+                    ))
+                    .ok();
+            }
+        }
     }
 }
 
