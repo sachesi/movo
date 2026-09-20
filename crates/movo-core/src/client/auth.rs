@@ -45,7 +45,18 @@ pub async fn login(
             return Err(error);
         }
     };
-    profile.is_session_persistent = session.persist_session(&user_id).is_ok();
+    // On the blocking pool rather than here. The keyring's Secret Service
+    // backend reaches D-Bus through zbus, and with `tokio` among zbus's
+    // resolved features its blocking API drives that call on a tokio runtime
+    // it builds itself. Building one on a runtime worker thread panics, which
+    // took the whole sign-in down with it.
+    let keyring_session = session.clone();
+    let stored_id = user_id.clone();
+    profile.is_session_persistent = super::blocking("Storing the session", move || {
+        keyring_session.persist_session(&stored_id).is_ok()
+    })
+    .await
+    .unwrap_or(false);
     Ok(profile)
 }
 
