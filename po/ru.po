@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-12 20:09+0300\n"
+"POT-Creation-Date: 2026-09-20 13:25+0300\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Russian\n"
@@ -115,7 +115,7 @@ msgid "Filmography"
 msgstr "Фильмография"
 
 #: crates/movo-desktop/src/dialogs/comments.rs:23
-#: crates/movo-desktop/src/views/details/sections.rs:273
+#: crates/movo-desktop/src/views/details/sections.rs:275
 msgid "Comments"
 msgstr "Комментарии"
 
@@ -200,12 +200,12 @@ msgstr "Провайдер принимает целые числа от 1 до 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
 #: crates/movo-desktop/src/dialogs/settings.rs:467
 #: crates/movo-desktop/src/playback/launcher/choose.rs:113
-#: crates/movo-desktop/src/views/history.rs:169
+#: crates/movo-desktop/src/views/history.rs:173
 msgid "Cancel"
 msgstr "Отмена"
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
-#: crates/movo-desktop/src/views/details/sections.rs:265
+#: crates/movo-desktop/src/views/details/sections.rs:267
 msgid "Rate"
 msgstr "Оценить"
 
@@ -442,58 +442,58 @@ msgstr "Переводчик {} не найден"
 msgid "No streams are available for the selected voice-over."
 msgstr "Для выбранного перевода нет доступных потоков."
 
-#: crates/movo-desktop/src/playback/launcher.rs:340
+#: crates/movo-desktop/src/playback/launcher.rs:329
 msgid "The provider returned no playable stream for this quality."
 msgstr "Провайдер не вернул поток для этого качества."
 
-#: crates/movo-desktop/src/playback/launcher.rs:384
+#: crates/movo-desktop/src/playback/launcher.rs:373
 #: crates/movo-desktop/src/views/details/format.rs:58
 msgid "Premium · {}"
 msgstr "Премиум · {}"
 
-#: crates/movo-desktop/src/playback/launcher.rs:407
+#: crates/movo-desktop/src/playback/launcher.rs:396
 #: crates/movo-desktop/src/views/details.rs:223
 msgid "Loading local history stopped unexpectedly"
 msgstr "Загрузка локальной истории неожиданно прервалась"
 
-#: crates/movo-desktop/src/playback/launcher.rs:475
-#: crates/movo-desktop/src/playback/launcher.rs:494
+#: crates/movo-desktop/src/playback/launcher.rs:464
+#: crates/movo-desktop/src/playback/launcher.rs:483
 msgid "Starting MPV stopped unexpectedly"
 msgstr "Запуск MPV неожиданно прервался"
 
-#: crates/movo-desktop/src/playback/launcher.rs:476
-#: crates/movo-desktop/src/playback/launcher.rs:495
-#: crates/movo-desktop/src/playback/launcher.rs:509
-#: crates/movo-desktop/src/playback/launcher.rs:524
+#: crates/movo-desktop/src/playback/launcher.rs:465
+#: crates/movo-desktop/src/playback/launcher.rs:484
+#: crates/movo-desktop/src/playback/launcher.rs:498
+#: crates/movo-desktop/src/playback/launcher.rs:513
 msgid "Could not start {}: {}"
 msgstr "Не удалось запустить {}: {}"
 
-#: crates/movo-desktop/src/playback/launcher.rs:497
+#: crates/movo-desktop/src/playback/launcher.rs:486
 msgid ""
 "MPV opened, but the XDG runtime directory is unavailable; progress is not "
 "tracked."
 msgstr ""
 "MPV открыт, но XDG runtime directory недоступен; прогресс не отслеживается."
 
-#: crates/movo-desktop/src/playback/launcher.rs:508
+#: crates/movo-desktop/src/playback/launcher.rs:497
 msgid "Starting VLC stopped unexpectedly"
 msgstr "Запуск VLC неожиданно прервался"
 
-#: crates/movo-desktop/src/playback/launcher.rs:511
+#: crates/movo-desktop/src/playback/launcher.rs:500
 msgid "VLC does not report progress; the resume position is not updated."
 msgstr "VLC не сообщает прогресс; позиция возобновления не обновляется."
 
-#: crates/movo-desktop/src/playback/launcher.rs:523
+#: crates/movo-desktop/src/playback/launcher.rs:512
 msgid "Starting the player stopped unexpectedly"
 msgstr "Запуск плеера неожиданно прервался"
 
-#: crates/movo-desktop/src/playback/launcher.rs:526
+#: crates/movo-desktop/src/playback/launcher.rs:515
 #: crates/movo-desktop/src/playback/launcher/choose.rs:94
 msgid ""
 "This player does not report progress; the resume position is not updated."
 msgstr "Этот плеер не сообщает прогресс; позиция возобновления не обновляется."
 
-#: crates/movo-desktop/src/playback/launcher.rs:540
+#: crates/movo-desktop/src/playback/launcher.rs:529
 msgid "Opened with the system player; set mpv in Settings for progress."
 msgstr ""
 "Открыто системным плеером; укажите mpv в настройках, чтобы сохранять "
@@ -702,22 +702,22 @@ msgstr "Озвучка"
 msgid "Season"
 msgstr "Сезон"
 
-#: crates/movo-desktop/src/views/details/sections.rs:255
+#: crates/movo-desktop/src/views/details/sections.rs:257
 msgid "Trailer"
 msgstr "Трейлер"
 
-#: crates/movo-desktop/src/views/details/sections.rs:263
+#: crates/movo-desktop/src/views/details/sections.rs:265
 msgid "Rated"
 msgstr "Оценено"
 
-#: crates/movo-desktop/src/views/details/sections.rs:290
+#: crates/movo-desktop/src/views/details/sections.rs:292
 msgid "Episode Schedule"
 msgstr "Расписание серий"
 
-#: crates/movo-desktop/src/views/details/sections.rs:321
-#: crates/movo-desktop/src/views/details/sections.rs:326
-#: crates/movo-desktop/src/views/history.rs:305
-#: crates/movo-desktop/src/views/history.rs:308
+#: crates/movo-desktop/src/views/details/sections.rs:323
+#: crates/movo-desktop/src/views/details/sections.rs:328
+#: crates/movo-desktop/src/views/history.rs:373
+#: crates/movo-desktop/src/views/history.rs:376
 msgid "Toggle Watched Status"
 msgstr "Переключить отметку просмотра"
 
@@ -741,36 +741,37 @@ msgstr "Избранное не загрузилось"
 msgid "Sign In to See Your Favorites"
 msgstr "Войдите, чтобы увидеть избранное"
 
-#: crates/movo-desktop/src/views/history.rs:85
+#: crates/movo-desktop/src/views/history.rs:86
 msgid "History Did Not Load"
 msgstr "История не загрузилась"
 
-#: crates/movo-desktop/src/views/history.rs:111
+#: crates/movo-desktop/src/views/history.rs:112
 msgid "Sign In to See Your History"
 msgstr "Войдите, чтобы увидеть историю"
 
-#: crates/movo-desktop/src/views/history.rs:115
+#: crates/movo-desktop/src/views/history.rs:116
 msgid "Loading History"
 msgstr "Загрузка истории"
 
-#: crates/movo-desktop/src/views/history.rs:163
+#: crates/movo-desktop/src/views/history.rs:167
 msgid "Remove From History?"
 msgstr "Удалить из истории?"
 
-#: crates/movo-desktop/src/views/history.rs:165
+#: crates/movo-desktop/src/views/history.rs:169
 msgid "This removes the title from your account history and this device."
 msgstr "Это удалит запись из истории аккаунта и с этого устройства."
 
-#: crates/movo-desktop/src/views/history.rs:169
+#: crates/movo-desktop/src/views/history.rs:173
 msgid "Remove"
 msgstr "Удалить"
 
-#: crates/movo-desktop/src/views/history.rs:241
+#: crates/movo-desktop/src/views/history.rs:267
+#: crates/movo-desktop/src/views/history.rs:291
 msgid "History Is Empty"
 msgstr "История пуста"
 
-#: crates/movo-desktop/src/views/history.rs:317
-#: crates/movo-desktop/src/views/history.rs:320
+#: crates/movo-desktop/src/views/history.rs:384
+#: crates/movo-desktop/src/views/history.rs:387
 msgid "Remove from History"
 msgstr "Удалить из истории"
 
