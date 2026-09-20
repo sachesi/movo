@@ -41,7 +41,7 @@ pub enum HistoryOutput {
 #[derive(Debug)]
 pub enum HistoryCommand {
     Loaded(Guarded<SyncedHistory>),
-    Changed(Guarded<()>),
+    Removed(String, Guarded<()>),
     Toggled(String, bool, Guarded<()>),
 }
 
@@ -188,10 +188,12 @@ impl Component for HistoryView {
                 }
                 let account = self.account.clone();
                 let client = self.state.client.clone();
+                let requested = id.clone();
                 sender.oneshot_command(async move {
-                    HistoryCommand::Changed(
+                    HistoryCommand::Removed(
+                        id,
                         guarded_as(client, account, move |client| async move {
-                            client.remove_history(&id).await
+                            client.remove_history(&requested).await
                         })
                         .await,
                     )
@@ -234,13 +236,16 @@ impl Component for HistoryView {
                     }
                 }
             }
-            HistoryCommand::Changed(changed) => {
-                if !self.state.accepts(&changed.account) {
+            HistoryCommand::Removed(id, removed) => {
+                if !self.state.accepts(&removed.account) {
                     let _ = sender.output(HistoryOutput::AccountInvalidated);
                     return;
                 }
-                match changed.result {
-                    Ok(()) => sender.input(HistoryMsg::Reload),
+                match removed.result {
+                    // Only the deleted row goes. Re-reading the list would
+                    // order it afresh, carrying every row ticked since the
+                    // last load off to the bottom.
+                    Ok(()) => self.drop_row(&id),
                     Err(error) => {
                         let _ = sender.output(HistoryOutput::Warning(error.to_string()));
                         sender.input(HistoryMsg::Reload);
@@ -269,6 +274,23 @@ impl HistoryView {
         }
         drop(rows);
         self.content.set(ContentState::Content);
+    }
+
+    /// Take `id` out of the list, leaving the order of the rest alone.
+    fn drop_row(&mut self, id: &str) {
+        let Some(index) = self.rows.iter().position(|row| row.entry.id == id) else {
+            return;
+        };
+        let mut rows = self.rows.guard();
+        rows.remove(index);
+        let empty = rows.is_empty();
+        drop(rows);
+        if empty {
+            self.content.set(ContentState::Empty(
+                "document-open-recent-symbolic",
+                tr("History Is Empty"),
+            ));
+        }
     }
 
     /// Show `id` as watched or not without disturbing the order of the list.
