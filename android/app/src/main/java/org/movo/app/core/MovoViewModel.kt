@@ -117,7 +117,6 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var progressJob: Job? = null
     private var syncJob: Job? = null
     private var completionJob: Job? = null
-    private var markedWatchedKey: String? = null
     private val detailsBackStack = ArrayDeque<String>()
     private var pendingDetailsUrl: String? = null
     private var detailsBackLoading = false
@@ -878,8 +877,6 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val userId = state.value.user?.userId ?: return
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
-        // A rewatch of the same episode has to reach the provider again.
-        markedWatchedKey = null
         syncJob?.cancel()
         syncJob = run {
             try {
@@ -920,8 +917,6 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val stream = state.value.stream ?: return
         completionJob?.cancel()
         completionJob = run {
-            if (state.value.user?.userId != userId) return@run
-            markWatched(userId, details, stream)
             if (state.value.user?.userId != userId) return@run
             store.clearProgress(progressKey(userId, details.id, stream))
             if (state.value.tab == Tab.History) refreshHistory()
@@ -966,7 +961,6 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         playbackJob = run {
             if (completed) {
-                markWatched(userId, details, current)
                 store.clearProgress(progressKey(userId, details.id, current))
             }
             val next = fetchStream(details, translator, season, episode)
@@ -990,7 +984,6 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         playbackJob?.cancel()
         playbackJob = run {
             if (completed) {
-                markWatched(userId, details, current)
                 store.clearProgress(progressKey(userId, details.id, current))
             }
             val next = fetchStream(details, translator, season, episode)
@@ -1019,16 +1012,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         // banner-ed over whatever screen the user lands on next.
         _state.update { it.copy(stream = null, playbackQuality = null, error = null) }
         if (details == null || stream == null || userId == null) return
-        // Shown as watched at once where the list is already up: the account's history lags the
-        // sync by a moment, and the list fetched right after it still said otherwise.
-        if (completed) _state.update { state ->
-            state.copy(history = state.history.map { if (it.url == details.url) it.copy(watched = true) else it })
-        }
         run {
             if (state.value.user?.userId != userId) return@run
             if (completed) {
-                markWatched(userId, details, stream)
-                if (state.value.user?.userId != userId) return@run
                 store.clearProgress(progressKey(userId, details.id, stream))
                 // A finished episode is not the one to reopen on; offer the next one instead.
                 adjacentEpisode(details, stream, 1)?.let { (season, episode) ->
@@ -1037,35 +1023,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 store.saveProgress(progressKey(userId, details.id, stream), positionMs)
             }
-            // The account's history moved either way, watched or not: the entry carries where
+            // The account's history moved either way, finished or not: the entry carries where
             // the title was left. Reflected in an open History list without the global spinner.
             if (state.value.tab == Tab.History) refreshHistory()
         }
     }
 
-    /**
-     * Best-effort: marking watched depends on the server surfacing the save in time.
-     * Never let a transient "history item not found yet" / network hiccup wipe the
-     * completed state, surface an error banner, or drop the cleared progress. A
-     * finished playback is finalized locally first.
-     *
-     * Playback that ends and is then closed reports the same title twice; the key
-     * of the last accepted call keeps the second one off the network.
-     */
-    private suspend fun markWatched(userId: String, details: MediaDetails, stream: StreamBundle) {
-        val key = progressKey(userId, details.id, stream)
-        if (markedWatchedKey == key) return
-        attempt {
-            NativeBridge.call("mark_watched", buildJsonObject {
-                put("url", details.url)
-                put("post_id", details.id)
-                stream.season?.let { put("season", it) }
-                stream.episode?.let { put("episode", it) }
-            })
-        }?.let { markedWatchedKey = key }
-    }
-
-    /** Quiet re-fetch of history (no loading/error mutation) so a freshly watched item
+    /** Quiet re-fetch of history (no loading/error mutation) so a title just played
      *  shows its synced state immediately when the History tab is already in view. */
     private fun refreshHistory() {
         contentJob?.cancel()

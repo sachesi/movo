@@ -31,7 +31,7 @@ No password, cookie, or token is ever written to `settings.json`, a log line, or
 
 - Sign-in state comes from a successful authenticated profile request (`auth::check_profile`), not from the login response alone. `RezkaSession::authenticated_user_id` reads the account cookies directly rather than trusting anything cached.
 - `RezkaClient::sync_history` reads the account's history and reconciles it with local resume positions (`WatchHistory::reconcile_media`), dropping local entries the account no longer lists unless they were written inside the last few minutes, which protects a resume position saved a moment before the reconciliation runs.
-- Every account mutation is expressed as desired state and confirmed by reading it back rather than trusting the request's own success reply: `set_favorite`, `set_history_watched` and `mark_watched` each re-fetch the affected list after posting and only report success once the server actually reflects it.
+- Every account mutation is expressed as desired state and confirmed by reading it back rather than trusting the request's own success reply: `set_favorite` and `set_history_watched` each re-fetch the affected list after posting and only report success once the server actually reflects it.
 - A session restore that reaches the provider and gets rejected clears the stored session; one that never reaches the provider (no network) leaves it alone, so a lost connection cannot sign an account out.
 
 ## Manual acceptance gate
