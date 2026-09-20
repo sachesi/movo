@@ -1095,10 +1095,13 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleHistory(entry: HistoryEntry) {
-        contentJob?.cancel()
         val userId = state.value.user?.userId ?: return
         val watched = !entry.watched
-        contentJob = run {
+        // Its own job, not the shared content one: ticking a second row used to cancel the first,
+        // which was harmless only because the list was read back afterwards. With the row flipped
+        // where it stands, a cancelled tick would leave it showing a state the account no longer
+        // holds until the next reload.
+        run {
             NativeBridge.call("set_history_watched", buildJsonObject { put("id", entry.id); put("watched", watched) })
             // The row is flipped where it stands. Re-reading the list would reorder it: the
             // account sorts watched rows last, so the title just ticked would jump off the
