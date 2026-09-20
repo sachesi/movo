@@ -40,7 +40,8 @@ class NativeBindingTest {
             assertTrue(
                 "crates/movo-android/src/lib.rs exports no `$expected`. The Kotlin declaration and " +
                     "the Rust symbol have to name the same class, and one of them moved.",
-                rust.contains("fn $expected("),
+                // The signature may carry a lifetime: `fn Java_..._invoke<'caller>(`.
+                rust.contains("fn $expected(") || rust.contains("fn $expected<"),
             )
         }
     }
