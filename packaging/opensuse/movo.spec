@@ -3,7 +3,7 @@
 
 Name:           movo
 # The release workflow sets Version to the tag it builds; OBS counts the Release.
-Version:        0.4.4
+Version:        0.5.0
 Release:        0
 Summary:        GTK 4 and Libadwaita client for HDRezka
 

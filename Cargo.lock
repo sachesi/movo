@@ -2334,7 +2334,7 @@ dependencies = [
 
 [[package]]
 name = "movo"
-version = "0.4.4"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "env_logger",
@@ -2353,7 +2353,7 @@ dependencies = [
 
 [[package]]
 name = "movo-android"
-version = "0.4.4"
+version = "0.5.0"
 dependencies = [
  "jni",
  "movo-core",
@@ -2364,7 +2364,7 @@ dependencies = [
 
 [[package]]
 name = "movo-core"
-version = "0.4.4"
+version = "0.5.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",

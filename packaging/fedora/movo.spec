@@ -3,7 +3,7 @@
 
 Name:           movo
 # The release workflow and Copr set Version to the tag they build.
-Version:        0.4.4
+Version:        0.5.0
 Release:        1%{?dist}
 Summary:        GTK 4 and Libadwaita client for HDRezka
 
