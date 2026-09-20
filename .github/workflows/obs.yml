@@ -33,7 +33,21 @@ jobs:
     steps:
       # The packaging of this workflow's revision, which builds the tag's sources.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check that the release is published
+        id: release
+        run: |
+          # A draft's files cannot be downloaded, the crates the build needs among them, and
+          # OBS fetches that same URL itself when it builds. Skip rather than fail, as the
+          # Copr workflow does: the release is published by hand after the tag is packaged.
+          if curl -fsIL -o /dev/null \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$NAME-${TAG#v}-vendor.tar.xz"; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The release of $TAG is not published yet; once it is, run this workflow for $TAG."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Make the packaging
+        if: steps.release.outputs.published == 'true'
         run: |
           ver=${TAG#v}
           mkdir -p work obs
@@ -58,6 +72,7 @@ jobs:
           mv work/*.dsc work/*.debian.tar.xz obs/
           sed "s/^Version:.*/Version:        $ver/" "packaging/opensuse/$NAME.spec" > "obs/$NAME.spec"
       - name: Publish it on the obs branch
+        if: steps.release.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -69,6 +84,7 @@ jobs:
           # One commit, replaced for each release; OBS reads only the newest.
           git push -f "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" obs
       - name: Start the build
+        if: steps.release.outputs.published == 'true'
         env:
           # A runservice token of home:sachesi:software/movo.
           OBS_TOKEN: ${{ secrets.OBS_TOKEN }}
