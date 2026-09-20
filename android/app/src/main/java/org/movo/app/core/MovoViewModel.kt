@@ -1079,16 +1079,16 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeHistory(entry: HistoryEntry) {
-        contentJob?.cancel()
         val userId = state.value.user?.userId ?: return
-        contentJob = run {
+        // Its own job, as with the tick: a second removal used to cancel the first, and the list
+        // is no longer read back afterwards to cover for it.
+        run {
             val removed = NativeBridge.decode<RemovedHistory>("remove_history", buildJsonObject { put("id", entry.id) })
             if (state.value.user?.userId != userId) return@run
             store.clearProgressForMedia(userId, removed.mediaId)
-            val history = NativeBridge.decode<HistoryResult>("history")
-            if (state.value.user?.userId == userId && state.value.tab == Tab.History) {
-                _state.update { it.copy(history = history.entries) }
-            }
+            // Only the deleted row goes. Re-reading the list would order it afresh, carrying
+            // every row ticked since the last load off to the bottom.
+            _state.update { state -> state.copy(history = state.history.filterNot { it.id == entry.id }) }
         }
     }
 
