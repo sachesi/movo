@@ -178,12 +178,6 @@ enum Command {
         countries: String,
     },
     Countries,
-    MarkWatched {
-        url: String,
-        post_id: i64,
-        season: Option<i64>,
-        episode: Option<i64>,
-    },
 }
 
 impl Command {
@@ -350,15 +344,6 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
                 .await?;
             Ok(Value::Null)
         }
-        Command::MarkWatched {
-            url,
-            post_id,
-            season,
-            episode,
-        } => {
-            client.mark_watched(&url, post_id, season, episode).await?;
-            Ok(Value::Null)
-        }
     }
 }
 
@@ -422,8 +407,7 @@ async fn run(command: Command) -> Result<Value, Failure> {
         | Command::Rate { .. }
         | Command::LikeComment { .. }
         | Command::ToggleScheduleWatched { .. }
-        | Command::SaveWatch { .. }
-        | Command::MarkWatched { .. }) => {
+        | Command::SaveWatch { .. }) => {
             let _mutation = MUTATIONS.lock().await;
             let client = CLIENT.read().await;
             invoke_read(command, &client).await

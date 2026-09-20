@@ -54,8 +54,8 @@ pub enum LauncherOutput {
 pub enum LauncherCommand {
     Stream(Box<PlayRequest>, Box<Guarded<StreamBundle>>),
     Event(Box<PlaybackEvent>),
-    /// The provider was told the title finished.
-    Marked(Guarded<()>),
+    /// The provider was told the title started.
+    Saved(Guarded<()>),
 }
 
 impl Component for Launcher {
@@ -88,7 +88,7 @@ impl Component for Launcher {
         let request = match message {
             LauncherMsg::Play(request) => request,
             LauncherMsg::Started { request, account } => {
-                return self.sync(&sender, *request, account, false)
+                return self.sync(&sender, *request, account)
             }
         };
 
@@ -165,7 +165,6 @@ impl Component for Launcher {
                 PlaybackEvent::Ended(history) => {
                     let request = request_from_history(&history);
                     let _ = sender.output(LauncherOutput::HistoryChanged);
-                    self.sync(&sender, request.clone(), history.account.clone(), true);
                     self.play_next(&request, &history.account, &sender);
                 }
                 PlaybackEvent::TrackingLost(_, message) => {
@@ -177,12 +176,12 @@ impl Component for Launcher {
                     let _ = sender.output(LauncherOutput::Notify(message));
                 }
             },
-            LauncherCommand::Marked(marked) => {
-                if !self.state.accepts(&marked.account) {
+            LauncherCommand::Saved(saved) => {
+                if !self.state.accepts(&saved.account) {
                     let _ = sender.output(LauncherOutput::AccountInvalidated);
                     return;
                 }
-                match marked.result {
+                match saved.result {
                     Ok(()) => {
                         let _ = sender.output(LauncherOutput::HistoryChanged);
                     }
@@ -237,14 +236,9 @@ impl Launcher {
         }
     }
 
-    /// Tell the provider the current title started, or finished.
-    fn sync(
-        &self,
-        sender: &ComponentSender<Self>,
-        request: PlayRequest,
-        account: Account,
-        finished: bool,
-    ) {
+    /// Tell the provider the current title started, so the account carries it
+    /// in the continue-watching list.
+    fn sync(&self, sender: &ComponentSender<Self>, request: PlayRequest, account: Account) {
         let account = Some(account);
         if !self.state.accepts(&account) {
             let _ = sender.output(LauncherOutput::AccountInvalidated);
@@ -257,15 +251,10 @@ impl Launcher {
             request.season,
             request.episode,
         );
-        let url = request.details.url;
         sender.oneshot_command(async move {
-            LauncherCommand::Marked(
+            LauncherCommand::Saved(
                 guarded_as(client, account, move |client| async move {
-                    if finished {
-                        client.mark_watched(&url, id, season, episode).await
-                    } else {
-                        client.save_watch(id, translator, season, episode).await
-                    }
+                    client.save_watch(id, translator, season, episode).await
                 })
                 .await,
             )

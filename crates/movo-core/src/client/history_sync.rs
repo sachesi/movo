@@ -1,5 +1,5 @@
 use super::models::ServerHistoryEntry;
-use super::{auth, blocking, details, RezkaClient, SyncedHistory};
+use super::{auth, blocking, RezkaClient, SyncedHistory};
 use crate::error::ClientError;
 use crate::storage::history::WatchHistory;
 use std::collections::HashSet;
@@ -117,56 +117,6 @@ impl RezkaClient {
                 "The account did not confirm the watched state".to_string(),
             ))
         }
-    }
-
-    /// Records that the title at `url` was watched to the end: the history
-    /// row is flagged, and for an episode so is its schedule row.
-    pub async fn mark_watched(
-        &self,
-        url: &str,
-        post_id: i64,
-        season: Option<i64>,
-        episode: Option<i64>,
-    ) -> Result<(), ClientError> {
-        self.ensure_signed_in()?;
-        let entry = self
-            .wait_for_history_entry(post_id, season, episode)
-            .await?;
-        if !entry.is_watched {
-            auth::toggle_history_watched(&self.session, &entry.id).await?;
-        }
-        let confirmed = auth::fetch_history(&self.session)
-            .await?
-            .into_iter()
-            .find(|candidate| candidate.id == entry.id)
-            .ok_or_else(|| "History item disappeared while marking watched".to_string())?;
-        if !confirmed.is_watched {
-            return Err(ClientError::from(
-                "The account did not confirm the watched state".to_string(),
-            ));
-        }
-        if let (Some(season), Some(episode)) = (season, episode) {
-            // The provider keeps an episode's watched flag on its schedule
-            // row; an episode the schedule does not list has none to set.
-            let schedules = details::fetch_schedules(&self.session, url).await?;
-            let Some(item) = details::schedule_item_for(&schedules, season, episode)
-                .filter(|item| !item.id.is_empty())
-            else {
-                return Ok(());
-            };
-            if !item.is_watched {
-                auth::toggle_schedule_watched(&self.session, &item.id).await?;
-            }
-            let confirmed = details::fetch_schedules(&self.session, url).await?;
-            let item = details::schedule_item_for(&confirmed, season, episode)
-                .ok_or_else(|| "Finished episode was not found".to_string())?;
-            if !item.is_watched {
-                return Err(ClientError::from(
-                    "The account did not confirm the episode watched state".to_string(),
-                ));
-            }
-        }
-        Ok(())
     }
 
     async fn wait_for_history_entry(
@@ -323,42 +273,6 @@ mod tests {
             .unwrap_err();
 
         assert!(error.message.contains("did not confirm"), "{error}");
-        server.join().unwrap();
-    }
-
-    #[tokio::test]
-    async fn mark_watched_waits_for_delayed_history_entry() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let base_url = format!("http://{}", listener.local_addr().unwrap());
-        let server = std::thread::spawn(move || {
-            let (mut missing, _) = listener.accept().unwrap();
-            read_request(&mut missing);
-            respond(
-                &mut missing,
-                "text/html",
-                r#"<div class="b-videosaves"></div>"#,
-            );
-
-            let (mut found, _) = listener.accept().unwrap();
-            read_request(&mut found);
-            respond(
-                &mut found,
-                "text/html",
-                r#"<div class="b-videosaves__list_item"></div><div class="b-videosaves__list_item"><button class="delete" data-id="saved"></button><div class="title"><a href="/films/7-test.html">Test</a></div></div>"#,
-            );
-
-            let (mut toggle, _) = listener.accept().unwrap();
-            assert!(read_request(&mut toggle).starts_with("POST /engine/ajax/cdn_saves_view.php"));
-            respond(&mut toggle, "application/json", r#"{"success":true}"#);
-            let (mut confirmed, _) = listener.accept().unwrap();
-            read_request(&mut confirmed);
-            respond(&mut confirmed, "text/html", &history_row(true));
-        });
-
-        authenticated_test_client(&base_url)
-            .mark_watched("/films/7-test.html", 7, None, None)
-            .await
-            .unwrap();
         server.join().unwrap();
     }
 
