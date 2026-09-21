@@ -1,10 +1,13 @@
 package org.movo.app
 
+import org.movo.app.core.Episode
 import org.movo.app.core.MediaItem
+import org.movo.app.core.Season
 import org.movo.app.core.StoryboardCue
 import org.movo.app.core.StreamBundle
 import org.movo.app.core.StreamEntry
 import org.movo.app.core.Translator
+import org.movo.app.core.continueFrom
 import org.movo.app.settings.safeValueOf
 import org.movo.app.catalog.shouldLoadMore
 import org.movo.app.details.preferredTranslator
@@ -56,6 +59,22 @@ class ModelsTest {
         val stream = Json.decodeFromString<StreamBundle>("""{"id":7,"translator_id":1,"streams":[],"subtitles":[],"storyboard":[{"start_ms":1500,"end_ms":3000,"image_url":"https://hdrzk.org/sprite.jpg","x":150,"y":75,"width":150,"height":75}]}""")
         assertEquals(1_500L, stream.storyboard.single().startMs)
         assertEquals(150, stream.storyboard.single().x)
+    }
+
+    @Test fun theAccountsEpisodeIsOfferedAndAWatchedOneGivesWayToTheNext() {
+        val seasons = (1L..2L).map { season ->
+            Season(season, "$season", (1L..2L).map { Episode(it, season, "$it", watched = season == 1L && it == 2L) })
+        }
+
+        assertEquals(1L to 1L, continueFrom(seasons, 1, 1))
+        assertEquals(2L to 1L, continueFrom(seasons, 1, 2))
+        assertEquals(null, continueFrom(seasons, 3, 1))
+    }
+
+    @Test fun theLastEpisodeStaysOfferedOnceWatched() {
+        val seasons = listOf(Season(1, "1", listOf(Episode(1, 1, "1", watched = true))))
+
+        assertEquals(1L to 1L, continueFrom(seasons, 1, 1))
     }
 
     @Test fun configuredQualitySelectsMatchingStream() {

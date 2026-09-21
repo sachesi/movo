@@ -603,7 +603,9 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             attempt { NativeBridge.decode<List<FavoriteGroup>>("favorite_categories") }
         }
         val details = NativeBridge.decode<MediaDetails>("details", buildJsonObject { put("url", url) })
-        val resume = state.value.user?.userId?.let { store.lastWatchedEpisode(it, details.id) }
+        val userId = state.value.user?.userId
+        val resume = userId?.let { store.lastWatchedEpisode(it, details.id) }
+            ?: userId?.let { accountResumePoint(details) }?.let { (season, episode) -> Triple(season, episode, null) }
         val fetchedGroups = groups?.await()
         if (fetchedGroups != null) favoriteGroupsCurrent = true
         _state.update { it.copy(
@@ -614,6 +616,19 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
             resumeTranslatorId = resume?.third,
             episodesTranslatorId = details.translators.firstOrNull()?.id,
         ) }
+    }
+
+    /**
+     * Where the account's history says a series stopped, for a title this device never played:
+     * the episode it names, or the one after it once that is marked watched. The history row
+     * does not name the voice-over.
+     */
+    private suspend fun accountResumePoint(details: MediaDetails): Pair<Long, Long>? {
+        if (details.mediaType != "TVSeries" && details.seasons.isEmpty()) return null
+        val (seasonId, episodeId) = attempt {
+            NativeBridge.decode<List<Long>?>("history_position", buildJsonObject { put("post_id", details.id) })
+        } ?: return null
+        return continueFrom(details.seasons, seasonId, episodeId)
     }
 
     fun closeDetails() {
@@ -1126,6 +1141,15 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
  * body would also catch [CancellationException], which a coroutine's own cancellation relies on
  * propagating rather than being swallowed as an ordinary failure.
  */
+/** The episode at [seasonId]/[episodeId], or the one after it across seasons once it is watched. */
+internal fun continueFrom(seasons: List<Season>, seasonId: Long, episodeId: Long): Pair<Long, Long>? {
+    val episodes = seasons.flatMap { season -> season.episodes.map { season.id to it } }
+    val index = episodes.indexOfFirst { (season, episode) -> season == seasonId && episode.id == episodeId }
+    if (index < 0) return null
+    val offset = if (episodes[index].second.watched && index + 1 < episodes.size) 1 else 0
+    return episodes[index + offset].let { (season, episode) -> season to episode.id }
+}
+
 private suspend inline fun <T> attempt(block: () -> T): T? = try {
     block()
 } catch (cancelled: CancellationException) {
