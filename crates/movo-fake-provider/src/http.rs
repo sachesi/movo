@@ -16,6 +16,7 @@ pub struct Request {
     pub form: HashMap<String, String>,
     pub referer: Option<String>,
     pub user_agent: Option<String>,
+    pub host: Option<String>,
 }
 
 pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
@@ -58,6 +59,7 @@ pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
         form: HashMap::new(),
         referer: None,
         user_agent: None,
+        host: None,
     };
     let mut content_type = String::new();
     for line in lines {
@@ -76,6 +78,7 @@ pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
             "content-type" => content_type = value.to_string(),
             "referer" => request.referer = Some(value.to_string()),
             "user-agent" => request.user_agent = Some(value.to_string()),
+            "host" => request.host = Some(value.to_string()),
             _ => {}
         }
     }

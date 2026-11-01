@@ -87,7 +87,17 @@ val buildRust = tasks.register<Exec>("buildRust") {
     inputs.file(File(rustRoot, "Cargo.lock"))
     inputs.property("ndk", providers.environmentVariable("ANDROID_NDK_HOME").orElse(""))
     outputs.dir(project.layout.buildDirectory.dir("generated/jniLibs"))
-    commandLine("cargo", "ndk", "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64", "-o", project.layout.buildDirectory.dir("generated/jniLibs").get().asFile, "build", "--release", "-p", "movo-android")
+    // Set by tests/headless/device.sh, for a debug build talking to the fake provider. The address
+    // is compiled in because the core reads it before a test could reach the process's environment.
+    val testProvider = providers.gradleProperty("movo.testProvider").orNull
+    inputs.property("testProvider", testProvider ?: "")
+    val output = project.layout.buildDirectory.dir("generated/jniLibs").get().asFile
+    if (testProvider != null) {
+        environment("MOVO_TEST_PROVIDER_BUILT_IN", testProvider)
+        commandLine("cargo", "ndk", "-t", "x86_64", "-o", output, "build", "--release", "-p", "movo-android", "--features", "test-provider")
+    } else {
+        commandLine("cargo", "ndk", "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64", "-o", output, "build", "--release", "-p", "movo-android")
+    }
 }
 // Only the tasks that package native libs need the Rust build; wiring it to preBuild made
 // lint and unit tests each pay for three cross-compiles they never load the library for.

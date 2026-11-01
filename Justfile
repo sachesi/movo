@@ -204,3 +204,7 @@ test-desktop-headless scenario="":
 # Run the Android app's Kotlin against the real core and the stand-in, on this machine with no device.
 test-android-headless:
     tests/headless/android.sh
+
+# Run the instrumented tests on a device or a windowless emulator, against the stand-in on this machine.
+test-android-device:
+    tests/headless/device.sh

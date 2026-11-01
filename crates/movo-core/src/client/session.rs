@@ -63,7 +63,10 @@ impl Default for RezkaSession {
 impl RezkaSession {
     pub fn new() -> Self {
         #[cfg(feature = "test-provider")]
-        if let Ok(base_url) = std::env::var("MOVO_TEST_PROVIDER") {
+        if let Some(base_url) = std::env::var("MOVO_TEST_PROVIDER")
+            .ok()
+            .or_else(|| option_env!("MOVO_TEST_PROVIDER_BUILT_IN").map(str::to_string))
+        {
             return Self::against(&base_url);
         }
         Self::new_for_base(
