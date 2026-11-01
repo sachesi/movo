@@ -574,6 +574,8 @@ impl DetailsView {
                 .wrap(true)
                 .xalign(0.0)
                 .selectable(true)
+                // Focus would otherwise select the whole text on the way past.
+                .focusable(false)
                 .build();
             self.body.append(&description);
         }

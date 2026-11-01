@@ -217,6 +217,8 @@ fn comment_card<F: Fn(String) + 'static>(
         .xalign(0.0)
         .wrap(true)
         .selectable(true)
+        // Focus lands on the first focusable child and selects a whole label.
+        .focusable(false)
         .margin_start(12)
         .margin_end(12)
         .build();
