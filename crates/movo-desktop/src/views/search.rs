@@ -387,8 +387,10 @@ impl SearchView {
             return;
         };
         let query = query.to_string();
-        relm4::spawn(async move {
-            let _ = SearchHistory::add_for(&user.user_id, &query);
+        relm4::spawn_blocking(move || {
+            if let Err(error) = SearchHistory::add_for(&user.user_id, &query) {
+                log::warn!("could not record a search: {error}");
+            }
         });
     }
 
