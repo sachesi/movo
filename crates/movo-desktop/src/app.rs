@@ -12,6 +12,7 @@ use crate::views::notifications::{NotificationsMsg, NotificationsOutput, Notific
 use crate::views::path::{PathOutput, PathView};
 use crate::views::search::{SearchOutput, SearchView};
 use movo_core::client::models::MediaItem;
+use movo_core::storage::cache::ImageCache;
 use relm4::adw;
 use relm4::adw::prelude::*;
 use relm4::gtk;
@@ -325,6 +326,8 @@ impl Component for App {
                 LauncherOutput::PlayNext(request) => AppMsg::Play(request),
                 LauncherOutput::AccountInvalidated => AppMsg::AccountInvalidated,
             });
+
+        relm4::spawn_blocking(ImageCache::trim);
 
         let client = state.client.clone();
         sender.oneshot_command(async move {

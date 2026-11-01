@@ -168,6 +168,10 @@ scenario_browse() {
 }
 
 scenario_home_keeps_its_place() {
+    sleep 1
+    local poster_fetches
+    poster_fetches="$(requests_to "/poster/1.png")"
+    [ "$poster_fetches" = "1" ] || fail "one poster fetched $poster_fetches times"
     tab Catalog
     expect "Забытый сад 4"
     reset_requests
@@ -286,6 +290,7 @@ run_scenario() {
     printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/player-args"\n' "$home_dir" >"$home_dir/bin/mpv"
     chmod +x "$home_dir/bin/mpv"
     clear_faults
+    reset_requests
     start_app
     "scenario_$name"
     stop_app
