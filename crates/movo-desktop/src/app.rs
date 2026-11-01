@@ -16,8 +16,8 @@ use relm4::adw;
 use relm4::adw::prelude::*;
 use relm4::gtk;
 use relm4::{Component, ComponentController, ComponentParts, ComponentSender, Controller};
+use std::cell::Cell;
 use std::rc::Rc;
-use std::{cell::Cell, sync::mpsc, time::Duration};
 
 pub struct App {
     state: Rc<AppState>,
@@ -360,7 +360,7 @@ impl Component for App {
         let widgets = view_output!();
 
         let tray_available = Rc::new(Cell::new(false));
-        let (tray_events, events) = mpsc::channel();
+        let (tray_events, events) = relm4::channel();
         let tray = TrayIcon::new(tray_events, tr("Open Movo").into(), tr("Quit").into());
         relm4::spawn(tray.run());
 
@@ -368,8 +368,8 @@ impl Component for App {
             let root = root.clone();
             let application = application.clone();
             let tray_available = tray_available.clone();
-            gtk::glib::timeout_add_local(Duration::from_millis(100), move || {
-                while let Ok(event) = events.try_recv() {
+            relm4::spawn_local(async move {
+                while let Some(event) = events.recv().await {
                     match event {
                         TrayEvent::Available => tray_available.set(true),
                         TrayEvent::Unavailable => tray_available.set(false),
@@ -377,7 +377,6 @@ impl Component for App {
                         TrayEvent::Quit => application.quit(),
                     }
                 }
-                gtk::glib::ControlFlow::Continue
             });
         }
 
