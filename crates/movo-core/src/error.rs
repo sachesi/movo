@@ -87,7 +87,7 @@ pub fn classify(message: &str) -> ErrorKind {
     let has = |needle: &str| lower.contains(needle);
     if has("timed out") || has("timeout") {
         ErrorKind::Timeout
-    } else if has("request failed: http ") || has("anubis") {
+    } else if has("get failed: http ") || has("post failed: http ") || has("anubis") {
         ErrorKind::Provider
     } else if has("request failed")
         || has("failed to send")
@@ -130,9 +130,7 @@ mod tests {
     #[test]
     fn names_what_the_provider_said() {
         assert_eq!(
-            classify(
-                "catalog request failed: HTTP 503; content-type text/html; HTML body (120 bytes)"
-            ),
+            classify("GET failed: HTTP 503; content-type text/html; HTML body (120 bytes)"),
             ErrorKind::Provider
         );
         assert_eq!(
