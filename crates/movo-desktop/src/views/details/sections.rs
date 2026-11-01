@@ -249,6 +249,8 @@ impl DetailsView {
             let sender = sender.clone();
             watch.connect_clicked(move |_| sender.input(DetailsMsg::Play(None, None)));
             row.append(&watch);
+        } else {
+            row.append(&self.play_series);
         }
 
         if details.has_trailer {

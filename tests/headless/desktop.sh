@@ -70,6 +70,16 @@ expect_gone() {
     fail "expected not to see: $text"
 }
 
+expect_file() {
+    local deadline=$((SECONDS + 15))
+    while [ ! -s "$1" ] && [ "$SECONDS" -lt "$deadline" ]; do
+        sleep 0.2
+    done
+    [ -s "$1" ] && return 0
+    fail "never written: $1"
+    return 1
+}
+
 window_origin() {
     "$gui" windows | awk 'match($0, /[0-9]+x[0-9]+ at [0-9]+,[0-9]+/) {
         split(substr($0, RSTART, RLENGTH), part, " at "); print part[2]; exit }'
@@ -290,15 +300,7 @@ scenario_playback() {
     expect "Sign Out" 15
     close_settings
     click_view button "Watch"
-    local deadline=$((SECONDS + 15))
-    while [ ! -s "$home_dir/player-args" ] && [ "$SECONDS" -lt "$deadline" ]; do
-        sleep 0.2
-    done
-    if [ ! -s "$home_dir/player-args" ]; then
-        shot playback-not-started
-        fail "the player was not started"
-        return 0
-    fi
+    expect_file "$home_dir/player-args" || return 0
     shot playback
     local args
     args="$(cat "$home_dir/player-args")"
@@ -307,6 +309,17 @@ scenario_playback() {
     grep -q -- "^--user-agent=." <<<"$args" || fail "no user agent in: $args"
     [ "$(tail -n 2 <<<"$args" | head -n 1)" = "--" ] || fail "stream not after the separator: $args"
     tail -n 1 <<<"$args" | grep -q "/stream/4/238/movie/.*\.mp4" || fail "wrong stream: $args"
+
+    rm "$home_dir/player-args"
+    "$gui" key alt+Left
+    sleep 0.5
+    tab Home
+    expect "Hot Now"
+    open_first_poster
+    expect "Серия 1"
+    click_view button "Watch"
+    expect_file "$home_dir/player-args"
+    grep -q "/stream/1/238/1x1/" "$home_dir/player-args" || fail "series did not start at its first episode"
 }
 
 scenario_slow_provider_stays_responsive() {

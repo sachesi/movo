@@ -51,6 +51,9 @@ pub struct DetailsView {
     poster_token: ImageToken,
     episodes: gtk::ListBox,
     seasons: adw::ComboRow,
+    play_series: gtk::Button,
+    /// The episode `play_series` starts, once the seasons have loaded.
+    series_target: Option<(i64, i64)>,
 }
 
 #[derive(Debug)]
@@ -59,6 +62,7 @@ pub enum DetailsMsg {
     SelectTranslator(usize),
     SelectSeason(usize),
     Play(Option<i64>, Option<i64>),
+    PlaySeries,
     ToggleFavorite(i64),
     ToggleScheduleWatched(String),
     ShowTrailer,
@@ -147,6 +151,16 @@ impl relm4::Component for DetailsView {
 
         let episodes = crate::ui::activatable_list();
 
+        let play_series = gtk::Button::builder()
+            .label(tr("Watch"))
+            .css_classes(["suggested-action", "pill"])
+            .sensitive(false)
+            .build();
+        play_series.connect_clicked({
+            let sender = sender.clone();
+            move |_| sender.input(DetailsMsg::PlaySeries)
+        });
+
         let model = DetailsView {
             state,
             url,
@@ -164,6 +178,8 @@ impl relm4::Component for DetailsView {
             poster_token: Rc::new(Cell::new(0)),
             episodes,
             seasons: adw::ComboRow::new(),
+            play_series,
+            series_target: None,
         };
 
         let content = model.content.widget.clone();
@@ -275,6 +291,11 @@ impl relm4::Component for DetailsView {
                     season,
                     episode,
                 ));
+            }
+            DetailsMsg::PlaySeries => {
+                if let Some((season, episode)) = self.series_target {
+                    sender.input(DetailsMsg::Play(Some(season), Some(episode)));
+                }
             }
             DetailsMsg::ToggleFavorite(category_id) => {
                 let Some(details) = self.details.as_ref() else {
@@ -543,6 +564,8 @@ impl DetailsView {
             .unwrap_or(0);
         self.translator = details.translators.get(translator).cloned();
         self.season = None;
+        self.series_target = None;
+        self.play_series.set_sensitive(false);
         self.resume = resume;
         self.account_point = account_point;
         self.resume_pending = self.resume.is_some() || self.account_point.is_some();

@@ -60,6 +60,7 @@ impl DetailsView {
         };
 
         let continue_at = self.continue_point(seasons);
+        self.show_series_target(continue_at, seasons);
         for episode in &season.episodes {
             let row = adw::ActionRow::builder()
                 .use_markup(false)
@@ -86,6 +87,19 @@ impl DetailsView {
             });
             self.episodes.append(&row);
         }
+    }
+
+    fn show_series_target(&mut self, continue_at: Option<(i64, i64)>, seasons: &[Season]) {
+        self.series_target = continue_at.or_else(|| {
+            let season = seasons.first()?;
+            Some((season.id, season.episodes.first()?.id))
+        });
+        self.play_series.set_label(if continue_at.is_some() {
+            tr("Continue")
+        } else {
+            tr("Watch")
+        });
+        self.play_series.set_sensitive(self.series_target.is_some());
     }
 
     /// The episode to offer next: the one last played, or the one after it
