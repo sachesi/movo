@@ -60,6 +60,10 @@ pub const VERIFICATION_COOKIE: &str = "techaro.lol-anubis-cookie-verification";
 /// zeroes, and the metarefresh wait, which the challenge otherwise sets itself.
 const MAX_DIFFICULTY: usize = 8;
 
+/// A blocking worker cannot be cancelled, and a runtime waits for its workers
+/// when the app quits, so the search has to end by itself.
+const POW_TIME_LIMIT: Duration = Duration::from_secs(120);
+
 pub fn is_challenge(html: &str) -> bool {
     html.contains("anubis_challenge") || html.contains("/.within.website/x/cmd/anubis/")
 }
@@ -106,7 +110,17 @@ pub async fn extract_and_solve(
 
     let start = Instant::now();
     let (nonce, hash) = match algorithm {
-        AnubisAlgorithm::Fast | AnubisAlgorithm::Slow => solve_pow(random_data, difficulty),
+        // A hard challenge is minutes of hashing, which would otherwise take a
+        // runtime worker away from every other request for as long as it lasts.
+        AnubisAlgorithm::Fast | AnubisAlgorithm::Slow => {
+            let random_data = random_data.clone();
+            tokio::task::spawn_blocking(move || solve_pow(&random_data, difficulty, POW_TIME_LIMIT))
+                .await
+                .map_err(|_| "Anubis proof of work stopped unexpectedly".to_string())?
+                .ok_or_else(|| {
+                    format!("Anubis challenge of difficulty {difficulty} took too long to solve")
+                })?
+        }
         AnubisAlgorithm::Metarefresh => {
             let wait_ms = (difficulty as u64 + 1) * 1000;
             log::info!(
@@ -148,7 +162,11 @@ fn extract_script_tag(html: &str, id: &str) -> Option<String> {
     Some(content_start[..script_end].trim().to_string())
 }
 
-fn solve_pow(random_data: &str, difficulty: usize) -> (u64, String) {
+fn solve_pow(random_data: &str, difficulty: usize, limit: Duration) -> Option<(u64, String)> {
+    // Reading the clock for every hash would cost more than the hash.
+    const CLOCK_CHECK_EVERY: u64 = 1 << 16;
+
+    let started = Instant::now();
     let mut nonce: u64 = 0;
     let mut buffer = String::with_capacity(random_data.len() + 20);
 
@@ -163,10 +181,13 @@ fn solve_pow(random_data: &str, difficulty: usize) -> (u64, String) {
         let hash_hex = hex::encode(result);
 
         if hash_hex.bytes().take(difficulty).all(|b| b == b'0') {
-            return (nonce, hash_hex);
+            return Some((nonce, hash_hex));
         }
 
         nonce += 1;
+        if nonce.is_multiple_of(CLOCK_CHECK_EVERY) && started.elapsed() > limit {
+            return None;
+        }
     }
 }
 #[cfg(test)]
@@ -217,7 +238,13 @@ mod tests {
 
     #[test]
     fn solves_the_proof_of_work_challenge() {
-        let (_nonce, hash) = solve_pow("test_random_data_sample", 2);
+        let (_nonce, hash) = solve_pow("test_random_data_sample", 2, Duration::from_secs(60))
+            .expect("two hex zeroes come quickly");
         assert!(hash.starts_with("00"));
+    }
+
+    #[test]
+    fn a_search_that_runs_too_long_gives_up() {
+        assert!(solve_pow("seed", MAX_DIFFICULTY, Duration::ZERO).is_none());
     }
 }
