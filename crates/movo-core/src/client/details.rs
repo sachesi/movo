@@ -16,6 +16,13 @@ static RATING_VALUE: LazyLock<Regex> =
 static RATING_VOTES: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\(([\d\s]+)\)").expect("static regex"));
 
+static TRAILER_URL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"https://[^\"'\s<]+"#).expect("static regex"));
+
+static SCRIPT_TRANSLATOR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"initCDN(?:Movies|Series)Events\s*\(\s*\d+\s*,\s*(\d+)"#).expect("static regex")
+});
+
 mod actor;
 mod comments;
 mod episodes;
@@ -492,10 +499,7 @@ pub async fn fetch_trailer(session: &RezkaSession, post_id: i64) -> Result<Optio
         .get("code")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    Ok(regex::Regex::new(r#"https://[^\"'\s<]+"#)
-        .unwrap()
-        .find(code)
-        .map(|url| url.as_str().to_string()))
+    Ok(TRAILER_URL.find(code).map(|url| url.as_str().to_string()))
 }
 
 pub async fn post_rating(session: &RezkaSession, post_id: i64, rating: u8) -> Result<(), String> {
@@ -546,9 +550,12 @@ fn extract_post_id(doc: &Html, url: &str) -> Option<i64> {
 }
 
 fn extract_script_translator_id(html: &str) -> Option<i64> {
-    let re = regex::Regex::new(r#"initCDN(?:Movies|Series)Events\s*\(\s*\d+\s*,\s*(\d+)"#).ok()?;
-    let caps = re.captures(html)?;
-    caps.get(1)?.as_str().parse::<i64>().ok()
+    SCRIPT_TRANSLATOR
+        .captures(html)?
+        .get(1)?
+        .as_str()
+        .parse::<i64>()
+        .ok()
 }
 #[cfg(test)]
 mod tests {
