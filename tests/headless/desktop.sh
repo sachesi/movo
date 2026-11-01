@@ -94,6 +94,13 @@ click_view() {
 
 tab() { click_view "page tab" "$1"; }
 
+# Clicks the first grid card whose text has this in it.
+click_card() {
+    local name
+    name="$(views | awk -F'\t' -v text="$1" '$2 == "table cell" && index($3, text) { print $3; exit }')"
+    click_view "table cell" "$name"
+}
+
 # A rail's first entry, wherever the rail has been laid out.
 open_first_poster() {
     "$gui" click 170 280 >/dev/null
@@ -269,6 +276,39 @@ scenario_provider_down() {
     shot search-recovered
 }
 
+# The player is a stand-in that writes down its arguments: the provider's stream
+# has to reach it as a file after the `--`, with the headers the CDN asks for.
+scenario_playback() {
+    tab Catalog
+    expect "Забытый сад 4"
+    click_card "Забытый сад 4"
+    expect "Описание тайтла номер 4"
+    click_view button "Watch"
+    expect "Sign in to play this title"
+    [ -e "$home_dir/player-args" ] && fail "the player started without an account"
+    sign_in
+    expect "Sign Out" 15
+    close_settings
+    click_view button "Watch"
+    local deadline=$((SECONDS + 15))
+    while [ ! -s "$home_dir/player-args" ] && [ "$SECONDS" -lt "$deadline" ]; do
+        sleep 0.2
+    done
+    if [ ! -s "$home_dir/player-args" ]; then
+        shot playback-not-started
+        fail "the player was not started"
+        return 0
+    fi
+    shot playback
+    local args
+    args="$(cat "$home_dir/player-args")"
+    grep -qxF -- "--title=Забытый сад 4" <<<"$args" || fail "no title in: $args"
+    grep -q -- "^--referrer=$provider" <<<"$args" || fail "no referrer in: $args"
+    grep -q -- "^--user-agent=." <<<"$args" || fail "no user agent in: $args"
+    [ "$(tail -n 2 <<<"$args" | head -n 1)" = "--" ] || fail "stream not after the separator: $args"
+    tail -n 1 <<<"$args" | grep -q "/stream/4/238/movie/.*\.mp4" || fail "wrong stream: $args"
+}
+
 scenario_slow_provider_stays_responsive() {
     fault "path=/series&kind=delay&value=4000&times=1"
     tab Catalog
@@ -311,6 +351,7 @@ run_scenario details_and_dialogs
 run_scenario closed_pages_stay_closed
 run_scenario markup_stays_text
 run_scenario sign_in
+run_scenario playback
 run_scenario provider_down
 run_scenario slow_provider_stays_responsive
 
