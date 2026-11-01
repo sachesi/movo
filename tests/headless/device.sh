@@ -48,8 +48,9 @@ provider="${MOVO_PROVIDER_FROM_DEVICE:-http://10.0.2.2:$port}"
 cd android
 ANDROID_HOME="$sdk" ANDROID_NDK_HOME="$ndk" ./gradlew connectedDebugAndroidTest --console=plain \
     -Pmovo.testProvider="$provider" \
+    -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
     -Pandroid.testInstrumentationRunnerArguments.movoProvider="$provider"
 echo "Report: $PWD/app/build/reports/androidTests/connected/"
 
 mkdir -p "$root/target/headless/device"
-"$adb" pull /sdcard/Android/data/org.movo.app/files/shots/. "$root/target/headless/device/" >/dev/null 2>&1 || true
+"$adb" pull /sdcard/Android/data/org.movo.app/files/shots/. "$root/target/headless/device/" >/dev/null
