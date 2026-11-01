@@ -264,9 +264,8 @@ scenario_provider_down() {
     has_text "503" && fail "transport details shown to the user"
     shot search-provider-down
     clear_faults
-    "$gui" key ctrl+a
-    "$gui" type "маяк"
-    expect "Зимний маяк 10" 15
+    click_view button "Try Again"
+    expect "Тихий поезд 1" 15
     shot search-recovered
 }
 

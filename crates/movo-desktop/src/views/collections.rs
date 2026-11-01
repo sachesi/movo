@@ -65,6 +65,11 @@ impl Component for CollectionsView {
             move || scroll_sender.input(CollectionsMsg::LoadNextPage),
         );
 
+        grid.content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(CollectionsMsg::Reload)
+        });
+
         let model = CollectionsView { state, grid };
         let content = model.grid.widget().clone();
         let widgets = view_output!();

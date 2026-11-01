@@ -113,6 +113,11 @@ impl Component for CatalogView {
             move || scroll_sender.input(CatalogMsg::LoadNextPage),
         );
 
+        grid.content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(CatalogMsg::Reload)
+        });
+
         let model = CatalogView {
             state,
             category: CatalogCategory::All,

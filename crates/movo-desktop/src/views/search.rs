@@ -34,6 +34,7 @@ pub struct SearchView {
 pub enum SearchMsg {
     QueryChanged(String),
     Search(String),
+    Retry,
     LoadNextPage,
     Open(MediaItem),
     ShowFilters,
@@ -184,6 +185,11 @@ impl Component for SearchView {
             move || scroll_sender.input(SearchMsg::LoadNextPage),
         );
 
+        grid.content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(SearchMsg::Retry)
+        });
+
         let model = SearchView {
             state,
             query: String::new(),
@@ -218,6 +224,10 @@ impl Component for SearchView {
             SearchMsg::Search(query) => {
                 self.query_id = self.query_id.wrapping_add(1);
                 self.start_search(query, &sender);
+            }
+            SearchMsg::Retry => {
+                let page = self.grid.begin_reload();
+                self.request_page(page, &sender);
             }
             SearchMsg::LoadNextPage => {
                 if let Some(page) = self.grid.begin_next_page() {
