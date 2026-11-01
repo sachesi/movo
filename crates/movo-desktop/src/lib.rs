@@ -7,6 +7,8 @@ pub mod app;
 pub mod dialogs;
 pub mod i18n;
 pub mod playback;
+#[cfg(feature = "test-provider")]
+pub mod stall_watch;
 pub mod state;
 pub mod tray;
 pub mod ui;
