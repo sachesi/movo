@@ -14,11 +14,15 @@ pub struct HomeView {
     content: ContentStack,
     /// Kept alive with their widgets: a dropped view model empties its rail.
     rows: Vec<PosterRow>,
+    loading: bool,
 }
 
 #[derive(Debug)]
 pub enum HomeMsg {
     Reload,
+    /// The tab came back into view. What it already shows stays, scrolled where
+    /// it was; only a home that has nothing to show tries again.
+    Shown,
     Open(MediaItem),
     /// A section's "View All" was activated, naming its provider path.
     OpenSection(String),
@@ -77,6 +81,7 @@ impl Component for HomeView {
             sections,
             content,
             rows: Vec::new(),
+            loading: false,
         };
 
         let content = model.content.widget.clone();
@@ -87,7 +92,13 @@ impl Component for HomeView {
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match message {
+            HomeMsg::Shown => {
+                if self.rows.is_empty() && !self.loading {
+                    sender.input(HomeMsg::Reload);
+                }
+            }
             HomeMsg::Reload => {
+                self.loading = true;
                 self.content.set(ContentState::Loading(tr("Loading Home")));
                 let client = self.state.client.clone();
                 sender.oneshot_command(async move {
@@ -114,6 +125,7 @@ impl Component for HomeView {
         sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
+        self.loading = false;
         if !self.state.accepts(&message.account) {
             let _ = sender.output(HomeOutput::AccountInvalidated);
             return;
