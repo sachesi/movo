@@ -184,6 +184,10 @@ scenario_details_and_dialogs() {
     expect "Описание тайтла номер 1"
     expect "Серия 1"
     shot details-series
+    local metadata
+    metadata="$(views | cut -f3 | grep -F "IMDb" | head -1)"
+    [ "$(grep -o "IMDb" <<<"$metadata" | wc -l)" = "1" ] || fail "rating listed twice: $metadata"
+    grep -qF "TV Series · " <<<"$metadata" || fail "title kind not in the app language: $metadata"
     click_view "button" "Comments"
     expect "Зритель 3"
     shot comments

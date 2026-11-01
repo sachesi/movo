@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-20 13:25+0300\n"
+"POT-Creation-Date: 2026-11-02 00:55+0200\n"
 "PO-Revision-Date: 2026-08-26 00:00+0300\n"
 "Last-Translator: Movo contributors\n"
 "Language-Team: Ukrainian\n"
@@ -22,78 +22,78 @@ msgstr "Обліковий запис змінився до початку за�
 msgid "The request stopped unexpectedly"
 msgstr "Запит несподівано перервався"
 
-#: crates/movo-desktop/src/app.rs:116 crates/movo-desktop/src/app.rs:388
+#: crates/movo-desktop/src/app.rs:118 crates/movo-desktop/src/app.rs:395
 msgid "Main Menu"
 msgstr "Головне меню"
 
-#: crates/movo-desktop/src/app.rs:258
+#: crates/movo-desktop/src/app.rs:260
 #: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr "Головна"
 
-#: crates/movo-desktop/src/app.rs:265
+#: crates/movo-desktop/src/app.rs:267
 #: crates/movo-desktop/src/dialogs/settings.rs:119
-#: crates/movo-desktop/src/views/home.rs:206
+#: crates/movo-desktop/src/views/home.rs:218
 msgid "Catalog"
 msgstr "Каталог"
 
-#: crates/movo-desktop/src/app.rs:272
+#: crates/movo-desktop/src/app.rs:274
 #: crates/movo-desktop/src/dialogs/settings.rs:120
 #: crates/movo-desktop/src/views/search.rs:503
 msgid "Search"
 msgstr "Пошук"
 
-#: crates/movo-desktop/src/app.rs:279
+#: crates/movo-desktop/src/app.rs:281
 #: crates/movo-desktop/src/dialogs/settings.rs:121
-#: crates/movo-desktop/src/views/details.rs:602
+#: crates/movo-desktop/src/views/details.rs:604
 msgid "Collections"
 msgstr "Колекції"
 
-#: crates/movo-desktop/src/app.rs:286
+#: crates/movo-desktop/src/app.rs:288
 #: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr "Сповіщення"
 
-#: crates/movo-desktop/src/app.rs:293
+#: crates/movo-desktop/src/app.rs:295
 #: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr "Обране"
 
-#: crates/movo-desktop/src/app.rs:300
+#: crates/movo-desktop/src/app.rs:302
 #: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr "Історія"
 
-#: crates/movo-desktop/src/app.rs:332
+#: crates/movo-desktop/src/app.rs:340
 msgid "Restoring the session stopped unexpectedly"
 msgstr "Відновлення сеансу несподівано перервалося"
 
-#: crates/movo-desktop/src/app.rs:356
+#: crates/movo-desktop/src/app.rs:364
 msgid "Open Movo"
 msgstr "Відкрити Movo"
 
-#: crates/movo-desktop/src/app.rs:356 crates/movo-desktop/src/app.rs:571
-#: crates/movo-desktop/src/app.rs:586
+#: crates/movo-desktop/src/app.rs:364 crates/movo-desktop/src/app.rs:583
+#: crates/movo-desktop/src/app.rs:598
 msgid "Quit"
 msgstr "Вийти"
 
-#: crates/movo-desktop/src/app.rs:409
+#: crates/movo-desktop/src/app.rs:416
 msgid "Your session has ended. Sign in again to continue."
 msgstr "Сеанс завершено. Увійдіть знову, щоб продовжити."
 
-#: crates/movo-desktop/src/app.rs:435
+#: crates/movo-desktop/src/app.rs:446
 msgid "Signed in as {}"
 msgstr "Ви увійшли як {}"
 
-#: crates/movo-desktop/src/app.rs:568 crates/movo-desktop/src/app.rs:579
+#: crates/movo-desktop/src/app.rs:580 crates/movo-desktop/src/app.rs:591
 msgid "Preferences"
 msgstr "Налаштування"
 
-#: crates/movo-desktop/src/app.rs:569 crates/movo-desktop/src/app.rs:583
+#: crates/movo-desktop/src/app.rs:581 crates/movo-desktop/src/app.rs:595
 msgid "Keyboard Shortcuts"
 msgstr "Комбінації клавіш"
 
-#: crates/movo-desktop/src/app.rs:570
+#: crates/movo-desktop/src/app.rs:582
 msgid "About Movo"
 msgstr "Про застосунок Movo"
 
@@ -135,11 +135,11 @@ msgstr "Обліковий запис змінився під час заван�
 msgid "Page {0} of {1}"
 msgstr "Сторінка {0} з {1}"
 
-#: crates/movo-desktop/src/dialogs/comments.rs:226
+#: crates/movo-desktop/src/dialogs/comments.rs:228
 msgid "Show Spoiler"
 msgstr "Показати спойлер"
 
-#: crates/movo-desktop/src/dialogs/comments.rs:267
+#: crates/movo-desktop/src/dialogs/comments.rs:269
 msgid "The account changed while the comment was being liked"
 msgstr "Обліковий запис змінився під час позначення коментаря «подобається»"
 
@@ -417,7 +417,7 @@ msgid "Signed out, but the stored session was not removed"
 msgstr "Вихід виконано, але збережений сеанс не видалено"
 
 #: crates/movo-desktop/src/i18n.rs:100
-#: crates/movo-desktop/src/views/details/format.rs:74
+#: crates/movo-desktop/src/views/details/format.rs:87
 msgid "Season {}"
 msgstr "Сезон {}"
 
@@ -446,7 +446,7 @@ msgid "The provider returned no playable stream for this quality."
 msgstr "Провайдер не повернув потік для цієї якості."
 
 #: crates/movo-desktop/src/playback/launcher.rs:373
-#: crates/movo-desktop/src/views/details/format.rs:58
+#: crates/movo-desktop/src/views/details/format.rs:71
 msgid "Premium · {}"
 msgstr "Преміум · {}"
 
@@ -544,6 +544,27 @@ msgstr "Збереження прогресу несподівано перер�
 msgid "Try Again"
 msgstr "Повторити"
 
+#: crates/movo-desktop/src/ui/poster_grid.rs:203
+#: crates/movo-desktop/src/views/details/format.rs:32
+msgid "Film"
+msgstr "Фільм"
+
+#: crates/movo-desktop/src/ui/poster_grid.rs:204
+#: crates/movo-desktop/src/views/details/format.rs:33
+msgid "TV Series"
+msgstr "Серіал"
+
+#: crates/movo-desktop/src/ui/poster_grid.rs:205
+#: crates/movo-desktop/src/views/details/format.rs:34
+msgid "Cartoon"
+msgstr "Мультфільм"
+
+#: crates/movo-desktop/src/ui/poster_grid.rs:206
+#: crates/movo-desktop/src/views/catalog.rs:96
+#: crates/movo-desktop/src/views/details/format.rs:35
+msgid "Anime"
+msgstr "Аніме"
+
 #: crates/movo-desktop/src/views/catalog.rs:65
 #: crates/movo-desktop/src/views/search.rs:463
 msgid "Category"
@@ -569,22 +590,18 @@ msgstr "Серіали"
 msgid "Cartoons"
 msgstr "Мультфільми"
 
-#: crates/movo-desktop/src/views/catalog.rs:96
-msgid "Anime"
-msgstr "Аніме"
-
 #: crates/movo-desktop/src/views/catalog.rs:99
-#: crates/movo-desktop/src/views/home.rs:204
+#: crates/movo-desktop/src/views/home.rs:216
 msgid "Popular"
 msgstr "Популярні"
 
 #: crates/movo-desktop/src/views/catalog.rs:100
-#: crates/movo-desktop/src/views/home.rs:203
+#: crates/movo-desktop/src/views/home.rs:215
 msgid "Watching Now"
 msgstr "Зараз дивляться"
 
 #: crates/movo-desktop/src/views/catalog.rs:101
-#: crates/movo-desktop/src/views/home.rs:202
+#: crates/movo-desktop/src/views/home.rs:214
 msgid "New Releases"
 msgstr "Новинки"
 
@@ -641,33 +658,37 @@ msgstr "Оцінка {} з 10"
 msgid "No trailer is available for this title"
 msgstr "Трейлер недоступний"
 
-#: crates/movo-desktop/src/views/details.rs:587
+#: crates/movo-desktop/src/views/details.rs:589
 msgid "Episodes"
 msgstr "Серії"
 
-#: crates/movo-desktop/src/views/details.rs:600
+#: crates/movo-desktop/src/views/details.rs:602
 msgid "Genres"
 msgstr "Жанри"
 
-#: crates/movo-desktop/src/views/details.rs:601
+#: crates/movo-desktop/src/views/details.rs:603
 msgid "Countries"
 msgstr "Країни"
 
-#: crates/movo-desktop/src/views/details.rs:603
+#: crates/movo-desktop/src/views/details.rs:605
 msgid "Included In"
 msgstr "Входить до"
 
-#: crates/movo-desktop/src/views/details.rs:612
+#: crates/movo-desktop/src/views/details.rs:614
 msgid "Franchise"
 msgstr "Франшиза"
 
-#: crates/movo-desktop/src/views/details.rs:635
+#: crates/movo-desktop/src/views/details.rs:637
 msgid "Related"
 msgstr "Схоже"
 
 #: crates/movo-desktop/src/views/details/episodes.rs:70
 msgid "Continue"
 msgstr "Продовжити"
+
+#: crates/movo-desktop/src/views/details/format.rs:36
+msgid "Video"
+msgstr "Відео"
 
 #: crates/movo-desktop/src/views/details/sections.rs:86
 msgid "Genres: {}"
@@ -775,27 +796,27 @@ msgstr "Історія порожня"
 msgid "Remove from History"
 msgstr "Видалити з історії"
 
-#: crates/movo-desktop/src/views/home.rs:69
+#: crates/movo-desktop/src/views/home.rs:73
 msgid "Home Did Not Load"
 msgstr "Головна не завантажилася"
 
-#: crates/movo-desktop/src/views/home.rs:91
+#: crates/movo-desktop/src/views/home.rs:102
 msgid "Loading Home"
 msgstr "Завантаження головної"
 
-#: crates/movo-desktop/src/views/home.rs:148
+#: crates/movo-desktop/src/views/home.rs:160
 msgid "View All"
 msgstr "Дивитися всі"
 
-#: crates/movo-desktop/src/views/home.rs:191
+#: crates/movo-desktop/src/views/home.rs:203
 msgid "Home Is Empty"
 msgstr "На головній поки порожньо"
 
-#: crates/movo-desktop/src/views/home.rs:201
+#: crates/movo-desktop/src/views/home.rs:213
 msgid "Hot Now"
 msgstr "Зараз у тренді"
 
-#: crates/movo-desktop/src/views/home.rs:205
+#: crates/movo-desktop/src/views/home.rs:217
 msgid "Coming Soon"
 msgstr "Незабаром"
 

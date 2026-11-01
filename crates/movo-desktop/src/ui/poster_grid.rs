@@ -1,3 +1,4 @@
+use crate::i18n::tr;
 use crate::ui::image::{self, ImageToken};
 use movo_core::client::models::MediaItem;
 use relm4::gtk::{self, pango, prelude::*};
@@ -174,17 +175,37 @@ fn bind_card(media: &MediaItem, widgets: &mut PosterWidgets, root: &mut gtk::Box
     );
 }
 
+/// The kind of title and its info line. The year is on the poster already, and
+/// the provider's info line starts with it.
 fn subtitle_text(media: &MediaItem) -> String {
     let mut parts = Vec::new();
-    if let Some(category) = &media.category {
-        parts.push(category.as_str());
+    if let Some(kind) = media.category.as_deref().and_then(category_label) {
+        parts.push(kind);
     }
     if let Some(info) = media.info.as_deref() {
+        let info = match media.year {
+            Some(year) => info
+                .strip_prefix(&year.to_string())
+                .map_or(info, |rest| rest.trim_start_matches([',', ' '])),
+            None => info,
+        };
         if !info.is_empty() && info != media.title {
             parts.push(info);
         }
     }
     parts.join(" • ")
+}
+
+/// The provider marks a listing with a word from its URLs, which is not for
+/// showing.
+fn category_label(category: &str) -> Option<&'static str> {
+    match category {
+        "films" => Some(tr("Film")),
+        "series" => Some(tr("TV Series")),
+        "cartoons" => Some(tr("Cartoon")),
+        "animation" => Some(tr("Anime")),
+        _ => None,
+    }
 }
 
 /// Extract the media item a `GridView`/`ListView` activation landed on.
@@ -248,7 +269,7 @@ mod tests {
             orig_title: None,
             url: String::new(),
             poster_url: None,
-            year: None,
+            year: Some(2021),
             category: category.map(str::to_string),
             rating: None,
             info: info.map(str::to_string),
@@ -258,13 +279,30 @@ mod tests {
     #[test]
     fn subtitle_omits_info_repeating_the_title() {
         assert_eq!(
-            subtitle_text(&media("Test", Some("Movie"), Some("Test"))),
-            "Movie"
-        );
-        assert_eq!(
-            subtitle_text(&media("Test", Some("Movie"), Some("2021, Drama"))),
-            "Movie • 2021, Drama"
+            subtitle_text(&media("Test", Some("films"), Some("Test"))),
+            "Film"
         );
         assert_eq!(subtitle_text(&media("Test", None, None)), "");
+    }
+
+    #[test]
+    fn subtitle_leaves_the_year_to_the_poster() {
+        assert_eq!(
+            subtitle_text(&media("Test", Some("series"), Some("2021, США, Драмы"))),
+            "TV Series • США, Драмы"
+        );
+        assert_eq!(
+            subtitle_text(&media("Test", None, Some("2019, США"))),
+            "2019, США",
+            "a different year still says something"
+        );
+    }
+
+    #[test]
+    fn subtitle_never_shows_a_category_it_has_no_word_for() {
+        assert_eq!(
+            subtitle_text(&media("Test", Some("something-new"), Some("США"))),
+            "США"
+        );
     }
 }

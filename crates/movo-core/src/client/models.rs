@@ -10,18 +10,6 @@ pub enum MediaType {
     Other,
 }
 
-impl MediaType {
-    pub fn label(&self) -> &'static str {
-        match self {
-            MediaType::Movie => "Фильм",
-            MediaType::TVSeries => "Сериал",
-            MediaType::Cartoon => "Мультфильм",
-            MediaType::Anime => "Аниме",
-            MediaType::Other => "Видео",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CatalogCategory {
     All,
