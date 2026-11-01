@@ -82,6 +82,19 @@ async fn a_home_with_no_rails_reports_the_failure() {
 }
 
 #[tokio::test]
+async fn a_failed_listing_keeps_its_kind() {
+    let (provider, client) = start();
+    provider.inject(Fault::always("films", FaultKind::Status(503)));
+
+    let error = client
+        .fetch_catalog(CatalogCategory::Films, None, 1)
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.kind, ErrorKind::Provider);
+}
+
+#[tokio::test]
 async fn catalog_pages_differ_and_run_out() {
     let (_provider, client) = start();
 
