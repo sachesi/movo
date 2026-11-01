@@ -6,6 +6,7 @@ use base64::Engine;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
+use std::time::Duration;
 
 /// Marks the start of a noise run inside an encoded stream list.
 const NOISE_MARKER: &str = "//_//";
@@ -197,11 +198,15 @@ fn absolutize_storyboard(session: &RezkaSession, bundle: &mut StreamBundle) {
     }
 }
 
+/// Previews on the seek bar are optional and playback waits for them, so a slow
+/// request gives up long before the session's own timeout and retries would.
+const STORYBOARD_TIME_LIMIT: Duration = Duration::from_secs(4);
+
 async fn load_storyboard(session: &RezkaSession, bundle: &mut StreamBundle) {
     let Some(url) = bundle.storyboard_url.as_deref() else {
         return;
     };
-    if let Ok(vtt) = session.get_html(url).await {
+    if let Ok(Ok(vtt)) = tokio::time::timeout(STORYBOARD_TIME_LIMIT, session.get_html(url)).await {
         bundle.storyboard = parse_storyboard(&vtt, url);
     }
 }

@@ -253,6 +253,22 @@ async fn a_stream_decodes_through_the_noise() {
 }
 
 #[tokio::test]
+async fn a_hung_storyboard_does_not_hold_up_playback() {
+    let (provider, client) = start();
+    provider.inject(Fault::always(
+        "/storyboard/",
+        FaultKind::Delay(Duration::from_secs(20)),
+    ));
+
+    let started = Instant::now();
+    let bundle = client.fetch_episode_stream(1, 238, 1, 1).await.unwrap();
+
+    assert!(started.elapsed() < Duration::from_secs(10));
+    assert!(bundle.storyboard.is_empty());
+    assert!(!bundle.streams.is_empty());
+}
+
+#[tokio::test]
 async fn an_episode_stream_names_its_episode() {
     let (_provider, client) = start();
 
