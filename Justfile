@@ -191,3 +191,12 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
+
+# Serve the local stand-in for the provider. A build with the test-provider feature talks to it when MOVO_TEST_PROVIDER names its URL.
+fake-provider address="127.0.0.1:18765":
+    cargo run -p movo-fake-provider -- {{address}}
+
+# Drive the desktop app against the stand-in in a private Wayland session. Needs a session driver, see docs/testing.md.
+test-desktop-headless scenario="":
+    cargo build -p movo -p movo-fake-provider --features movo/test-provider
+    tests/headless/desktop.sh {{scenario}}

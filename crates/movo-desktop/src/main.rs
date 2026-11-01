@@ -11,6 +11,8 @@ fn main() {
     relm4::RELM_THREADS.set(4).ok();
 
     let app = RelmApp::new(APP_ID);
+    #[cfg(feature = "test-provider")]
+    movo::stall_watch::start();
     // Adwaita rounds `gridview > child` but leaves `listview > row` square;
     // the home rails are list views, so give their rows the grid's shape.
     relm4::set_global_css("listview.poster-rail > row { border-radius: 9px; padding: 3px; }");
