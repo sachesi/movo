@@ -200,3 +200,7 @@ fake-provider address="127.0.0.1:18765":
 test-desktop-headless scenario="":
     cargo build -p movo -p movo-fake-provider --features movo/test-provider
     tests/headless/desktop.sh {{scenario}}
+
+# Run the Android app's Kotlin against the real core and the stand-in, on this machine with no device.
+test-android-headless:
+    tests/headless/android.sh

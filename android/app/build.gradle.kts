@@ -69,6 +69,11 @@ val rustRoot = rootProject.projectDir.parentFile
 tasks.withType<Test>().configureEach {
     inputs.file(File(rustRoot, "crates/movo-android/src/lib.rs"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // Set by tests/headless/android.sh: the core built for this machine, which ProviderFlowTest
+    // loads over JNI.
+    providers.environmentVariable("MOVO_CORE_LIBRARY_DIR").orNull?.let {
+        systemProperty("java.library.path", it)
+    }
 }
 
 val buildRust = tasks.register<Exec>("buildRust") {
