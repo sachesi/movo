@@ -19,8 +19,8 @@ pub fn project_dirs() -> Option<ProjectDirs> {
 
 /// Path to one of an account's data files, with the directory created.
 ///
-/// Accounts are keyed by a hash of the user id rather than the id itself, so
-/// that a provider id never becomes a directory name.
+/// Accounts are keyed by the hex encoding of the user id rather than the id
+/// itself, so that a provider id never becomes a directory name.
 pub fn account_file(user_id: &str, name: &str) -> PathBuf {
     let account = format!("user-{}", hex::encode(user_id));
     match project_dirs() {
