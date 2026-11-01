@@ -16,6 +16,7 @@ pub struct PathView {
 
 #[derive(Debug)]
 pub enum PathMsg {
+    Reload,
     LoadNextPage,
     Open(MediaItem),
 }
@@ -65,6 +66,11 @@ impl Component for PathView {
             move || scroll_sender.input(PathMsg::LoadNextPage),
         );
 
+        grid.content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(PathMsg::Reload)
+        });
+
         let mut model = PathView { state, path, grid };
         let content = model.grid.widget().clone();
         let widgets = view_output!();
@@ -76,6 +82,10 @@ impl Component for PathView {
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match message {
+            PathMsg::Reload => {
+                let page = self.grid.begin_reload();
+                self.request_page(page, &sender);
+            }
             PathMsg::LoadNextPage => {
                 if let Some(page) = self.grid.begin_next_page() {
                     self.request_page(page, &sender);

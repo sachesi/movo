@@ -89,6 +89,11 @@ impl Component for FavoritesView {
             move || scroll_sender.input(FavoritesMsg::LoadNextPage),
         );
 
+        grid.content.on_retry({
+            let sender = sender.clone();
+            move || sender.input(FavoritesMsg::Reload)
+        });
+
         let model = FavoritesView {
             state,
             account: None,
