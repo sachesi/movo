@@ -9,7 +9,9 @@ use std::rc::Rc;
 const POSTER_WIDTH: i32 = 170;
 const POSTER_HEIGHT: i32 = 255;
 
-pub type PosterGrid = TypedGridView<PosterItem, gtk::SingleSelection>;
+// A card opens on activation and nothing acts on a selection. With a selecting
+// model the first card of every grid and rail came up highlighted.
+pub type PosterGrid = TypedGridView<PosterItem, gtk::NoSelection>;
 
 pub struct PosterItem {
     pub media: MediaItem,
@@ -216,7 +218,7 @@ pub fn poster_grid<F: Fn(MediaItem) + 'static>(on_activate: F) -> PosterGrid {
     grid
 }
 
-pub type PosterRow = TypedListView<PosterItem, gtk::SingleSelection>;
+pub type PosterRow = TypedListView<PosterItem, gtk::NoSelection>;
 
 /// A horizontal, recycling poster rail for the home sections.
 pub fn poster_row<F: Fn(MediaItem) + 'static>(on_activate: F) -> PosterRow {
