@@ -197,6 +197,24 @@ scenario_details_and_dialogs() {
     expect "Hot Now"
 }
 
+# A page that was left must not keep loading: every details page still alive
+# would otherwise fetch itself again each time the account changes.
+scenario_closed_pages_stay_closed() {
+    open_first_poster
+    expect "Описание тайтла номер 1"
+    "$gui" key alt+Left
+    expect "Hot Now"
+    sleep 0.5
+    reset_requests
+    sign_in tester secret
+    expect "Sign Out" 15
+    close_settings
+    sleep 1
+    local reloaded
+    reloaded="$(requests_to "/series/")"
+    [ "$reloaded" = "0" ] || fail "a closed page fetched itself again ($reloaded)"
+}
+
 scenario_markup_stays_text() {
     tab Search
     "$gui" type "разметка"
@@ -281,6 +299,7 @@ sleep 0.3
 run_scenario browse
 run_scenario home_keeps_its_place
 run_scenario details_and_dialogs
+run_scenario closed_pages_stay_closed
 run_scenario markup_stays_text
 run_scenario sign_in
 run_scenario provider_down
