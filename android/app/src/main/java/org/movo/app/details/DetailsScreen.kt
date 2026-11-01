@@ -993,11 +993,17 @@ private fun Translator.label(): String = listOfNotNull(
 
 @Composable
 private fun RatingRow(details: MediaDetails) {
-    val ratings = (listOfNotNull(
-        details.ratingRezka?.let { stringResource(R.string.rating_rezka, it) },
-        details.ratingImdb?.let { stringResource(R.string.rating_imdb, it) },
-        details.ratingKp?.let { stringResource(R.string.rating_kp, it) },
-    ) + details.ratings.map { rating ->
+    // The itemised ratings name the same sources with their vote counts, so the plain figures
+    // are only for a page that has no such list.
+    val plain = if (details.ratings.isEmpty()) {
+        listOfNotNull(
+            details.ratingImdb?.let { stringResource(R.string.rating_imdb, it) },
+            details.ratingKp?.let { stringResource(R.string.rating_kp, it) },
+        )
+    } else {
+        emptyList()
+    }
+    val ratings = (listOfNotNull(details.ratingRezka?.let { stringResource(R.string.rating_rezka, it) }) + plain + details.ratings.map { rating ->
         buildString {
             append(rating.name)
             append(' ')
