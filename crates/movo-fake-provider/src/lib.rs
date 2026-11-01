@@ -161,7 +161,12 @@ fn serve(mut stream: TcpStream, shared: &Shared, address: SocketAddr) {
     let Ok(Some(request)) = read_request(&mut stream) else {
         return;
     };
-    let base = format!("http://{address}");
+    // As the client reached it: an emulator comes through its own alias for this
+    // machine, and an address it could not reach would break every link on a page.
+    let base = match &request.host {
+        Some(host) => format!("http://{host}"),
+        None => format!("http://{address}"),
+    };
     if let Some(response) = routes::control(&request, shared) {
         let _ = response.write_to(&mut stream);
         return;

@@ -45,4 +45,11 @@ real HTTP. Rendered screens land in `target/headless/android`. Elsewhere those t
 so `gradlew testDebugUnitTest` needs neither the library nor the provider.
 
 Robolectric has no platform keystore, so everything that stores a session through `SessionStore`
-needs a device: `just apk-test-device` runs the instrumented tests on whatever `adb` is connected to.
+needs a device. `just test-android-device` runs the instrumented tests with the app built to reach
+the fake provider. With nothing connected it boots a windowless emulator, which needs an AVD:
+
+    sdkmanager "emulator" "system-images;android-34;default;x86_64"
+    avdmanager create avd -n movo-test -k "system-images;android-34;default;x86_64" -d pixel_5
+
+Screens taken on the device land in `target/headless/device`. `just apk-test-device` runs the same
+tests on the app as shipped, where the ones that need the provider skip themselves.
