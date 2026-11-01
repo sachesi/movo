@@ -28,7 +28,7 @@ impl Throttle {
     }
 
     /// For sessions against a local test server, which has no limit.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-provider"))]
     pub(super) fn unlimited() -> Self {
         Self::with_interval(None)
     }

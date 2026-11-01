@@ -100,6 +100,16 @@ impl RezkaClient {
         }
     }
 
+    /// A client for a local stand-in for the provider.
+    #[cfg(feature = "test-provider")]
+    pub fn against(base_url: &str) -> Self {
+        Self {
+            session: RezkaSession::against(base_url),
+            account: Arc::default(),
+            hidden_countries: Arc::default(),
+        }
+    }
+
     /// Leave titles from these countries out of every listing from now on.
     /// Names are matched as [`MediaItem::is_from`] does, so pass them through
     /// [`models::parse_country_list`].

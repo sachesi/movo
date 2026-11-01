@@ -62,11 +62,20 @@ impl Default for RezkaSession {
 
 impl RezkaSession {
     pub fn new() -> Self {
+        #[cfg(feature = "test-provider")]
+        if let Ok(base_url) = std::env::var("MOVO_TEST_PROVIDER") {
+            return Self::against(&base_url);
+        }
         Self::new_for_base(
             OFFICIAL_MIRROR,
             Duration::from_secs(25),
             Throttle::provider(),
         )
+    }
+
+    #[cfg(feature = "test-provider")]
+    pub(super) fn against(base_url: &str) -> Self {
+        Self::new_for_base(base_url, Duration::from_secs(25), Throttle::unlimited())
     }
 
     #[cfg(test)]

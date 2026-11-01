@@ -113,6 +113,10 @@ fn extract_id_from_url(url: &str) -> i64 {
 }
 
 fn secure_poster_url(url: &str) -> String {
+    #[cfg(feature = "test-provider")]
+    if url.starts_with("http://127.0.0.1") {
+        return url.to_string();
+    }
     url.strip_prefix("http://")
         .map(|value| format!("https://{value}"))
         .or_else(|| {
