@@ -8,6 +8,8 @@
 
 package org.movo.app.home
 
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -303,6 +305,7 @@ private fun TvHomeFlow(
 }
 
 // Icon rail: safe-area padding, item padding, icon, item padding, safe-area padding.
+private val LocalDrawerExit = compositionLocalOf<FocusRequester?> { null }
 private val RAIL_PADDING = 24.dp
 private val RAIL_WIDTH = RAIL_PADDING * 2 + 14.dp * 2 + 24.dp
 private val LABELLED_RAIL_PADDING = 6.dp
@@ -352,9 +355,17 @@ internal fun TvNavigationDrawer(
     val contentStart = railWidth - if (labelled) LABELLED_RAIL_PADDING else RAIL_PADDING
     // Inside the safe area: a television reports none, but a phone or tablet on this layout has
     // a status bar and a camera cutout, and without this the clock sat over the rail.
+    val contentFocus = remember { FocusRequester() }
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).testTag("tv-navigation-drawer")) {
-        Box(Modifier.fillMaxSize().padding(start = contentStart)) { content() }
-        TvDrawerSheet(selectedTab, settingsSelected, notificationCount, labelled, selectTab, openSettings)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(start = contentStart)
+                .focusRequester(contentFocus)
+                .focusRestorer()
+                .focusGroup(),
+        ) { content() }
+        TvDrawerSheet(selectedTab, settingsSelected, notificationCount, labelled, selectTab, openSettings, contentFocus)
     }
 }
 
@@ -366,6 +377,7 @@ private fun TvDrawerSheet(
     labelled: Boolean,
     selectTab: (Tab) -> Unit,
     openSettings: () -> Unit,
+    contentFocus: FocusRequester,
 ) {
     val railWidth = if (labelled) LABELLED_RAIL_WIDTH else RAIL_WIDTH
     var expanded by remember { mutableStateOf(false) }
@@ -400,6 +412,9 @@ private fun TvDrawerSheet(
                 .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            // The open sheet lies over the first cards, so a search to the right would skip them.
+            // Right goes back to wherever the focus came from instead.
+            CompositionLocalProvider(LocalDrawerExit provides contentFocus) {
             Tab.entries.filter { it != Tab.Account }.forEach { tab ->
                 TvDrawerItem(
                     tab = tab,
@@ -427,6 +442,7 @@ private fun TvDrawerSheet(
                 testTag = "tv-drawer-settings",
                 onClick = openSettings,
             )
+            }
         }
     }
 }
@@ -456,6 +472,7 @@ private fun TvDrawerItem(
     var focused by remember { mutableStateOf(false) }
     // A tap takes focus as well, so the highlight follows the finger as it follows the remote.
     val focusRequester = remember { FocusRequester() }
+    val exit = LocalDrawerExit.current
     val colors = MaterialTheme.colorScheme
     val container = when {
         focused -> colors.onSurface
@@ -463,10 +480,14 @@ private fun TvDrawerItem(
         else -> Color.Transparent
     }
     val item = Modifier
-        .fillMaxWidth()
+        // As narrow as the rail while it is. A row laid out at the open sheet's width reaches under
+        // the content beside it, and the focus search then does not count it as being to the left
+        // of anything there, leaving the remote's Left no way from a card to the rail.
+        .then(if (expanded || labelled) Modifier.fillMaxWidth() else Modifier.width(RAIL_WIDTH - RAIL_PADDING * 2))
         .clip(MaterialTheme.shapes.small)
         .background(container)
         .focusRequester(focusRequester)
+        .focusProperties { exit?.let { right = it } }
         .onFocusChanged { focused = it.isFocused }
         .selectable(selected = selected, role = Role.Tab) {
             runCatching { focusRequester.requestFocus() }

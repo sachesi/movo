@@ -41,7 +41,9 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -51,6 +53,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
@@ -69,6 +72,13 @@ import org.junit.runner.RunWith
 class TvNavigationTest {
     @get:Rule
     val compose = createComposeRule()
+
+    // A remote never puts a television in touch mode, and focus does not move in it. The test
+    // process starts in touch mode like any other.
+    @org.junit.Before
+    fun leaveTouchMode() {
+        InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
+    }
 
     @Test
     fun drawerExpandsOnFocusAndActivatesOnlyOnCenter() {
@@ -124,10 +134,15 @@ class TvNavigationTest {
         }
 
         compose.onNodeWithTag("content-second").performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.waitForIdle()
         compose.onNodeWithTag("content-second").performKeyInput { pressKey(Key.DirectionLeft) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("content-first").assertIsFocused()
         compose.onNodeWithTag("content-first").performKeyInput { pressKey(Key.DirectionLeft) }
-        compose.onNodeWithTag("tv-drawer-catalog").assertIsFocused()
-        compose.onNodeWithTag("tv-drawer-catalog").performKeyInput { pressKey(Key.DirectionRight) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("content-first").assertIsNotFocused()
+        // Whichever rail entry lines up with the card takes the focus, not always the selected one.
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionRight) }
         compose.onNodeWithTag("content-first").assertIsFocused()
     }
 
@@ -166,13 +181,18 @@ class TvNavigationTest {
     }
 
     @Test
-    fun settingsScrollAndDestructiveDialogsStartOnCancel() {
+    fun settingsListScrollsToItsLastRows() {
         compose.setTvContent { TestSettings() }
         compose.onNodeWithTag("tv-settings-list").assert(hasScrollAction())
         val pauseLabel = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(R.string.tv_pause_shows_controls)
-        compose.onNodeWithText(pauseLabel).performScrollTo().assertIsDisplayed()
+        // A lazy list: the row is not composed until scrolled to.
+        compose.onNodeWithTag("tv-settings-list").performScrollToNode(hasText(pauseLabel))
+        compose.onNodeWithText(pauseLabel).assertIsDisplayed()
+    }
 
+    @Test
+    fun destructiveDialogsStartOnCancel() {
         var dismissed = false
         compose.setTvContent {
             ConfirmLogoutDialog(true, { dismissed = true }, {})
