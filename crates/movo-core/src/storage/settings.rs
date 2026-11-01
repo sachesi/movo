@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -60,13 +60,30 @@ impl AppSettings {
     }
 
     pub fn load() -> Self {
-        let path = Self::config_path();
-        if let Some(settings) = super::load_json::<AppSettings>(&path) {
-            return settings;
+        Self::load_from(&Self::config_path())
+    }
+
+    fn load_from(path: &Path) -> Self {
+        match super::load_json_checked::<AppSettings>(path) {
+            Ok(Some(settings)) => settings,
+            Ok(None) => {
+                let defaults = Self::default();
+                if let Err(error) = super::save_json(path, &defaults) {
+                    log::warn!("{error}");
+                }
+                defaults
+            }
+            Err(error) => {
+                // The next save replaces this file, so whatever is still
+                // recoverable from it has to move out of the way first.
+                let aside = path.with_extension("json.unreadable");
+                log::warn!("{error}; keeping it as {aside:?}");
+                if let Err(error) = fs::rename(path, &aside) {
+                    log::warn!("failed to move {path:?} aside: {error}");
+                }
+                Self::default()
+            }
         }
-        let default_settings = Self::default();
-        let _ = default_settings.save();
-        default_settings
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -77,6 +94,25 @@ impl AppSettings {
 #[cfg(test)]
 mod tests {
     use super::AppSettings;
+    use std::fs;
+
+    #[test]
+    fn an_unreadable_file_is_kept_rather_than_replaced() {
+        let dir = std::env::temp_dir().join(format!("movo-settings-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        fs::write(&path, "{\"theme\": \"dark\",").unwrap();
+
+        let settings = AppSettings::load_from(&path);
+
+        assert_eq!(settings.theme, "system");
+        assert!(!path.exists());
+        assert_eq!(
+            fs::read_to_string(dir.join("settings.json.unreadable")).unwrap(),
+            "{\"theme\": \"dark\","
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn old_settings_keep_new_defaults() {
