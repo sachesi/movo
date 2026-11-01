@@ -460,7 +460,7 @@ impl App {
     /// only when they are actually shown.
     fn reload_tab(&self, name: &str) {
         match name {
-            "home" => self.home.emit(HomeMsg::Reload),
+            "home" => self.home.emit(HomeMsg::Shown),
             "favorites" => self.favorites.emit(FavoritesMsg::Reload),
             "history" => self.history.emit(HistoryMsg::Reload),
             "notifications" => self.notifications.emit(NotificationsMsg::Reload),
