@@ -30,9 +30,9 @@ pub struct App {
     notifications: Controller<NotificationsView>,
     favorites: Controller<FavoritesView>,
     history: Controller<HistoryView>,
-    // Pages pushed on top of the shell, kept alive while they are shown.
-    paths: Vec<Controller<PathView>>,
-    details: Vec<Controller<DetailsView>>,
+    // Pages pushed on top of the shell, kept alive while they are on the stack.
+    paths: Vec<(adw::NavigationPage, Controller<PathView>)>,
+    details: Vec<(adw::NavigationPage, Controller<DetailsView>)>,
     launcher: Controller<Launcher>,
     navigation: adw::NavigationView,
     notifications_page: adw::ViewStackPage,
@@ -54,6 +54,8 @@ pub enum AppMsg {
     AccountChanged,
     /// The hidden countries changed; the listings on screen no longer match.
     FiltersChanged,
+    /// A page left the navigation stack and will not come back.
+    PagePopped(adw::NavigationPage),
 }
 
 #[derive(Debug)]
@@ -308,6 +310,12 @@ impl Component for App {
 
         let toasts = adw::ToastOverlay::new();
         let navigation = adw::NavigationView::new();
+        {
+            let sender = sender.clone();
+            navigation.connect_popped(move |_, page| {
+                sender.input(AppMsg::PagePopped(page.clone()));
+            });
+        }
 
         let launcher = Launcher::builder()
             .launch((state.clone(), root.clone().upcast()))
@@ -421,6 +429,10 @@ impl Component for App {
                 self.home.emit(HomeMsg::Reload);
                 self._catalog.emit(CatalogMsg::Reload);
             }
+            AppMsg::PagePopped(page) => {
+                self.details.retain(|(shown, _)| *shown != page);
+                self.paths.retain(|(shown, _)| *shown != page);
+            }
         }
     }
 
@@ -451,7 +463,7 @@ impl App {
         self.favorites.emit(FavoritesMsg::Reload);
         self.history.emit(HistoryMsg::Reload);
         self.notifications.emit(NotificationsMsg::Reload);
-        for details in &self.details {
+        for (_, details) in &self.details {
             details.emit(DetailsMsg::Reload);
         }
     }
@@ -504,12 +516,12 @@ impl App {
                 DetailsOutput::Notify(message) => AppMsg::Notify(message),
             });
 
-        self.push_page(&item.title, view.widget());
-        self.details.push(view);
+        let page = self.push_page(&item.title, view.widget());
+        self.details.push((page, view));
     }
 
     /// Wrap a view in a navigation page with its own header and show it.
-    fn push_page(&self, title: &str, child: &impl IsA<gtk::Widget>) {
+    fn push_page(&self, title: &str, child: &impl IsA<gtk::Widget>) -> adw::NavigationPage {
         let toolbar = adw::ToolbarView::new();
         toolbar.add_top_bar(&adw::HeaderBar::new());
         toolbar.set_content(Some(child));
@@ -519,6 +531,7 @@ impl App {
             .child(&toolbar)
             .build();
         self.navigation.push(&page);
+        page
     }
 
     fn push_path(&mut self, title: String, path: String, sender: &ComponentSender<Self>) {
@@ -530,8 +543,8 @@ impl App {
                 PathOutput::Warning(message) => AppMsg::Notify(message),
             });
 
-        self.push_page(&title, view.widget());
-        self.paths.push(view);
+        let page = self.push_page(&title, view.widget());
+        self.paths.push((page, view));
     }
 }
 
