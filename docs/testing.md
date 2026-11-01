@@ -36,3 +36,13 @@ offer `start`, `stop`, `ui`, `windows`, `click`, `key`, `type` and `shot`.
 Test builds also watch the main loop and log any stretch over 300 ms that it was kept from running.
 The run fails on those and on toolkit warnings, so work that belongs on another thread shows up here
 even when the screen looks right.
+
+## The Android app without a device
+
+`just test-android-headless` builds the core for this machine, starts the fake provider and runs
+`ProviderFlowTest` under Robolectric: the app's Kotlin talking to the real Rust core over JNI and
+real HTTP. Rendered screens land in `target/headless/android`. Elsewhere those tests skip themselves,
+so `gradlew testDebugUnitTest` needs neither the library nor the provider.
+
+Robolectric has no platform keystore, so everything that stores a session through `SessionStore`
+needs a device: `just apk-test-device` runs the instrumented tests on whatever `adb` is connected to.
