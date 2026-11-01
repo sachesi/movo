@@ -161,6 +161,9 @@ enum Command {
         favorite: bool,
     },
     History,
+    HistoryPosition {
+        post_id: i64,
+    },
     RemoveHistory {
         id: String,
     },
@@ -206,6 +209,7 @@ impl Command {
                 | Command::FavoriteCategories
                 | Command::Favorites { .. }
                 | Command::History
+                | Command::HistoryPosition { .. }
                 | Command::Countries
         )
     }
@@ -326,6 +330,12 @@ async fn invoke_read(command: Command, client: &RezkaClient) -> Result<Value, Fa
             Ok(Value::Null)
         }
         Command::History => Ok(json!(client.sync_history().await?)),
+        Command::HistoryPosition { post_id } => Ok(json!(client
+            .fetch_history()
+            .await?
+            .iter()
+            .find(|row| row.media_id() == Some(post_id))
+            .and_then(|row| row.position()))),
         Command::RemoveHistory { id } => {
             Ok(json!({"media_id": client.remove_history_with_media(&id).await?}))
         }
