@@ -105,8 +105,6 @@ impl DetailsView {
             let row = chip_box();
             for person in people {
                 let button = gtk::Button::with_label(&person.name);
-                button.add_css_class("flat");
-                button.set_halign(gtk::Align::Start);
                 let sender = sender.clone();
                 let url = person.url.clone();
                 button.connect_clicked(move |_| {
@@ -353,8 +351,6 @@ impl DetailsView {
         let row = chip_box();
         for link in links {
             let button = gtk::Button::with_label(&link.name);
-            button.add_css_class("flat");
-            button.set_halign(gtk::Align::Start);
             let sender = sender.clone();
             let name = link.name.clone();
             let path = link.url.clone();

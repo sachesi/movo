@@ -1,18 +1,12 @@
 use crate::i18n::{tr, trf};
 use movo_core::client::models::{MediaDetails, MediaItem, MediaType, Season, Translator};
+use relm4::adw;
 use relm4::gtk::{self, prelude::WidgetExt};
 
-/// A wrapping row of flat buttons. `homogeneous` is off and the children are
-/// start-aligned so a single chip does not stretch across the page.
-pub(super) fn chip_box() -> gtk::FlowBox {
-    gtk::FlowBox::builder()
-        .selection_mode(gtk::SelectionMode::None)
-        .homogeneous(false)
-        .min_children_per_line(1)
-        .max_children_per_line(30)
-        .row_spacing(4)
-        .column_spacing(4)
-        .halign(gtk::Align::Start)
+pub(super) fn chip_box() -> adw::WrapBox {
+    adw::WrapBox::builder()
+        .child_spacing(4)
+        .line_spacing(4)
         .build()
 }
 
