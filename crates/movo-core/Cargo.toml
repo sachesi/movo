@@ -10,6 +10,11 @@ license = "GPL-3.0-only"
 [lints]
 workspace = true
 
+[features]
+# Lets the environment point the client at a local stand-in for the provider.
+# Never enabled by the packaged builds, whose client only talks to the real one.
+test-provider = []
+
 [dependencies]
 # Async runtime & Networking
 tokio = { version = "1.43", features = ["full"] }

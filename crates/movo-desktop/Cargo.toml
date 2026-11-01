@@ -10,6 +10,9 @@ license = "GPL-3.0-only"
 [lints]
 workspace = true
 
+[features]
+test-provider = ["movo-core/test-provider"]
+
 [dependencies]
 movo-core = { path = "../movo-core" }
 

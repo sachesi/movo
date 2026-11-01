@@ -9,6 +9,9 @@ publish = false
 [lints]
 workspace = true
 
+[features]
+test-provider = ["movo-core/test-provider"]
+
 [lib]
 crate-type = ["cdylib"]
 

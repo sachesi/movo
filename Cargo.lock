@@ -2383,6 +2383,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "movo-fake-provider"
+version = "0.5.0"
+dependencies = [
+ "base64 0.23.1",
+ "hex",
+ "movo-core",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
