@@ -1,6 +1,5 @@
 use crate::APP_ID;
 use ksni::TrayMethods;
-use std::sync::mpsc::Sender;
 
 const ICON_NAME: &str = "io.github.sachesi.Movo-symbolic";
 
@@ -13,13 +12,13 @@ pub enum TrayEvent {
 }
 
 pub struct TrayIcon {
-    events: Sender<TrayEvent>,
+    events: relm4::Sender<TrayEvent>,
     open_label: String,
     quit_label: String,
 }
 
 impl TrayIcon {
-    pub fn new(events: Sender<TrayEvent>, open_label: String, quit_label: String) -> Self {
+    pub fn new(events: relm4::Sender<TrayEvent>, open_label: String, quit_label: String) -> Self {
         Self {
             events,
             open_label,
