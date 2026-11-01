@@ -11,15 +11,13 @@ pub struct ImageCache;
 
 impl ImageCache {
     fn cache_dir() -> PathBuf {
-        if let Some(proj_dirs) = super::project_dirs() {
-            let dir = proj_dirs.cache_dir().join("posters");
-            let _ = fs::create_dir_all(&dir);
-            dir
-        } else {
-            let dir = PathBuf::from(".cache/posters");
-            let _ = fs::create_dir_all(&dir);
-            dir
-        }
+        let dir = match super::project_dirs() {
+            Some(dirs) => dirs.cache_dir().join("posters"),
+            None => PathBuf::from(".cache/posters"),
+        };
+        // Which posters are here says what the user browsed and watched.
+        let _ = super::create_private_dir(&dir);
+        dir
     }
 
     /// The cache directory, resolved and created once.
@@ -66,7 +64,7 @@ impl ImageCache {
     pub fn clear() {
         let dir = Self::cache_dir();
         let _ = fs::remove_dir_all(&dir);
-        let _ = fs::create_dir_all(&dir);
+        let _ = super::create_private_dir(&dir);
     }
 }
 

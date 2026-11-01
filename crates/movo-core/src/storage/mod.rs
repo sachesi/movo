@@ -40,11 +40,13 @@ pub fn account_file(user_id: &str, name: &str) -> PathBuf {
 fn create_private_dir(path: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::DirBuilderExt;
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
         fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
-            .create(path)
+            .create(path)?;
+        // The builder leaves a directory from an earlier version as it was.
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))
     }
     #[cfg(not(unix))]
     fs::create_dir_all(path)
@@ -117,6 +119,19 @@ mod tests {
         let mode = fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o700, "directory created as {mode:o}");
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_directory_left_open_is_closed() {
+        let dir = std::env::temp_dir().join(format!("movo-open-dir-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+
+        create_private_dir(&dir).unwrap();
+
+        let mode = fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700, "left as {mode:o}");
         let _ = fs::remove_dir_all(&dir);
     }
 
