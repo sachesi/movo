@@ -1,5 +1,5 @@
-use crate::i18n::trf;
-use movo_core::client::models::{MediaDetails, MediaItem, Season, Translator};
+use crate::i18n::{tr, trf};
+use movo_core::client::models::{MediaDetails, MediaItem, MediaType, Season, Translator};
 use relm4::gtk::{self, prelude::WidgetExt};
 
 /// A wrapping row of flat buttons. `homogeneous` is off and the children are
@@ -27,19 +27,32 @@ pub(super) fn caption(text: &str) -> gtk::Label {
     label
 }
 
+fn media_type_label(media_type: MediaType) -> &'static str {
+    match media_type {
+        MediaType::Movie => tr("Film"),
+        MediaType::TVSeries => tr("TV Series"),
+        MediaType::Cartoon => tr("Cartoon"),
+        MediaType::Anime => tr("Anime"),
+        MediaType::Other => tr("Video"),
+    }
+}
+
 pub(super) fn metadata_line(details: &MediaDetails) -> String {
-    let mut parts = vec![details.media_type.label().to_string()];
+    let mut parts = vec![media_type_label(details.media_type).to_string()];
     if let Some(year) = details.year {
         parts.push(year.to_string());
     }
     if let Some(rating) = details.rating_rezka {
         parts.push(format!("Rezka {rating:.1}"));
     }
-    if let Some(rating) = details.rating_imdb {
-        parts.push(format!("IMDb {rating:.1}"));
-    }
-    if let Some(rating) = details.rating_kp {
-        parts.push(format!("KinoPoisk {rating:.1}"));
+    // The itemised ratings name the same sources with their vote counts.
+    if details.ratings.is_empty() {
+        if let Some(rating) = details.rating_imdb {
+            parts.push(format!("IMDb {rating:.1}"));
+        }
+        if let Some(rating) = details.rating_kp {
+            parts.push(format!("KinoPoisk {rating:.1}"));
+        }
     }
     for rating in &details.ratings {
         let value = match rating.votes {
