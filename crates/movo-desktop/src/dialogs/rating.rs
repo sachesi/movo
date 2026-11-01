@@ -54,7 +54,7 @@ pub fn present(
                 loaded
                     .result
                     .map(|()| rating)
-                    .map_err(|error| error.to_string()),
+                    .map_err(|error| crate::api::describe(&error)),
             );
         }
     });

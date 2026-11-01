@@ -157,7 +157,7 @@ impl Component for Launcher {
                         self.start(*request, bundle, account, &sender);
                     }
                     Err(error) => {
-                        let _ = sender.output(LauncherOutput::Notify(error.to_string()));
+                        let _ = sender.output(LauncherOutput::Notify(crate::api::describe(&error)));
                     }
                 }
             }
@@ -186,7 +186,7 @@ impl Component for Launcher {
                         let _ = sender.output(LauncherOutput::HistoryChanged);
                     }
                     Err(error) => {
-                        let _ = sender.output(LauncherOutput::Notify(error.to_string()));
+                        let _ = sender.output(LauncherOutput::Notify(crate::api::describe(&error)));
                     }
                 }
             }

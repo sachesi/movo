@@ -1,9 +1,25 @@
 use crate::i18n::tr;
 use crate::state::{account_of, Account};
 use movo_core::client::RezkaClient;
-use movo_core::error::ClientError;
+use movo_core::error::{ClientError, ErrorKind};
 use std::future::Future;
 use std::sync::Arc;
+
+/// What to tell the user about a failed request. A provider's own refusal, such
+/// as a wrong password, is passed on; the transport details behind the others
+/// mean nothing on screen and go to the log.
+pub fn describe(error: &ClientError) -> String {
+    let explained = match error.kind {
+        ErrorKind::Timeout => tr("The provider took too long to answer. Try again in a moment."),
+        ErrorKind::Network => tr("Could not reach the provider. Check your connection."),
+        ErrorKind::Provider => tr("The provider is not answering properly. Try again later."),
+        ErrorKind::Session => tr("Your session has ended. Sign in again to continue."),
+        ErrorKind::Malformed => tr("The provider sent a page this version of Movo cannot read."),
+        ErrorKind::Other => return error.message.clone(),
+    };
+    log::warn!("request failed: {}", error.message);
+    explained.to_string()
+}
 
 /// A request result together with the account it was produced under.
 #[derive(Debug)]
@@ -56,5 +72,26 @@ where
                 tr("The request stopped unexpectedly").to_string(),
             ))
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::describe;
+    use movo_core::error::{ClientError, ErrorKind};
+
+    #[test]
+    fn transport_details_stay_off_the_screen() {
+        let error = ClientError::new(
+            ErrorKind::Provider,
+            "GET failed: HTTP 503; content-type text/html; empty body (0 bytes)",
+        );
+        assert!(!describe(&error).contains("503"));
+    }
+
+    #[test]
+    fn a_refusal_in_the_providers_words_is_passed_on() {
+        let error = ClientError::new(ErrorKind::Other, "Неверный логин или пароль");
+        assert_eq!(describe(&error), "Неверный логин или пароль");
     }
 }

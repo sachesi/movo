@@ -298,7 +298,7 @@ impl Component for SearchView {
                 match loaded.result {
                     Ok(filters) => show_filters(root, filters, &sender),
                     Err(error) => {
-                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
+                        let _ = sender.output(SearchOutput::Warning(crate::api::describe(&error)));
                     }
                 }
             }
@@ -311,7 +311,7 @@ impl Component for SearchView {
                     Ok(values) => self.show_recent(&values),
                     Err(error) => {
                         self.recent_section.set_visible(false);
-                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
+                        let _ = sender.output(SearchOutput::Warning(crate::api::describe(&error)));
                     }
                 }
             }
@@ -323,7 +323,7 @@ impl Component for SearchView {
                 match cleared.result {
                     Ok(()) => self.show_recent(&[]),
                     Err(error) => {
-                        let _ = sender.output(SearchOutput::Warning(error.to_string()));
+                        let _ = sender.output(SearchOutput::Warning(crate::api::describe(&error)));
                         self.load_recent(&sender);
                     }
                 }

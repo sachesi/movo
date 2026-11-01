@@ -144,7 +144,7 @@ pub fn present(
                     }
                 }
                 Err(message) => {
-                    error.set_label(&message.to_string());
+                    error.set_label(&crate::api::describe(&message));
                     error.set_visible(true);
                 }
             }

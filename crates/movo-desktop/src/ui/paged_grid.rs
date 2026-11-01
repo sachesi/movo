@@ -116,7 +116,7 @@ impl PagedGrid {
                 self.accept(page, items);
                 None
             }
-            Err(error) => self.reject(page, error.to_string()),
+            Err(error) => self.reject(page, crate::api::describe(&error)),
         }
     }
 

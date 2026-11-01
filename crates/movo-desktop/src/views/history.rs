@@ -216,7 +216,9 @@ impl Component for HistoryView {
                 }
                 match loaded.result {
                     Ok(history) => self.render(history),
-                    Err(error) => self.content.set(ContentState::Error(&error.to_string())),
+                    Err(error) => self
+                        .content
+                        .set(ContentState::Error(&crate::api::describe(&error))),
                 }
             }
             HistoryCommand::Toggled(id, watched, changed) => {
@@ -231,7 +233,7 @@ impl Component for HistoryView {
                     // the pointer.
                     Ok(()) => self.set_watched(&id, watched),
                     Err(error) => {
-                        let _ = sender.output(HistoryOutput::Warning(error.to_string()));
+                        let _ = sender.output(HistoryOutput::Warning(crate::api::describe(&error)));
                         sender.input(HistoryMsg::Reload);
                     }
                 }
@@ -247,7 +249,7 @@ impl Component for HistoryView {
                     // last load off to the bottom.
                     Ok(()) => self.drop_row(&id),
                     Err(error) => {
-                        let _ = sender.output(HistoryOutput::Warning(error.to_string()));
+                        let _ = sender.output(HistoryOutput::Warning(crate::api::describe(&error)));
                         sender.input(HistoryMsg::Reload);
                     }
                 }
