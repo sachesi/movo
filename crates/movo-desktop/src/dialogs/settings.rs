@@ -481,7 +481,7 @@ fn account_group(
                 if let Err(error) = result {
                     adw::AlertDialog::builder()
                         .heading(tr("Signed out, but the stored session was not removed"))
-                        .body(error.to_string())
+                        .body(crate::api::describe(&error))
                         .build()
                         .present(Some(&dialog));
                 }

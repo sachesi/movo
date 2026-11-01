@@ -48,7 +48,7 @@ pub fn present(
             Ok(actor) => toolbar.set_content(Some(&profile(actor, &dialog, on_open))),
             Err(error) => {
                 dialog.close();
-                on_error(error.to_string());
+                on_error(crate::api::describe(&error));
             }
         }
     });

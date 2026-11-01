@@ -334,7 +334,7 @@ impl Component for App {
                     .restore_session()
                     .await
                     .map(|user| user.map(|user| user.username))
-                    .map_err(|error| error.message)
+                    .map_err(|error| crate::api::describe(&error))
             })
             .await
             .unwrap_or_else(|_| Err(tr("Restoring the session stopped unexpectedly").to_string()));

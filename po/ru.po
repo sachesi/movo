@@ -14,11 +14,31 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: crates/movo-desktop/src/api.rs:46
+#: crates/movo-desktop/src/api.rs:13
+msgid "The provider took too long to answer. Try again in a moment."
+msgstr "Сайт слишком долго не отвечает. Повторите попытку чуть позже."
+
+#: crates/movo-desktop/src/api.rs:14
+msgid "Could not reach the provider. Check your connection."
+msgstr "Не удалось связаться с сайтом. Проверьте подключение."
+
+#: crates/movo-desktop/src/api.rs:15
+msgid "The provider is not answering properly. Try again later."
+msgstr "Сайт отвечает с ошибками. Повторите попытку позже."
+
+#: crates/movo-desktop/src/api.rs:16 crates/movo-desktop/src/app.rs:416
+msgid "Your session has ended. Sign in again to continue."
+msgstr "Сеанс завершён. Войдите снова, чтобы продолжить."
+
+#: crates/movo-desktop/src/api.rs:17
+msgid "The provider sent a page this version of Movo cannot read."
+msgstr "Сайт прислал страницу, которую эта версия Movo не может прочитать."
+
+#: crates/movo-desktop/src/api.rs:62
 msgid "The account changed before the request started"
 msgstr "Аккаунт изменился до начала запроса"
 
-#: crates/movo-desktop/src/api.rs:56
+#: crates/movo-desktop/src/api.rs:72
 msgid "The request stopped unexpectedly"
 msgstr "Запрос неожиданно прервался"
 
@@ -45,7 +65,7 @@ msgstr "Поиск"
 
 #: crates/movo-desktop/src/app.rs:281
 #: crates/movo-desktop/src/dialogs/settings.rs:121
-#: crates/movo-desktop/src/views/details.rs:604
+#: crates/movo-desktop/src/views/details.rs:589
 msgid "Collections"
 msgstr "Коллекции"
 
@@ -76,10 +96,6 @@ msgstr "Открыть Movo"
 #: crates/movo-desktop/src/app.rs:598
 msgid "Quit"
 msgstr "Завершить"
-
-#: crates/movo-desktop/src/app.rs:416
-msgid "Your session has ended. Sign in again to continue."
-msgstr "Сеанс завершён. Войдите снова, чтобы продолжить."
 
 #: crates/movo-desktop/src/app.rs:446
 msgid "Signed in as {}"
@@ -452,7 +468,7 @@ msgid "Premium · {}"
 msgstr "Премиум · {}"
 
 #: crates/movo-desktop/src/playback/launcher.rs:396
-#: crates/movo-desktop/src/views/details.rs:223
+#: crates/movo-desktop/src/views/details.rs:208
 msgid "Loading local history stopped unexpectedly"
 msgstr "Загрузка локальной истории неожиданно прервалась"
 
@@ -642,43 +658,43 @@ msgstr "Страница не загрузилась"
 msgid "Loading"
 msgstr "Загрузка"
 
-#: crates/movo-desktop/src/views/details.rs:304
+#: crates/movo-desktop/src/views/details.rs:289
 msgid "Sign in to manage favorites"
 msgstr "Войдите, чтобы управлять избранным"
 
-#: crates/movo-desktop/src/views/details.rs:368
+#: crates/movo-desktop/src/views/details.rs:353
 msgid "Sign in to rate this title"
 msgstr "Войдите, чтобы поставить оценку"
 
-#: crates/movo-desktop/src/views/details.rs:384
+#: crates/movo-desktop/src/views/details.rs:369
 msgid "Rated {} out of 10"
 msgstr "Оценка {} из 10"
 
-#: crates/movo-desktop/src/views/details.rs:511
+#: crates/movo-desktop/src/views/details.rs:496
 msgid "No trailer is available for this title"
 msgstr "Трейлер недоступен"
 
-#: crates/movo-desktop/src/views/details.rs:589
+#: crates/movo-desktop/src/views/details.rs:574
 msgid "Episodes"
 msgstr "Серии"
 
-#: crates/movo-desktop/src/views/details.rs:602
+#: crates/movo-desktop/src/views/details.rs:587
 msgid "Genres"
 msgstr "Жанры"
 
-#: crates/movo-desktop/src/views/details.rs:603
+#: crates/movo-desktop/src/views/details.rs:588
 msgid "Countries"
 msgstr "Страны"
 
-#: crates/movo-desktop/src/views/details.rs:605
+#: crates/movo-desktop/src/views/details.rs:590
 msgid "Included In"
 msgstr "Входит в"
 
-#: crates/movo-desktop/src/views/details.rs:614
+#: crates/movo-desktop/src/views/details.rs:599
 msgid "Franchise"
 msgstr "Франшиза"
 
-#: crates/movo-desktop/src/views/details.rs:637
+#: crates/movo-desktop/src/views/details.rs:622
 msgid "Related"
 msgstr "Похожее"
 

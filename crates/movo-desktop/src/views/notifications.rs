@@ -156,7 +156,9 @@ impl Component for NotificationsView {
                 self.render(data.notifications, &sender);
                 let _ = sender.output(NotificationsOutput::UnreadCount(self.unread()));
             }
-            Err(error) => self.content.set(ContentState::Error(&error.to_string())),
+            Err(error) => self
+                .content
+                .set(ContentState::Error(&crate::api::describe(&error))),
         }
     }
 }

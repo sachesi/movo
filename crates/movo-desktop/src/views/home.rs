@@ -133,7 +133,9 @@ impl Component for HomeView {
 
         match message.result {
             Ok(sections) => self.render(sections, &sender),
-            Err(error) => self.content.set(ContentState::Error(&error.to_string())),
+            Err(error) => self
+                .content
+                .set(ContentState::Error(&crate::api::describe(&error))),
         }
     }
 }

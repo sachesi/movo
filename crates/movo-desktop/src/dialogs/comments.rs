@@ -169,7 +169,7 @@ fn load<F: Fn(String) + 'static>(
                 widgets
                     .next
                     .set_sensitive(widgets.page.get() < widgets.pages.get());
-                on_error(error.to_string());
+                on_error(crate::api::describe(&error));
             }
         }
     });
@@ -273,7 +273,7 @@ fn comment_card<F: Fn(String) + 'static>(
                 Ok(()) => button.set_label(&format!("♥ {}", likes + 1)),
                 Err(error) => {
                     button.set_sensitive(true);
-                    on_error(error.to_string());
+                    on_error(crate::api::describe(&error));
                 }
             }
         });

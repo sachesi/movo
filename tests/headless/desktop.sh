@@ -256,7 +256,8 @@ scenario_provider_down() {
     tab Home
     tab Search
     "$gui" type "тихий"
-    sleep 3
+    expect "The provider is not answering properly" 15
+    has_text "503" && fail "transport details shown to the user"
     shot search-provider-down
     clear_faults
     "$gui" key ctrl+a

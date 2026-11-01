@@ -183,21 +183,6 @@ impl relm4::Component for DetailsView {
                 self.content.set(ContentState::Loading(tr("Loading")));
                 self.account = account_of(&self.state.client);
 
-                // A saved page lets the layout be checked without provider
-                // access, which some networks refuse.
-                if let Some(path) = std::env::var_os("MOVO_DETAILS_FIXTURE") {
-                    match std::fs::read_to_string(&path)
-                        .map_err(|error| error.to_string())
-                        .and_then(|json| {
-                            serde_json::from_str::<MediaDetails>(&json)
-                                .map_err(|error| error.to_string())
-                        }) {
-                        Ok(details) => self.render(details, None, None, &sender),
-                        Err(error) => self.content.set(ContentState::Error(&error)),
-                    }
-                    return;
-                }
-
                 let client = self.state.client.clone();
                 let url = self.url.clone();
                 let user_id = self.state.user().map(|user| user.user_id);
@@ -453,7 +438,9 @@ impl relm4::Component for DetailsView {
                         self.favorite_categories = categories;
                         self.render(details, resume, account_point, &sender);
                     }
-                    Err(error) => self.content.set(ContentState::Error(&error.to_string())),
+                    Err(error) => self
+                        .content
+                        .set(ContentState::Error(&crate::api::describe(&error))),
                 }
             }
             DetailsCommand::Episodes {
@@ -488,7 +475,7 @@ impl relm4::Component for DetailsView {
                                 self.show_seasons(&seasons, &sender);
                             }
                         }
-                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
+                        let _ = sender.output(DetailsOutput::Notify(crate::api::describe(&error)));
                     }
                 }
             }
@@ -512,7 +499,7 @@ impl relm4::Component for DetailsView {
                         ));
                     }
                     Err(error) => {
-                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
+                        let _ = sender.output(DetailsOutput::Notify(crate::api::describe(&error)));
                     }
                 }
             }
@@ -528,7 +515,7 @@ impl relm4::Component for DetailsView {
                         }
                     }
                     Err(error) => {
-                        let _ = sender.output(DetailsOutput::Notify(error.to_string()));
+                        let _ = sender.output(DetailsOutput::Notify(crate::api::describe(&error)));
                         sender.input(DetailsMsg::Reload);
                     }
                 }

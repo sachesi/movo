@@ -10,7 +10,7 @@ pub enum ContentState<'a> {
     Empty(&'a str, &'a str),
     /// The view needs an account; the placeholder offers a way to sign in.
     SignedOut(&'a str),
-    /// The message from the failed request, never a generic replacement.
+    /// What went wrong, as [`crate::api::describe`] puts it.
     Error(&'a str),
     Content,
 }
