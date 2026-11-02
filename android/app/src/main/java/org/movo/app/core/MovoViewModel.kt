@@ -111,6 +111,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private var activeOperations = 0
     private var contentJob: Job? = null
     private var suggestJob: Job? = null
+    private var filtersJob: Job? = null
     private var detailsJob: Job? = null
     private var episodesJob: Job? = null
     private var playbackJob: Job? = null
@@ -460,7 +461,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSearchFilters() {
         if (state.value.searchFilters.isNotEmpty()) return
-        run {
+        filtersJob?.cancel()
+        filtersJob = run {
             val filters = NativeBridge.decode<List<SearchFilter>>("search_filters")
             _state.update { it.copy(searchFilters = filters) }
         }
@@ -1056,6 +1058,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
     private fun cancelRequests() {
         contentJob?.cancel()
         suggestJob?.cancel()
+        filtersJob?.cancel()
         detailsJob?.cancel()
         episodesJob?.cancel()
         playbackJob?.cancel()

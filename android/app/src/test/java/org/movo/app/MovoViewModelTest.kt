@@ -151,6 +151,18 @@ class MovoViewModelTest {
     }
 
     @Test
+    fun filtersThatFailAfterLeavingSearchRaiseNoBanner() = runTest {
+        val model = model(testScheduler)
+        advanceUntilIdle()
+
+        model.loadSearchFilters()
+        model.selectTab(Tab.Catalog, isTv = false)
+        advanceUntilIdle()
+
+        assertEquals(null, model.state.value.error)
+    }
+
+    @Test
     fun aFailureWithAKnownKindIsPutInTheUsersWords() = runTest {
         val model = model(testScheduler)
         NativeBridge.transport = CoreTransport { """{"error":"HTTP GET request failed: dns error","code":"network"}""" }
