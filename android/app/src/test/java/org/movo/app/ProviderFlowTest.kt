@@ -59,6 +59,14 @@ class ProviderFlowTest {
 
     private fun pageOf(path: String) = System.getenv("MOVO_TEST_PROVIDER") + path
 
+    /**
+     * The session ends either way. The core built for this machine then fails to clear the desktop
+     * keyring, which is unavailable here and is never involved on Android.
+     */
+    private suspend fun signOut() {
+        runCatching { NativeBridge.call("logout") }
+    }
+
     private fun save(name: String) {
         val folder = File(System.getenv("MOVO_ANDROID_SHOTS") ?: return).apply { mkdirs() }
         File(folder, "$name.png").outputStream().use {
@@ -121,14 +129,13 @@ class ProviderFlowTest {
         assertEquals("Тестер", signedIn.user.username)
         assertEquals("Ночной дом 5", NativeBridge.decode<HistoryResult>("history").entries[0].title)
 
-        NativeBridge.call("logout")
+        signOut()
         assertTrue(runCatching { NativeBridge.call("history") }.isFailure)
 
         val restored = NativeBridge.decode<UserProfile>("restore", buildJsonObject { put("secret", signedIn.secret) })
         assertEquals("42", restored.userId)
         assertEquals("Ночной дом 5", NativeBridge.decode<HistoryResult>("history").entries[0].title)
-        NativeBridge.call("logout")
-        Unit
+        signOut()
     }
 
     @Test
