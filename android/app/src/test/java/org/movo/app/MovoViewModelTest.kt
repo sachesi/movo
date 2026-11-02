@@ -68,7 +68,6 @@ class MovoViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        NativeBridge.transport = null
         NativeBridge.dispatcher = Dispatchers.IO
     }
 

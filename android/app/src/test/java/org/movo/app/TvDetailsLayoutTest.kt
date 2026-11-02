@@ -13,7 +13,6 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.test.core.app.ApplicationProvider
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
-import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -50,8 +49,6 @@ private object OfflineDetailsCore : CoreTransport {
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-land-television-xhdpi")
 class TvDetailsLayoutTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-
-    @After fun tearDown() { NativeBridge.transport = null }
 
     private fun model(): MovoViewModel {
         NativeBridge.transport = OfflineDetailsCore

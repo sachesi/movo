@@ -18,7 +18,6 @@ import org.movo.app.settings.SettingsActions
 import org.movo.app.settings.SettingsContent
 import androidx.datastore.preferences.core.Preferences
 import org.movo.app.settings.AppSettings
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -34,8 +33,6 @@ private object EmptyCore2 : CoreTransport {
 @Config(sdk = [23, 28, 34])
 class ScreenRenderTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-
-    @After fun tearDown() { NativeBridge.transport = null }
 
     private fun model(): MovoViewModel {
         NativeBridge.transport = EmptyCore2

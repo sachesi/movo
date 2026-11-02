@@ -52,6 +52,9 @@ class ProviderFlowTest {
     @Before
     fun needsTheProvider() {
         assumeTrue(System.getenv("MOVO_TEST_PROVIDER") != null)
+        // Other test classes leave their stand-in in place on purpose: a view model outliving its
+        // test still calls the bridge, and without a transport that loads the missing library.
+        NativeBridge.transport = null
     }
 
     private fun pageOf(path: String) = System.getenv("MOVO_TEST_PROVIDER") + path
