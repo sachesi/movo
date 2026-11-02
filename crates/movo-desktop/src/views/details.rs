@@ -507,12 +507,20 @@ impl relm4::Component for DetailsView {
                 }
                 match loaded.result {
                     Ok(Some(url)) => {
-                        if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
-                            &url,
-                            None::<&gtk::gio::AppLaunchContext>,
-                        ) {
-                            let _ = sender.output(DetailsOutput::Notify(error.to_string()));
-                        }
+                        let sender = sender.clone();
+                        relm4::spawn_local(async move {
+                            let launched = gtk::gio::AppInfo::launch_default_for_uri_future(
+                                &url,
+                                None::<&gtk::gio::AppLaunchContext>,
+                            )
+                            .await;
+                            if let Err(error) = launched {
+                                log::warn!("could not open the trailer {url}: {error}");
+                                let _ = sender.output(DetailsOutput::Notify(
+                                    tr("No application could open the trailer").to_string(),
+                                ));
+                            }
+                        });
                     }
                     Ok(None) => {
                         let _ = sender.output(DetailsOutput::Notify(

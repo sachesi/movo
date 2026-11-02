@@ -520,11 +520,12 @@ async fn start_player(
         PlayerKind::Default => {
             // No configured player: hand the stream to the desktop's default
             // handler. It receives no headers, so the provider may refuse it.
-            gtk::gio::AppInfo::launch_default_for_uri(
+            gtk::gio::AppInfo::launch_default_for_uri_future(
                 &request.url,
                 None::<&gtk::gio::AppLaunchContext>,
             )
-            .map_err(|error| error.to_string())?;
+            .await
+            .map_err(choose::describe_launch_failure)?;
             Ok(Launched::Untracked(
                 tr("Opened with the system player; set mpv in Settings for progress.").to_string(),
             ))

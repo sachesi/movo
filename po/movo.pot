@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Movo 0.5.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-02 00:55+0200\n"
+"POT-Creation-Date: 2026-11-02 02:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,7 +31,7 @@ msgstr ""
 msgid "The provider is not answering properly. Try again later."
 msgstr ""
 
-#: crates/movo-desktop/src/api.rs:16 crates/movo-desktop/src/app.rs:416
+#: crates/movo-desktop/src/api.rs:16 crates/movo-desktop/src/app.rs:419
 msgid "Your session has ended. Sign in again to continue."
 msgstr ""
 
@@ -47,74 +47,74 @@ msgstr ""
 msgid "The request stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:118 crates/movo-desktop/src/app.rs:395
+#: crates/movo-desktop/src/app.rs:119 crates/movo-desktop/src/app.rs:398
 msgid "Main Menu"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:260
+#: crates/movo-desktop/src/app.rs:261
 #: crates/movo-desktop/src/dialogs/settings.rs:118
 msgid "Home"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:267
+#: crates/movo-desktop/src/app.rs:268
 #: crates/movo-desktop/src/dialogs/settings.rs:119
-#: crates/movo-desktop/src/views/home.rs:218
+#: crates/movo-desktop/src/views/home.rs:220
 msgid "Catalog"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:274
+#: crates/movo-desktop/src/app.rs:275
 #: crates/movo-desktop/src/dialogs/settings.rs:120
-#: crates/movo-desktop/src/views/search.rs:503
+#: crates/movo-desktop/src/views/search.rs:515
 msgid "Search"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:281
+#: crates/movo-desktop/src/app.rs:282
 #: crates/movo-desktop/src/dialogs/settings.rs:121
-#: crates/movo-desktop/src/views/details.rs:589
+#: crates/movo-desktop/src/views/details.rs:622
 msgid "Collections"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:288
+#: crates/movo-desktop/src/app.rs:289
 #: crates/movo-desktop/src/dialogs/settings.rs:122
 msgid "Notifications"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:295
+#: crates/movo-desktop/src/app.rs:296
 #: crates/movo-desktop/src/dialogs/settings.rs:123
 msgid "Favorites"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:302
+#: crates/movo-desktop/src/app.rs:303
 #: crates/movo-desktop/src/dialogs/settings.rs:124
 msgid "History"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:340
+#: crates/movo-desktop/src/app.rs:343
 msgid "Restoring the session stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:364
+#: crates/movo-desktop/src/app.rs:367
 msgid "Open Movo"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:364 crates/movo-desktop/src/app.rs:583
-#: crates/movo-desktop/src/app.rs:598
+#: crates/movo-desktop/src/app.rs:367 crates/movo-desktop/src/app.rs:586
+#: crates/movo-desktop/src/app.rs:601
 msgid "Quit"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:446
+#: crates/movo-desktop/src/app.rs:449
 msgid "Signed in as {}"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:580 crates/movo-desktop/src/app.rs:591
+#: crates/movo-desktop/src/app.rs:583 crates/movo-desktop/src/app.rs:594
 msgid "Preferences"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:581 crates/movo-desktop/src/app.rs:595
+#: crates/movo-desktop/src/app.rs:584 crates/movo-desktop/src/app.rs:598
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/movo-desktop/src/app.rs:582
+#: crates/movo-desktop/src/app.rs:585
 msgid "About Movo"
 msgstr ""
 
@@ -218,7 +218,7 @@ msgstr ""
 
 #: crates/movo-desktop/src/dialogs/rating.rs:24
 #: crates/movo-desktop/src/dialogs/settings.rs:467
-#: crates/movo-desktop/src/playback/launcher/choose.rs:113
+#: crates/movo-desktop/src/playback/launcher/choose.rs:119
 #: crates/movo-desktop/src/views/history.rs:173
 msgid "Cancel"
 msgstr ""
@@ -261,7 +261,7 @@ msgid "Initial Screen"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/settings.rs:149
-#: crates/movo-desktop/src/views/details/sections.rs:200
+#: crates/movo-desktop/src/views/details/sections.rs:198
 msgid "Playback"
 msgstr ""
 
@@ -324,7 +324,7 @@ msgid "Removes saved covers and posters from disk"
 msgstr ""
 
 #: crates/movo-desktop/src/dialogs/settings.rs:261
-#: crates/movo-desktop/src/views/search.rs:146
+#: crates/movo-desktop/src/views/search.rs:147
 msgid "Clear"
 msgstr ""
 
@@ -428,12 +428,12 @@ msgid "Signed out, but the stored session was not removed"
 msgstr ""
 
 #: crates/movo-desktop/src/i18n.rs:100
-#: crates/movo-desktop/src/views/details/format.rs:87
+#: crates/movo-desktop/src/views/details/format.rs:81
 msgid "Season {}"
 msgstr ""
 
 #: crates/movo-desktop/src/i18n.rs:114 crates/movo-desktop/src/i18n.rs:115
-#: crates/movo-desktop/src/views/collections.rs:137
+#: crates/movo-desktop/src/views/collections.rs:142
 msgid "{} title"
 msgid_plural "{} titles"
 msgstr[0] ""
@@ -456,12 +456,12 @@ msgid "The provider returned no playable stream for this quality."
 msgstr ""
 
 #: crates/movo-desktop/src/playback/launcher.rs:373
-#: crates/movo-desktop/src/views/details/format.rs:71
+#: crates/movo-desktop/src/views/details/format.rs:65
 msgid "Premium · {}"
 msgstr ""
 
 #: crates/movo-desktop/src/playback/launcher.rs:396
-#: crates/movo-desktop/src/views/details.rs:208
+#: crates/movo-desktop/src/views/details.rs:224
 msgid "Loading local history stopped unexpectedly"
 msgstr ""
 
@@ -496,12 +496,12 @@ msgid "Starting the player stopped unexpectedly"
 msgstr ""
 
 #: crates/movo-desktop/src/playback/launcher.rs:515
-#: crates/movo-desktop/src/playback/launcher/choose.rs:94
+#: crates/movo-desktop/src/playback/launcher/choose.rs:95
 msgid ""
 "This player does not report progress; the resume position is not updated."
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher.rs:529
+#: crates/movo-desktop/src/playback/launcher.rs:530
 msgid "Opened with the system player; set mpv in Settings for progress."
 msgstr ""
 
@@ -517,12 +517,18 @@ msgstr ""
 msgid "No application on this system can open this kind of stream."
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher/choose.rs:109
+#: crates/movo-desktop/src/playback/launcher/choose.rs:101
+msgid "No application could open the stream"
+msgstr ""
+
+#: crates/movo-desktop/src/playback/launcher/choose.rs:115
 msgid "Choose Quality"
 msgstr ""
 
-#: crates/movo-desktop/src/playback/launcher/choose.rs:113
-#: crates/movo-desktop/src/views/details/sections.rs:246
+#: crates/movo-desktop/src/playback/launcher/choose.rs:119
+#: crates/movo-desktop/src/views/details.rs:155
+#: crates/movo-desktop/src/views/details/episodes.rs:100
+#: crates/movo-desktop/src/views/details/sections.rs:244
 msgid "Watch"
 msgstr ""
 
@@ -551,28 +557,28 @@ msgid "Try Again"
 msgstr ""
 
 #: crates/movo-desktop/src/ui/poster_grid.rs:203
-#: crates/movo-desktop/src/views/details/format.rs:32
+#: crates/movo-desktop/src/views/details/format.rs:26
 msgid "Film"
 msgstr ""
 
 #: crates/movo-desktop/src/ui/poster_grid.rs:204
-#: crates/movo-desktop/src/views/details/format.rs:33
+#: crates/movo-desktop/src/views/details/format.rs:27
 msgid "TV Series"
 msgstr ""
 
 #: crates/movo-desktop/src/ui/poster_grid.rs:205
-#: crates/movo-desktop/src/views/details/format.rs:34
+#: crates/movo-desktop/src/views/details/format.rs:28
 msgid "Cartoon"
 msgstr ""
 
 #: crates/movo-desktop/src/ui/poster_grid.rs:206
 #: crates/movo-desktop/src/views/catalog.rs:96
-#: crates/movo-desktop/src/views/details/format.rs:35
+#: crates/movo-desktop/src/views/details/format.rs:29
 msgid "Anime"
 msgstr ""
 
 #: crates/movo-desktop/src/views/catalog.rs:65
-#: crates/movo-desktop/src/views/search.rs:463
+#: crates/movo-desktop/src/views/search.rs:475
 msgid "Category"
 msgstr ""
 
@@ -597,17 +603,17 @@ msgid "Cartoons"
 msgstr ""
 
 #: crates/movo-desktop/src/views/catalog.rs:99
-#: crates/movo-desktop/src/views/home.rs:216
+#: crates/movo-desktop/src/views/home.rs:218
 msgid "Popular"
 msgstr ""
 
 #: crates/movo-desktop/src/views/catalog.rs:100
-#: crates/movo-desktop/src/views/home.rs:215
+#: crates/movo-desktop/src/views/home.rs:217
 msgid "Watching Now"
 msgstr ""
 
 #: crates/movo-desktop/src/views/catalog.rs:101
-#: crates/movo-desktop/src/views/home.rs:214
+#: crates/movo-desktop/src/views/home.rs:216
 msgid "New Releases"
 msgstr ""
 
@@ -639,60 +645,65 @@ msgstr ""
 msgid "Collections Did Not Load"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:146
+#: crates/movo-desktop/src/views/details.rs:150
 msgid "This Title Did Not Load"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:183
-#: crates/movo-desktop/src/views/path.rs:60
+#: crates/movo-desktop/src/views/details.rs:199
+#: crates/movo-desktop/src/views/path.rs:61
 msgid "Loading"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:289
+#: crates/movo-desktop/src/views/details.rs:310
 msgid "Sign in to manage favorites"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:353
+#: crates/movo-desktop/src/views/details.rs:374
 msgid "Sign in to rate this title"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:369
+#: crates/movo-desktop/src/views/details.rs:390
 msgid "Rated {} out of 10"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:496
+#: crates/movo-desktop/src/views/details.rs:520
+msgid "No application could open the trailer"
+msgstr ""
+
+#: crates/movo-desktop/src/views/details.rs:527
 msgid "No trailer is available for this title"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:574
+#: crates/movo-desktop/src/views/details.rs:607
 msgid "Episodes"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:587
+#: crates/movo-desktop/src/views/details.rs:620
 msgid "Genres"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:588
+#: crates/movo-desktop/src/views/details.rs:621
 msgid "Countries"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:590
+#: crates/movo-desktop/src/views/details.rs:623
 msgid "Included In"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:599
+#: crates/movo-desktop/src/views/details.rs:632
 msgid "Franchise"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details.rs:622
+#: crates/movo-desktop/src/views/details.rs:655
 msgid "Related"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/episodes.rs:70
+#: crates/movo-desktop/src/views/details/episodes.rs:71
+#: crates/movo-desktop/src/views/details/episodes.rs:98
 msgid "Continue"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/format.rs:36
+#: crates/movo-desktop/src/views/details/format.rs:30
 msgid "Video"
 msgstr ""
 
@@ -712,20 +723,20 @@ msgstr ""
 msgid "Cast"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/sections.rs:153
+#: crates/movo-desktop/src/views/details/sections.rs:151
 msgid "Favorites Group"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/sections.rs:168
-#: crates/movo-desktop/src/views/details/sections.rs:172
+#: crates/movo-desktop/src/views/details/sections.rs:166
+#: crates/movo-desktop/src/views/details/sections.rs:170
 msgid "Favorite"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/sections.rs:210
+#: crates/movo-desktop/src/views/details/sections.rs:208
 msgid "Voice-over"
 msgstr ""
 
-#: crates/movo-desktop/src/views/details/sections.rs:226
+#: crates/movo-desktop/src/views/details/sections.rs:224
 msgid "Season"
 msgstr ""
 
@@ -743,8 +754,8 @@ msgstr ""
 
 #: crates/movo-desktop/src/views/details/sections.rs:323
 #: crates/movo-desktop/src/views/details/sections.rs:328
-#: crates/movo-desktop/src/views/history.rs:373
-#: crates/movo-desktop/src/views/history.rs:376
+#: crates/movo-desktop/src/views/history.rs:375
+#: crates/movo-desktop/src/views/history.rs:378
 msgid "Toggle Watched Status"
 msgstr ""
 
@@ -764,7 +775,7 @@ msgstr ""
 msgid "Favorites Did Not Load"
 msgstr ""
 
-#: crates/movo-desktop/src/views/favorites.rs:114
+#: crates/movo-desktop/src/views/favorites.rs:119
 msgid "Sign In to See Your Favorites"
 msgstr ""
 
@@ -792,13 +803,13 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: crates/movo-desktop/src/views/history.rs:267
-#: crates/movo-desktop/src/views/history.rs:291
+#: crates/movo-desktop/src/views/history.rs:269
+#: crates/movo-desktop/src/views/history.rs:293
 msgid "History Is Empty"
 msgstr ""
 
-#: crates/movo-desktop/src/views/history.rs:384
-#: crates/movo-desktop/src/views/history.rs:387
+#: crates/movo-desktop/src/views/history.rs:386
+#: crates/movo-desktop/src/views/history.rs:389
 msgid "Remove from History"
 msgstr ""
 
@@ -810,19 +821,19 @@ msgstr ""
 msgid "Loading Home"
 msgstr ""
 
-#: crates/movo-desktop/src/views/home.rs:160
+#: crates/movo-desktop/src/views/home.rs:162
 msgid "View All"
 msgstr ""
 
-#: crates/movo-desktop/src/views/home.rs:203
+#: crates/movo-desktop/src/views/home.rs:205
 msgid "Home Is Empty"
 msgstr ""
 
-#: crates/movo-desktop/src/views/home.rs:213
+#: crates/movo-desktop/src/views/home.rs:215
 msgid "Hot Now"
 msgstr ""
 
-#: crates/movo-desktop/src/views/home.rs:217
+#: crates/movo-desktop/src/views/home.rs:219
 msgid "Coming Soon"
 msgstr ""
 
@@ -838,66 +849,66 @@ msgstr ""
 msgid "Loading Notifications"
 msgstr ""
 
-#: crates/movo-desktop/src/views/notifications.rs:206
 #: crates/movo-desktop/src/views/notifications.rs:208
+#: crates/movo-desktop/src/views/notifications.rs:210
 msgid "Not opened yet"
 msgstr ""
 
-#: crates/movo-desktop/src/views/notifications.rs:229
+#: crates/movo-desktop/src/views/notifications.rs:231
 msgid "No Notifications"
 msgstr ""
 
-#: crates/movo-desktop/src/views/path.rs:62
-#: crates/movo-desktop/src/views/search.rs:181
+#: crates/movo-desktop/src/views/path.rs:63
+#: crates/movo-desktop/src/views/search.rs:182
 msgid "Nothing Found"
 msgstr ""
 
-#: crates/movo-desktop/src/views/path.rs:63
+#: crates/movo-desktop/src/views/path.rs:64
 msgid "This List Did Not Load"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:99
+#: crates/movo-desktop/src/views/search.rs:100
 msgid "Search movies, series, cartoons…"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:110
+#: crates/movo-desktop/src/views/search.rs:111
 msgid "Filters"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:111
-#: crates/movo-desktop/src/views/search.rs:453
+#: crates/movo-desktop/src/views/search.rs:112
+#: crates/movo-desktop/src/views/search.rs:465
 msgid "Advanced Search"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:139
+#: crates/movo-desktop/src/views/search.rs:140
 msgid "Recent Searches"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:179
+#: crates/movo-desktop/src/views/search.rs:180
 msgid "Searching"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:182
+#: crates/movo-desktop/src/views/search.rs:183
 msgid "Search Did Not Finish"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:203
-#: crates/movo-desktop/src/views/search.rs:346
+#: crates/movo-desktop/src/views/search.rs:209
+#: crates/movo-desktop/src/views/search.rs:356
 msgid "Search for Something"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:254
+#: crates/movo-desktop/src/views/search.rs:264
 msgid "Clearing search history stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:407
+#: crates/movo-desktop/src/views/search.rs:419
 msgid "Loading search history stopped unexpectedly"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:466
+#: crates/movo-desktop/src/views/search.rs:478
 msgid "Genre"
 msgstr ""
 
-#: crates/movo-desktop/src/views/search.rs:467
+#: crates/movo-desktop/src/views/search.rs:479
 msgid "Year"
 msgstr ""

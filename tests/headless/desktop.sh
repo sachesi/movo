@@ -209,6 +209,9 @@ scenario_details_and_dialogs() {
     metadata="$(views | cut -f3 | grep -F "IMDb" | head -1)"
     [ "$(grep -o "IMDb" <<<"$metadata" | wc -l)" = "1" ] || fail "rating listed twice: $metadata"
     grep -qF "TV Series · " <<<"$metadata" || fail "title kind not in the app language: $metadata"
+    click_view "button" "Trailer"
+    expect_file "$home_dir/browser-args"
+    grep -q "/trailer/1" "$home_dir/browser-args" || fail "wrong trailer: $(cat "$home_dir/browser-args")"
     click_view "button" "Comments"
     expect "Зритель 3"
     shot comments
@@ -340,7 +343,12 @@ run_scenario() {
     home_dir="$(mktemp -d)"
     mkdir -p "$home_dir/bin"
     printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/player-args"\n' "$home_dir" >"$home_dir/bin/mpv"
-    chmod +x "$home_dir/bin/mpv"
+    printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/browser-args"\n' "$home_dir" >"$home_dir/bin/stand-in-browser"
+    chmod +x "$home_dir/bin/mpv" "$home_dir/bin/stand-in-browser"
+    mkdir -p "$home_dir/data/applications" "$home_dir/config"
+    printf '[Desktop Entry]\nType=Application\nName=Stand-in\nExec=%s/bin/stand-in-browser %%u\nMimeType=x-scheme-handler/https;\n' \
+        "$home_dir" >"$home_dir/data/applications/stand-in-browser.desktop"
+    printf '[Default Applications]\nx-scheme-handler/https=stand-in-browser.desktop\n' >"$home_dir/config/mimeapps.list"
     clear_faults
     reset_requests
     start_app

@@ -88,11 +88,17 @@ pub(super) async fn ask_application(window: &gtk::Window, url: &str) -> Result<L
     let Some(Some(app)) = receiver.recv().await else {
         return Ok(Launched::Cancelled);
     };
-    app.launch_uris(&[url], None::<&gtk::gio::AppLaunchContext>)
-        .map_err(|error| error.to_string())?;
+    app.launch_uris_future(&[url], None::<&gtk::gio::AppLaunchContext>)
+        .await
+        .map_err(describe_launch_failure)?;
     Ok(Launched::Untracked(
         tr("This player does not report progress; the resume position is not updated.").to_string(),
     ))
+}
+
+pub(super) fn describe_launch_failure(error: gtk::glib::Error) -> String {
+    log::warn!("could not hand the stream to an application: {error}");
+    tr("No application could open the stream").to_string()
 }
 
 pub(super) fn ask_quality(
