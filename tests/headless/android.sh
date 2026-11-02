@@ -10,10 +10,11 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 port="${MOVO_FAKE_PORT:-18766}"
 scratch="$(mktemp -d)"
+gradle_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
 
 cleanup() {
     [ -n "${provider_pid:-}" ] && kill "$provider_pid" 2>/dev/null || true
-    rm -rf "$scratch"
+    rm -rf "$scratch" || true
     return 0
 }
 trap cleanup EXIT
@@ -32,7 +33,7 @@ ANDROID_HOME="$sdk" \
     MOVO_CORE_LIBRARY_DIR="$root/target/debug" \
     MOVO_ANDROID_SHOTS="$root/target/headless/android" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$scratch/no-bus" \
-    HOME="$scratch" GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}" \
+    HOME="$scratch" GRADLE_USER_HOME="$gradle_home" \
     XDG_CONFIG_HOME="$scratch/config" \
     XDG_DATA_HOME="$scratch/data" \
     XDG_CACHE_HOME="$scratch/cache" \
