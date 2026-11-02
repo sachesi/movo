@@ -125,6 +125,31 @@ class MovoViewModelTest {
         assertEquals(1, core.requested.count { it == "catalog" })
     }
 
+    /** Writes behind a playing title are not what the banner is for, and must not clear it either. */
+    @Test
+    fun syncingPlaybackLeavesTheErrorBannerAlone() = runTest {
+        val model = model(testScheduler)
+        advanceUntilIdle()
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val field = MovoViewModel::class.java.getDeclaredField("_state").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val state = field.get(model) as kotlinx.coroutines.flow.MutableStateFlow<org.movo.app.core.AppState>
+        state.value = state.value.copy(
+            user = json.decodeFromString("""{"user_id":"42","username":"Tester","is_logged_in":true,"is_vip":false}"""),
+            details = json.decodeFromString(DETAILS_REPLY.removePrefix("""{"data":""").removeSuffix("}")),
+            stream = json.decodeFromString("""{"id":1,"translator_id":238,"streams":[],"subtitles":[]}"""),
+            error = "shown",
+        )
+
+        model.playbackStarted { }
+        advanceUntilIdle()
+        assertEquals("shown", model.state.value.error)
+
+        model.playbackCompleted()
+        advanceUntilIdle()
+        assertEquals("shown", model.state.value.error)
+    }
+
     @Test
     fun aFailureWithAKnownKindIsPutInTheUsersWords() = runTest {
         val model = model(testScheduler)
