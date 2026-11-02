@@ -183,6 +183,12 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * For writes the user did not ask for and cannot act on: no progress bar over the video, and
+     * an error on screen stays there instead of being cleared by a sync it has nothing to do with.
+     */
+    private fun behindPlayback(block: suspend () -> Unit) = viewModelScope.launch { attempt { block() } }
+
     private fun run(block: suspend () -> Unit) = viewModelScope.launch {
         activeOperations++
         _state.update { it.copy(loading = true, error = null) }
@@ -878,7 +884,7 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
         syncJob?.cancel()
-        syncJob = run {
+        syncJob = behindPlayback {
             try {
                 rememberLastPlayed(userId, details.id, stream.season, stream.episode, stream.translatorId)
                 NativeBridge.call("save_watch", buildJsonObject {
@@ -916,8 +922,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         val details = state.value.details ?: return
         val stream = state.value.stream ?: return
         completionJob?.cancel()
-        completionJob = run {
-            if (state.value.user?.userId != userId) return@run
+        completionJob = behindPlayback {
+            if (state.value.user?.userId != userId) return@behindPlayback
             store.clearProgress(progressKey(userId, details.id, stream))
             if (state.value.tab == Tab.History) refreshHistory()
         }
@@ -1012,8 +1018,8 @@ class MovoViewModel(application: Application) : AndroidViewModel(application) {
         // banner-ed over whatever screen the user lands on next.
         _state.update { it.copy(stream = null, playbackQuality = null, error = null) }
         if (details == null || stream == null || userId == null) return
-        run {
-            if (state.value.user?.userId != userId) return@run
+        behindPlayback {
+            if (state.value.user?.userId != userId) return@behindPlayback
             if (completed) {
                 store.clearProgress(progressKey(userId, details.id, stream))
                 // A finished episode is not the one to reopen on; offer the next one instead.
