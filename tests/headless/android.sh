@@ -2,7 +2,9 @@
 # Runs the Android app's Kotlin against the real Rust core and the fake provider,
 # on this machine, with no device: the core is built for the host and the JVM
 # tests load it over JNI. Screens rendered along the way land in
-# target/headless/android.
+# target/headless/android. Built for the host, the core reaches for the desktop
+# keyring, so the session bus is pointed nowhere to keep the fake account out of
+# the real one.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -29,6 +31,7 @@ ANDROID_HOME="$sdk" \
     MOVO_TEST_PROVIDER="http://127.0.0.1:$port" \
     MOVO_CORE_LIBRARY_DIR="$root/target/debug" \
     MOVO_ANDROID_SHOTS="$root/target/headless/android" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=$scratch/no-bus" \
     HOME="$scratch" GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}" \
     XDG_CONFIG_HOME="$scratch/config" \
     XDG_DATA_HOME="$scratch/data" \
