@@ -71,7 +71,6 @@ class NativeBridgeTest {
     @After
     fun tearDown() {
         core.release.countDown()
-        NativeBridge.transport = null
         NativeBridge.dispatcher = Dispatchers.IO
     }
 

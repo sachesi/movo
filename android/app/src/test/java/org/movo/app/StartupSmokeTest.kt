@@ -2,7 +2,6 @@ package org.movo.app
 
 import org.movo.app.core.CoreTransport
 import org.movo.app.core.NativeBridge
-import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -16,11 +15,6 @@ private object EmptyCore : CoreTransport {
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [23, 28, 34])
 class StartupSmokeTest {
-
-    @After
-    fun tearDown() {
-        NativeBridge.transport = null
-    }
 
     @Test
     fun theActivityReachesItsFirstFrame() {
