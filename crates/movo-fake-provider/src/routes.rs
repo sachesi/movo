@@ -136,7 +136,7 @@ fn get(request: &Request, state: &State, base: &str) -> Response {
         return poster(path);
     }
     if path.starts_with("/stream/") {
-        return Response::new(206, "video/mp4", vec![0; 16]);
+        return stream_clip(request.range.as_deref());
     }
     if path.starts_with("/subtitle/") {
         return Response::new(200, "text/vtt", pages::SUBTITLE_VTT);
@@ -295,6 +295,29 @@ fn details_page(id: i64, state: &State, account: Option<&Account>, base: &str) -
             watched_rows: &watched,
         },
     ))
+}
+
+/// Eight seconds of real video, so a player has something it can decode, served
+/// in the pieces a player asks for when it seeks.
+fn stream_clip(range: Option<&str>) -> Response {
+    let clip: &[u8] = include_bytes!("../assets/clip.mp4");
+    let wanted = range
+        .and_then(|range| range.strip_prefix("bytes="))
+        .and_then(|range| range.split_once('-'))
+        .and_then(|(start, end)| {
+            let start: usize = start.parse().ok()?;
+            let end = end.parse().unwrap_or(clip.len() - 1).min(clip.len() - 1);
+            (start <= end).then_some((start, end))
+        });
+    let Some((start, end)) = wanted else {
+        return Response::new(200, "video/mp4", clip).with_header("Accept-Ranges", "bytes");
+    };
+    Response::new(206, "video/mp4", &clip[start..=end])
+        .with_header("Accept-Ranges", "bytes")
+        .with_header(
+            "Content-Range",
+            format!("bytes {start}-{end}/{}", clip.len()),
+        )
 }
 
 fn poster(path: &str) -> Response {

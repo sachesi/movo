@@ -1,7 +1,9 @@
 package org.movo.app
 
 import android.graphics.Bitmap
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -24,6 +26,7 @@ import org.movo.app.core.MovoViewModel
 import org.movo.app.core.SessionStore
 import org.movo.app.core.Tab
 import java.io.File
+import java.net.URL
 
 private const val WAIT_MS = 30_000L
 
@@ -110,6 +113,23 @@ class ProviderDeviceTest {
         val restarted = MovoViewModel(compose.activity.application)
         compose.waitUntil(WAIT_MS) { restarted.state.value.user != null }
         assertEquals("42", restarted.state.value.user?.userId)
+    }
+
+    /** The app only reports a title as started once the player is decoding it. */
+    @Test
+    fun aFilmPlaysFromTheProvidersStream() {
+        signIn()
+        expect("Тихий поезд 1")
+        val provider = InstrumentationRegistry.getArguments().getString("movoProvider")
+        compose.runOnUiThread { model.openDetails("$provider/films/fiction/4-title-1994.html") }
+        expect("Описание тайтла номер 4")
+        compose.onNodeWithText(text(R.string.play)).performClick()
+        // Disabled until the stream is prepared, and a press before that is ignored.
+        val start = hasText(text(R.string.start_watching)) and hasClickAction() and isEnabled()
+        compose.waitUntil(WAIT_MS) { compose.onAllNodes(start).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(start).performClick()
+        compose.waitUntil(WAIT_MS) { "/ajax/send_save/" in URL("$provider/__fake/requests").readText() }
+        shot("player")
     }
 
     @Test

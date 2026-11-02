@@ -17,6 +17,7 @@ pub struct Request {
     pub referer: Option<String>,
     pub user_agent: Option<String>,
     pub host: Option<String>,
+    pub range: Option<String>,
 }
 
 pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
@@ -60,6 +61,7 @@ pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
         referer: None,
         user_agent: None,
         host: None,
+        range: None,
     };
     let mut content_type = String::new();
     for line in lines {
@@ -79,6 +81,7 @@ pub fn read_request(stream: &mut TcpStream) -> io::Result<Option<Request>> {
             "referer" => request.referer = Some(value.to_string()),
             "user-agent" => request.user_agent = Some(value.to_string()),
             "host" => request.host = Some(value.to_string()),
+            "range" => request.range = Some(value.to_string()),
             _ => {}
         }
     }
