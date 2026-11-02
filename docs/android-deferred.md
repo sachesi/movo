@@ -21,10 +21,6 @@ the time. Line numbers refer to the tree as it stood during that pass.
 - **D2** `AppLinkWarning` on the `https://hdrzk.org` filter is deliberate and documented in
   the manifest: a third-party client cannot publish the `assetlinks.json` verification
   needs.
-- **D3** `account/AccountScreens.kt:492` the favorites chip row routes D-pad Down to the
-  grid's focus requester. When the grid is empty or still a skeleton nothing is attached to
-  that requester. Whether the focus system tolerates that or throws depends on the Compose
-  version; verify on a television with an empty favorites list before touching it.
 - **D4** `ui/Skeletons.kt:126` the grid skeleton pulses on television while the home
   skeleton is static. The pulse invalidates draw only, and only while a load is in flight.
 - **D5** Every account mutation on the details page (favorite, rating, schedule) re-fetches
