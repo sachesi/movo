@@ -30,9 +30,6 @@ the time. Line numbers refer to the tree as it stood during that pass.
 - **D5** Every account mutation on the details page (favorite, rating, schedule) re-fetches
   the details and the favorite categories. That is the documented contract in
   `docs/authentication.md`: writes are verified by reading the authoritative state back.
-- **D6** The catalog is re-fetched on every return to its tab because `items` is one slot
-  shared by Catalog, Search, Favorites and collection paths. Per-tab caching means
-  splitting that slot, which is a larger refactor than this pass.
 - **D7** `material-icons-extended` is large in debug builds. Release builds are shrunk by
   R8, which keeps only the referenced icons.
 - **D8** One global `loading`/`error` slot serves every operation, so a failed background
