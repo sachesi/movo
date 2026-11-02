@@ -28,9 +28,9 @@ the time. Line numbers refer to the tree as it stood during that pass.
   `docs/authentication.md`: writes are verified by reading the authoritative state back.
 - **D7** `material-icons-extended` is large in debug builds. Release builds are shrunk by
   R8, which keeps only the referenced icons.
-- **D8** One `loading`/`error` slot serves every operation the user asks for, so a failed
-  account write can still banner over a screen opened since. Playback's own background writes
-  stay out of it. Splitting the slot per screen is architectural; out of scope.
+- **D8** Reads end when their screen is left, and playback's own writes stay out of the
+  error slot. A failed account write the user asked for can still banner on a screen opened
+  since; that banner is the only word that the write failed, so it stays.
 - **D9** `hasAdjacentEpisode` scans every season on each call. Its only caller memoises the
   pair per stream, so nothing to gain in the view model.
 - **D10** `player/PlayerScreen.kt:625,746` the two overlay gradients are rebuilt on each
