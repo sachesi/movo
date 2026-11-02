@@ -257,6 +257,25 @@ class TvNavigationTest {
         compose.runOnIdle { assertEquals(2L, selected) }
     }
 
+    /** An empty or still loading list attaches nothing to the requester Down goes to. */
+    @Test
+    fun downFromFavoriteFiltersWithNoGridKeepsFocus() {
+        compose.setTvContent {
+            val grid = remember { FocusRequester() }
+            TvFavoriteFilters(
+                groups = listOf(FavoriteGroup(1, "First", "/first", 0)),
+                selectedGroup = 1,
+                gridFocusRequester = grid,
+                select = {},
+            )
+        }
+
+        compose.onNodeWithTag("tv-favorite-group-1")
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.onNodeWithTag("tv-favorite-group-1").performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithTag("tv-favorite-group-1").assertIsFocused()
+    }
+
     @Test
     fun homePlaceholderHasFiveStableRails() {
         var loading by mutableStateOf(true)
