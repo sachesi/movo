@@ -194,7 +194,8 @@ private fun MovoApp(
     val isSystemTv =
         configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
             Configuration.UI_MODE_TYPE_TELEVISION ||
-            (context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager)
+            // From the application: on Android 14 the service never lets go of the context it came from.
+            (context.applicationContext.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager)
                 .currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
 
     val settings = loadedSettings
