@@ -18,8 +18,8 @@ android {
         applicationId = "org.movo.app"
         minSdk = 23
         targetSdk = 36
-        versionCode = (findProperty("movo.versionCode") as String?)?.toInt() ?: 10
-        versionName = findProperty("movo.versionName") as String? ?: "0.5.0"
+        versionCode = (findProperty("movo.versionCode") as String?)?.toInt() ?: 11
+        versionName = findProperty("movo.versionName") as String? ?: "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Matches the ABIs buildRust actually compiles; without this, transitive AndroidX
         // prebuilts pull an x86 lib/ dir into the APK with no native library in it, and a
